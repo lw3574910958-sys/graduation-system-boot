@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.lw.graduation</groupId>
+		<artifactId>graduation-system</artifactId>
+		<version>1.0.0</version>
+	</parent>
+
+	<artifactId>graduation-topic</artifactId>
+	<name>Graduation Topic Module</name>
+	<description>教师出题、题目审核、题目列表</description>
+
+	<dependencies>
+		<!-- 引入核心依赖 -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-domain</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-infrastructure</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+</project>

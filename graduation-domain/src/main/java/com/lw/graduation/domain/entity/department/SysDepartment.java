@@ -1,0 +1,68 @@
+package com.lw.graduation.domain.entity.department;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
+/**
+ * <p>
+ * 院系表
+ * </p>
+ *
+ * @author lw
+ * @since 2025-12-30
+ */
+@Data
+@TableName("sys_department")
+public class SysDepartment implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 主键ID
+     */
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long id;
+
+    /**
+     * 院系编码(如 CS001)
+     */
+    @TableField("code")
+    private String code;
+
+    /**
+     * 院系名称
+     */
+    @TableField("name")
+    private String name;
+
+    /**
+     * 创建时间
+     */
+    @TableField("created_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
+
+    /**
+     * 更新时间
+     */
+    @TableField("updated_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime updatedAt;
+
+    /**
+     * 是否删除
+     */
+    @TableLogic
+    @TableField("is_deleted")
+    private Integer isDeleted;
+}

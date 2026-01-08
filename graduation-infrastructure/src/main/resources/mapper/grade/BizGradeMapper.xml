@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.grade.BizGrade">
+        <id column="id" property="id" />
+        <result column="student_id" property="studentId" />
+        <result column="topic_id" property="topicId" />
+        <result column="score" property="score" />
+        <result column="grader_id" property="graderId" />
+        <result column="comment" property="comment" />
+        <result column="graded_at" property="gradedAt" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_deleted" property="isDeleted" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, student_id, topic_id, score, grader_id, comment, graded_at, created_at, updated_at, is_deleted
+    </sql>
+
+</mapper>

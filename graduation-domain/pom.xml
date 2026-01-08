@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.lw.graduation</groupId>
+		<artifactId>graduation-system</artifactId>
+		<version>1.0.0</version>
+	</parent>
+
+	<artifactId>graduation-domain</artifactId>
+	<name>Graduation Domain</name>
+	<description>领域模型：包含核心业务实体、值对象、领域服务、领域枚举等，与业务强相关</description>
+
+	<dependencies>
+
+		<!-- MyBatis-Plus 核心注解 -->
+		<dependency>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-annotation</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis</artifactId>
+			<version>3.5.19</version> <!-- 与 MyBatis-Plus 兼容 -->
+			<scope>provided</scope> <!-- 仅编译期需要 -->
+		</dependency>
+		<!-- Lombok -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<!-- Jackson 注解（用于 @JsonFormat） -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+		</dependency>
+
+	</dependencies>
+
+</project>

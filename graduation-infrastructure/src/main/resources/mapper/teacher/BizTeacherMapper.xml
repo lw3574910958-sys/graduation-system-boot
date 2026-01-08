@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.teacher.BizTeacher">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="teacher_id" property="teacherId" />
+        <result column="department_id" property="departmentId" />
+        <result column="gender" property="gender" />
+        <result column="title" property="title" />
+        <result column="phone" property="phone" />
+        <result column="email" property="email" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_deleted" property="isDeleted" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, user_id, teacher_id, department_id, gender, title, phone, email, created_at, updated_at, is_deleted
+    </sql>
+
+</mapper>

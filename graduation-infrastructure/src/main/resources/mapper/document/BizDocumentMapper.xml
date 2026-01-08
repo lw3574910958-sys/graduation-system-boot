@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.document.BizDocument">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="topic_id" property="topicId" />
+        <result column="file_type" property="fileType" />
+        <result column="original_filename" property="originalFilename" />
+        <result column="stored_path" property="storedPath" />
+        <result column="file_size" property="fileSize" />
+        <result column="review_status" property="reviewStatus" />
+        <result column="reviewed_at" property="reviewedAt" />
+        <result column="reviewer_id" property="reviewerId" />
+        <result column="feedback" property="feedback" />
+        <result column="uploaded_at" property="uploadedAt" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_deleted" property="isDeleted" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, user_id, topic_id, file_type, original_filename, stored_path, file_size, review_status, reviewed_at, reviewer_id, feedback, uploaded_at, created_at, updated_at, is_deleted
+    </sql>
+
+</mapper>

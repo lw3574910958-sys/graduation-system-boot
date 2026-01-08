@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 项目信息 -->
+    <groupId>com.lw.graduation</groupId>
+    <artifactId>graduation-system</artifactId>
+    <version>1.0.0</version>
+    <name>graduation-system</name>
+    <description>高校毕业设计论文管理系统</description>
+    <!--    <url></url>-->
+
+    <!-- 许可证 -->
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <!-- 开发人员与团队 -->
+    <developers>
+        <developer>
+            <name>lw</name>
+            <email>lw3574910958@gmail.com</email>
+            <organization>lw</organization>
+            <organizationUrl>https://github.com/lw3574910958-sys</organizationUrl>
+        </developer>
+    </developers>
+
+    <!-- 项目仓库 -->
+    <scm>
+        <connection>scm:git:https://github.com/lw3574910958-sys/graduation-system-backend.git</connection>
+        <developerConnection>scm:git:git@github.com:lw3574910958-sys/graduation-system-backend.git</developerConnection>
+        <tag>HEAD</tag>
+        <url>https://github.com/lw3574910958-sys/graduation-system-backend</url>
+    </scm>
+
+    <!-- 聚合项目 -->
+    <packaging>pom</packaging>
+
+    <!-- 子模块 -->
+    <modules>
+        <module>graduation-bom</module>
+        <module>graduation-application</module>
+        <module>graduation-domain</module>
+        <module>graduation-common</module>
+        <module>graduation-infrastructure</module>
+        <module>graduation-api</module>
+        <module>graduation-auth</module>
+        <module>graduation-user</module>
+        <module>graduation-topic</module>
+        <module>graduation-selection</module>
+        <module>graduation-document</module>
+        <module>graduation-grade</module>
+        <!-- 后续添加其他模块 -->
+        <module>graduation-codegen</module>
+    </modules>
+
+    <!-- 项目属性 -->
+    <properties>
+        <java.version>21</java.version>
+        <spring-boot.version>3.5.9</spring-boot.version>
+        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <!-- 编码 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 引入bom -->
+            <dependency>
+                <groupId>com.lw.graduation</groupId>
+                <artifactId>graduation-bom</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- 编译插件 -->
+    <build>
+        <plugins>
+            <!-- 编译插件 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Spring Boot插件 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

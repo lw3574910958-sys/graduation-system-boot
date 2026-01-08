@@ -1,0 +1,30 @@
+# =============== 文本文件：统一使用 LF ===============
+* text=auto eol=lf
+
+# 覆盖某些必须用 CRLF 的 Windows 脚本
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# 显式确保配置文件用 LF（即使被上面 * 匹配，也优先用 LF）
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.java text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.properties text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+pom.xml text eol=lf
+
+# =============== 二进制文件 ===============
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.jar binary
+*.class binary

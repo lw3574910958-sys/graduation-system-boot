@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.lw.graduation</groupId>
+        <artifactId>graduation-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>graduation-auth</artifactId>
+    <name>Graduation Auth Module</name>
+    <description>登录注册模块</description>
+
+    <dependencies>
+        <!-- API 契约 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-api</artifactId>
+        </dependency>
+
+        <!-- Infrastructure -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-infrastructure</artifactId>
+        </dependency>
+
+        <!-- Domain -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-domain</artifactId>
+        </dependency>
+
+        <!-- Common -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-common</artifactId>
+        </dependency>
+
+        <!-- Web 支持 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- kaptcha 验证码 -->
+        <dependency>
+            <groupId>com.github.penggle</groupId>
+            <artifactId>kaptcha</artifactId>
+        </dependency>
+
+        <!-- Hutool 工具库 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+
+        <!-- Spring Security 密码加密 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Sa-Token 权限框架 -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
+        </dependency>
+
+        <!-- Jakarta Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+    </dependencies>
+</project>

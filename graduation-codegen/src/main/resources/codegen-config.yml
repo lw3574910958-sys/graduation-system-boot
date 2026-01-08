@@ -1,0 +1,20 @@
+# 数据源配置
+database:
+  url: jdbc:mysql://localhost:3306/graduation_system?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true
+  username: root
+  password: rctf1234
+
+
+# 表名 → 模块名映射（用于包路径隔离）
+codegen:
+  tableModuleMap:
+    sys_user: user
+    sys_department: department
+    sys_log: log
+    biz_student: student
+    biz_teacher: teacher
+    biz_admin: admin
+    biz_topic: topic
+    biz_selection: selection
+    biz_document: document
+    biz_grade: grade
