@@ -59,4 +59,11 @@ public interface UserService{
      */
     void resetPassword(Long id);
 
+    /**
+     * 更新用户头像
+     *
+     * @param id 用户ID
+     * @param avatar 头像URL或存储路径
+     */
+    void updateUserAvatar(Long id, String avatar);
 }

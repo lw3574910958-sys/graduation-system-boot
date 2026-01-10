@@ -31,4 +31,10 @@ public class UserUpdateDTO {
      */
     @Schema(description = "状态 (1-启用, 0-禁用)")
     private Integer status;
+
+    /**
+     * 头像URL或存储路径
+     */
+    @Schema(description = "头像URL或存储路径")
+    private String avatar;
 }

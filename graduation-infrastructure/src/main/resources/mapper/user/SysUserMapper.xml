@@ -16,12 +16,13 @@
         <result column="locked_until" property="lockedUntil" />
         <result column="created_at" property="createdAt" />
         <result column="updated_at" property="updatedAt" />
+        <result column="avatar" property="avatar" />
         <result column="is_deleted" property="isDeleted" />
     </resultMap>
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, username, password, real_name, user_type, status, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, is_deleted
+        id, username, password, real_name, user_type, status, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, avatar, is_deleted
     </sql>
 
 

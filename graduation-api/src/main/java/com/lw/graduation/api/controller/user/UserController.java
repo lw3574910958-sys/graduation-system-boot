@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * 用户管理控制器
  * 提供用户信息的增删改查、分页查询、详情获取、密码重置等API端点。
@@ -116,6 +118,21 @@ public class UserController {
     @SaCheckRole("admin") // 仅管理员可访问
     public Result<Void> resetPassword(@PathVariable Long id) {
         userService.resetPassword(id);
+        return Result.success();
+    }
+
+    /**
+     * 更新用户头像
+     *
+     * @param id 用户ID
+     * @param avatar 头像URL或存储路径
+     * @return 更新结果
+     */
+    @PutMapping("/{id}/avatar")
+    @Operation(summary = "更新用户头像")
+    public Result<Void> updateUserAvatar(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        String avatar = request.get("avatar");
+        userService.updateUserAvatar(id, avatar);
         return Result.success();
     }
 }

@@ -69,5 +69,11 @@
 			<scope>compile</scope>
 		</dependency>
 
+		<!-- 基础设施模块 -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-infrastructure</artifactId>
+		</dependency>
+
 	</dependencies>
 </project>

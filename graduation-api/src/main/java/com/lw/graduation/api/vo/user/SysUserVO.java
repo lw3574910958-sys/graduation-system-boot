@@ -66,4 +66,10 @@ public class SysUserVO {
     @Schema(description = "最后登录时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastLoginAt;
+
+    /**
+     * 头像URL或存储路径
+     */
+    @Schema(description = "头像URL或存储路径")
+    private String avatar;
 }

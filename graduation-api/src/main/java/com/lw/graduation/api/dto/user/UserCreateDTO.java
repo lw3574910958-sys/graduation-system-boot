@@ -44,4 +44,7 @@ public class UserCreateDTO {
 
     @Schema(description = "状态 (1-启用, 0-禁用)", defaultValue = "1")
     private Integer status = 1; // 默认启用
+
+    @Schema(description = "头像URL或存储路径")
+    private String avatar;
 }

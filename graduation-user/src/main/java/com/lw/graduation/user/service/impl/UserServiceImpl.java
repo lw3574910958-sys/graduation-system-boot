@@ -210,6 +210,7 @@ public class UserServiceImpl implements UserService {
         vo.setCreatedAt(user.getCreatedAt());
         vo.setUpdatedAt(user.getUpdatedAt());
         vo.setLastLoginAt(user.getLastLoginAt());
+        vo.setAvatar(user.getAvatar());
         return vo;
     }
 
@@ -227,5 +228,21 @@ public class UserServiceImpl implements UserService {
             sb.append(chars.charAt(index));
         }
         return sb.toString();
+    }
+
+    @Override
+    public void updateUserAvatar(Long id, String avatar) {
+        // 1. 检查用户是否存在
+        SysUser user = sysUserMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+
+        // 2. 更新用户头像
+        SysUser updateUser = new SysUser();
+        updateUser.setId(id);
+        updateUser.setAvatar(avatar);
+        updateUser.setUpdatedAt(LocalDateTime.now());
+        sysUserMapper.updateById(updateUser);
     }
 }

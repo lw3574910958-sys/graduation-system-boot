@@ -104,6 +104,12 @@ public class SysUser implements Serializable {
     private LocalDateTime updatedAt;
 
     /**
+     * 头像URL或存储路径
+     */
+    @TableField("avatar")
+    private String avatar;
+
+    /**
      * 逻辑删除: 0-未删除, 1-已删除
      */
     @TableLogic
