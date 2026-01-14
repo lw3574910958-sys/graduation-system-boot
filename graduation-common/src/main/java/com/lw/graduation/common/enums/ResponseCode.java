@@ -16,6 +16,11 @@ public enum ResponseCode {
      */
     SUCCESS(200, "操作成功！"),
     /**
+     * 资源不存在
+     */
+    NOT_FOUND(404, "404 错误，请检查路径是否正确"),
+
+    /**
      * 操作失败
      */
     ERROR(500, "操作失败！"),
@@ -76,6 +81,10 @@ public enum ResponseCode {
      */
     ACCOUNT_DISABLED(1005, "账户已被禁用！"),
     /**
+     * 账户被锁定
+     */
+    ACCOUNT_LOCKED(1006, "账户已被锁定！"),
+    /**
      * 密码和确认密码不一致
      */
     PASSWORD_MISMATCH(1006, "密码和确认密码不一致！"),
@@ -88,13 +97,16 @@ public enum ResponseCode {
     /**
      * 响应码
      */
-    private final Integer code;
+    private final int code;
 
     /**
      * 响应信息
      */
     private final String message;
 
+    /**
+     * 根据code获取响应码枚举
+     */
     public static ResponseCode fromCode(int code) {
         for (ResponseCode responseCode : ResponseCode.values()) {
             if (responseCode.getCode() == code) {

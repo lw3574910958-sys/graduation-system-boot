@@ -36,26 +36,4 @@ public class GlobalExceptionHandler {
         return Result.error(e.getCode(),e.getMessage());
     }
 
-    /*@ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<?> handleValidationException(MethodArgumentNotValidException e) {
-        String msg = e.getBindingResult().getFieldError().getDefaultMessage();
-        return Result.error(400, "参数校验失败: " + msg);
-    }
-
-    @ExceptionHandler(BindException.class)
-    public Result<?> handleBindException(BindException e) {
-        String msg = e.getFieldError().getDefaultMessage();
-        return Result.error(400, "参数绑定失败: " + msg);
-    }
-
-    @ExceptionHandler(ConstraintViolationException.class)
-    public Result<?> handleConstraintViolation(ConstraintViolationException e) {
-        String msg = e.getConstraintViolations().iterator().next().getMessage();
-        return Result.error(400, "参数校验失败: " + msg);
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public Result<?> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
-        return Result.error(400, "请求体格式错误");
-    }*/
 }

@@ -31,10 +31,10 @@
 
     <!-- 项目仓库 -->
     <scm>
-        <connection>scm:git:https://github.com/lw3574910958-sys/graduation-system-backend.git</connection>
-        <developerConnection>scm:git:git@github.com:lw3574910958-sys/graduation-system-backend.git</developerConnection>
+        <connection>scm:git:https://github.com/lw3574910958-sys/graduation-system-boot.git</connection>
+        <developerConnection>scm:git:git@github.com:lw3574910958-sys/graduation-system-boot.git</developerConnection>
         <tag>HEAD</tag>
-        <url>https://github.com/lw3574910958-sys/graduation-system-backend</url>
+        <url>https://github.com/lw3574910958-sys/graduation-system-boot</url>
     </scm>
 
     <!-- 聚合项目 -->
@@ -42,17 +42,29 @@
 
     <!-- 子模块 -->
     <modules>
+        <!-- bom 统一版本管理 -->
         <module>graduation-bom</module>
+        <!-- 全局启动与全局配置模块 -->
         <module>graduation-application</module>
+        <!-- 领域模型模块 -->
         <module>graduation-domain</module>
+        <!-- 通用组件模块 -->
         <module>graduation-common</module>
+        <!-- 基础设施模块 -->
         <module>graduation-infrastructure</module>
+        <!-- api接口模块 -->
         <module>graduation-api</module>
+        <!-- 认证模块 -->
         <module>graduation-auth</module>
+        <!-- 用户模块 -->
         <module>graduation-user</module>
+        <!-- 选题模块 -->
         <module>graduation-topic</module>
+        <!-- 选题选择模块 -->
         <module>graduation-selection</module>
+        <!-- 文档模块 -->
         <module>graduation-document</module>
+        <!-- 成绩模块 -->
         <module>graduation-grade</module>
         <!-- 后续添加其他模块 -->
         <module>graduation-codegen</module>
@@ -93,6 +105,7 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
 

@@ -2,8 +2,7 @@ package com.lw.graduation.auth.util;
 
 import cn.hutool.core.util.IdUtil;
 import com.google.code.kaptcha.Producer;
-import com.lw.graduation.common.enums.ResponseCode;
-import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.api.vo.auth.CaptchaVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -13,7 +12,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,7 +37,7 @@ public class CaptchaUtil {
     private final StringRedisTemplate redisTemplate;
 
     /**
-     * 生成验证码
+     * 生成验证码并直接写入HTTP响应（保持原有方法用于兼容）
      *
      * @param response 响应
      * @return 验证码 key
@@ -61,23 +62,44 @@ public class CaptchaUtil {
     /**
      * 验证验证码
      *
-     * @param captchaKey  验证码 key
-     * @param userInput 用户输入的验证码
-     * @return 是否验证通过
+     * @param captchaKey 验证码键
+     * @param captchaCode 验证码
+     * @return 验证结果
      */
-    public boolean validate(String captchaKey, String userInput) {
-        String correct = redisTemplate.opsForValue().get(captchaKey);
-        if (correct == null) {
-            // 为避免信息泄露，使用通用错误信息
-            throw new BusinessException(ResponseCode.CAPTCHA_ERROR);
+    public boolean validate(String captchaKey, String captchaCode) {
+        String storedCode = redisTemplate.opsForValue().get(captchaKey);
+        if (storedCode == null) {
+            return false; // 验证码不存在或已过期
         }
-        
-        // 验证成功后立即删除验证码，防止重放攻击
-        boolean isValid = correct.equalsIgnoreCase(userInput);
-        if (isValid) {
-            redisTemplate.delete(captchaKey); // 一次性使用
-        }
-        
-        return isValid;
+        // 忽略大小写比较
+        return storedCode.equalsIgnoreCase(captchaCode);
     }
+
+    // 保留原有方法，避免冲突
+    /**
+     * 生成验证码并返回CaptchaDTO对象（新方法，用于返回JSON格式）
+     *
+     * @return CaptchaDTO 包含验证码图片base64编码和唯一标识
+     */
+    public CaptchaVO generateCaptchaDto() throws IOException {
+        String text = kaptchaProducer.createText();
+        BufferedImage image = kaptchaProducer.createImage(text);
+
+        String captchaKey = "captcha:" + IdUtil.simpleUUID();
+        redisTemplate.opsForValue().set(captchaKey, text, 5, TimeUnit.MINUTES);
+
+        // 将图片转换为base64编码
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", os);
+        String base64Code = Base64.getEncoder().encodeToString(os.toByteArray());
+
+        // 创建CaptchaDTO对象
+        CaptchaVO captcha = new CaptchaVO();
+        captcha.setCaptchaImg("data:image/png;base64," + base64Code);
+        captcha.setCaptchaId(captchaKey);
+
+        return captcha;
+    }
+
+
 }

@@ -1,20 +1,21 @@
 package com.lw.graduation.api.controller.auth;
 
 import cn.dev33.satoken.annotation.SaIgnore;
-import cn.dev33.satoken.stp.StpUtil;
+import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
-import com.lw.graduation.api.vo.auth.UserVO;
+import com.lw.graduation.api.vo.auth.CaptchaCheckVO;
+import com.lw.graduation.api.vo.auth.LoginVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -39,36 +40,62 @@ public class AuthController {
     @PostMapping("/login")
     @SaIgnore // 忽略登录鉴权
     @Operation(summary = "用户登录")
-    public Result<String> login(@Validated @RequestBody LoginDTO dto) {
+    public Result<LoginVO> login(@Validated @RequestBody LoginDTO dto) {
         String token = authService.login(dto);
-        return Result.success(token);
-    }
-
-    /**
-     * 获取当前用户信息
-     *
-     * @return 当前用户信息
-     */
-    @GetMapping("/info")
-    @Operation(summary = "获取当前用户信息")
-    public Result<UserVO> getCurrentUser() {
-        // 从 Sa-Token 中获取当前登录用户ID
-        Long userId = Long.valueOf(String.valueOf(StpUtil.getLoginId()));
-        UserVO userVO = authService.getCurrentUser(userId);
-        return Result.success(userVO);
+        return Result.success(new LoginVO(token));
     }
 
     /**
      * 获取验证码
      *
-     * @param response 响应
-     * @return 验证码唯一标识
+     * @return 验证码信息DTO
      */
-    @GetMapping("/captcha")
+    @GetMapping("/captcha/get")
     @SaIgnore // 忽略验证码接口鉴权
     @Operation(summary = "获取验证码")
-    public Result<String> generateCaptcha(HttpServletResponse response) throws Exception {
-        String captchaKey = authService.generateCaptcha(response);
-        return Result.success(captchaKey);
+    public Result<CaptchaVO> generateCaptcha() {
+        CaptchaVO captcha = authService.generateCaptchaDto();
+        return Result.success(captcha);
+    }
+
+    /**
+     * 用户登出
+     *
+     * @return 登出结果
+     */
+    @PostMapping("/logout")
+    @Operation(summary = "用户登出")
+    public Result<Void> logout() {
+        authService.logout();
+        return Result.success("登出成功");
+    }
+
+    /**
+     * 检查验证码
+     *
+     * @param captchaKey 验证码键
+     * @param captchaCode 验证码
+     * @return 验证结果
+     */
+    @GetMapping("/captcha/check")
+    @SaIgnore // 忽略验证码检查接口鉴权
+    @Operation(summary = "检查验证码")
+    public Result<CaptchaCheckVO> checkCaptcha(
+            @RequestParam("captchaKey") String captchaKey,
+            @RequestParam("captchaCode") String captchaCode) {
+        boolean isValid = authService.checkCaptcha(captchaKey, captchaCode);
+        return Result.success(new CaptchaCheckVO(isValid));
+    }
+
+    /**
+     * 刷新token，保持token有效期
+     *
+     * @return 新的token
+     */
+    @PostMapping("/refresh-token")
+    @Operation(summary = "刷新token")
+    public Result<LoginVO> refreshToken() {
+        String newToken = authService.refreshToken();
+        return Result.success(new LoginVO(newToken));
     }
 }

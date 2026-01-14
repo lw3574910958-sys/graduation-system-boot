@@ -37,14 +37,23 @@ public class UserCreateDTO {
     @Schema(description = "用户类型 (student-学生, teacher-教师, admin-管理员)")
     private String userType;
 
+    /**
+     * 密码
+     */
     @NotBlank(message = "密码不能为空")
     @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$", message = "密码必须至少包含一个字母和一个数字，长度至少为6位")
     @Schema(description = "密码")
     private String password;
 
+    /**
+     * 状态
+     */
     @Schema(description = "状态 (1-启用, 0-禁用)", defaultValue = "1")
     private Integer status = 1; // 默认启用
 
+    /**
+     * 头像URL或存储路径
+     */
     @Schema(description = "头像URL或存储路径")
     private String avatar;
 }

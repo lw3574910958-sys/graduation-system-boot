@@ -5,6 +5,7 @@ import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.vo.user.SysUserVO;
+import com.lw.graduation.api.vo.user.UserVO;
 
 /**
  * 用户服务接口
@@ -60,10 +61,9 @@ public interface UserService{
     void resetPassword(Long id);
 
     /**
-     * 更新用户头像
+     * 获取当前登录用户信息
      *
-     * @param id 用户ID
-     * @param avatar 头像URL或存储路径
+     * @return 当前用户信息
      */
-    void updateUserAvatar(Long id, String avatar);
+    UserVO getCurrentUser();
 }

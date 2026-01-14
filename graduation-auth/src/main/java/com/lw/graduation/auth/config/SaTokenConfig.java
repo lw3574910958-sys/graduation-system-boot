@@ -1,5 +1,6 @@
 package com.lw.graduation.auth.config;
 
+import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpUtil;
@@ -21,10 +22,17 @@ public class SaTokenConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new SaInterceptor(handler -> {
+            // 放行 OPTIONS 请求（CORS 预检）
+            String method = SaHolder.getRequest().getMethod();
+            if ("OPTIONS".equals(method)) {
+                return;
+            }
+
             // 拦截所有请求，排除 /api/auth/**
             SaRouter.match("/api/**")
                     .notMatch("/api/auth/login")
-                    .notMatch("/api/auth/captcha")
+                    .notMatch("/api/auth/captcha/get")
+                    .notMatch("/api/auth/captcha/check")
                     .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/api/**");
     }

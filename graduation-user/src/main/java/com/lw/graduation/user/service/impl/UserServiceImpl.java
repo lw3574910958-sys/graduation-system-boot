@@ -3,15 +3,16 @@ package com.lw.graduation.user.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
 import com.lw.graduation.api.vo.user.SysUserVO;
+import com.lw.graduation.api.vo.user.UserVO;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
-import com.lw.graduation.common.utils.IdUtil;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.UserType;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import cn.dev33.satoken.stp.StpUtil;
 
 /**
  * 用户服务实现类
@@ -29,7 +31,7 @@ import java.time.LocalDateTime;
  */
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService {
+public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements UserService {
 
     private final SysUserMapper sysUserMapper; // 引入用户数据访问接口
     private final PasswordUtil passwordUtil; // 注入密码工具类
@@ -57,7 +59,7 @@ public class UserServiceImpl implements UserService {
         // 3. 将实体列表转换为 VO 列表（优化：减少不必要的对象创建）
         IPage<SysUserVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(userPage.getRecords().stream()
-                .map(this::convertToVO) // 转换方法
+                .map(this::convertToSysUserVO) // 转换方法
                 .toList());
         voPage.setTotal(userPage.getTotal());
 
@@ -76,7 +78,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
-        return convertToVO(user);
+        return convertToSysUserVO(user);
     }
 
     /**
@@ -95,21 +97,18 @@ public class UserServiceImpl implements UserService {
         }
 
         // 2. 验证用户类型是否有效
-        if (!UserType.isValid(createDTO.getUserType())) {
+        if (!UserType.isInvalid(createDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID.getCode(), "无效的用户类型");
         }
 
         // 3. 创建用户实体
         SysUser user = new SysUser();
-        user.setId(IdUtil.nextId()); // 使用工具类生成ID
         user.setUsername(createDTO.getUsername());
         user.setRealName(createDTO.getRealName());
         user.setUserType(createDTO.getUserType());
         // 使用 PasswordUtil 加密密码
         user.setPassword(passwordUtil.encryptPassword(createDTO.getPassword()));
         user.setStatus(createDTO.getStatus() != null ? createDTO.getStatus() : 1); // 默认启用
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
 
         // 4. 插入数据库
         sysUserMapper.insert(user);
@@ -131,7 +130,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // 2. 验证用户类型是否有效 (如果更新了类型)
-        if (updateDTO.getUserType() != null && !UserType.isValid(updateDTO.getUserType())) {
+        if (updateDTO.getUserType() != null && !UserType.isInvalid(updateDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID.getCode(), "无效的用户类型");
         }
 
@@ -144,6 +143,9 @@ public class UserServiceImpl implements UserService {
         }
         if (updateDTO.getStatus() != null) {
             updateUser.setStatus(updateDTO.getStatus());
+        }
+        if (updateDTO.getAvatar() != null) {
+            updateUser.setAvatar(updateDTO.getAvatar());
         }
         updateUser.setUpdatedAt(LocalDateTime.now());
 
@@ -195,12 +197,48 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
+     * 获取当前登录用户信息
+     *
+     * @return 当前登录用户信息
+     */
+    @Override
+    public UserVO getCurrentUser() {
+        // 从 Sa-Token 中获取当前登录用户ID
+        Long userId = StpUtil.getLoginIdAsLong();
+
+        // 根据ID查询用户实体
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+
+        return convertToUserVO(user); // 返回用户视图对象
+    }
+
+    /**
+     * 将 SysUser 实体转换为 UserVO 视图对象
+     *
+     * @param user 用户实体
+     * @return 用户视图对象
+     */
+    private UserVO convertToUserVO(SysUser user) {
+        UserVO vo = new UserVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setRealName(user.getRealName());
+        vo.setUserType(user.getUserType());
+        vo.setCreatedAt(user.getCreatedAt());
+
+        return vo;
+    }
+
+    /**
      * 将 SysUser 实体转换为 SysUserVO 视图对象
      *
      * @param user 用户实体
      * @return 用户视图对象
      */
-    private SysUserVO convertToVO(SysUser user) { // 修改方法返回类型
+    private SysUserVO convertToSysUserVO(SysUser user) { // 修改方法返回类型
         SysUserVO vo = new SysUserVO(); // 修改实例化类型
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
@@ -216,7 +254,7 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 生成随机密码
-     * 
+     *
      * @return 随机生成的密码
      */
     private String generateRandomPassword() {
@@ -228,21 +266,5 @@ public class UserServiceImpl implements UserService {
             sb.append(chars.charAt(index));
         }
         return sb.toString();
-    }
-
-    @Override
-    public void updateUserAvatar(Long id, String avatar) {
-        // 1. 检查用户是否存在
-        SysUser user = sysUserMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
-        }
-
-        // 2. 更新用户头像
-        SysUser updateUser = new SysUser();
-        updateUser.setId(id);
-        updateUser.setAvatar(avatar);
-        updateUser.setUpdatedAt(LocalDateTime.now());
-        sysUserMapper.updateById(updateUser);
     }
 }

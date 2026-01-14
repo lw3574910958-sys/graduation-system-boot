@@ -7,6 +7,7 @@ import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
 import com.lw.graduation.api.vo.user.SysUserVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.lw.graduation.api.vo.user.UserVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 
 /**
  * 用户管理控制器
@@ -31,7 +31,7 @@ import java.util.Map;
  * @author lw
  */
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 @Tag(name = "用户管理", description = "用户信息的增删改查、分页查询、详情获取、密码重置等接口")
 @RequiredArgsConstructor
 public class UserController {
@@ -113,7 +113,7 @@ public class UserController {
      * @param id 用户ID
      * @return 重置结果
      */
-    @PutMapping("/{id}/reset-password")
+    @PostMapping("/{id}/reset-password")
     @Operation(summary = "重置用户密码")
     @SaCheckRole("admin") // 仅管理员可访问
     public Result<Void> resetPassword(@PathVariable Long id) {
@@ -122,17 +122,15 @@ public class UserController {
     }
 
     /**
-     * 更新用户头像
+     * 获取当前登录用户信息
      *
-     * @param id 用户ID
-     * @param avatar 头像URL或存储路径
-     * @return 更新结果
+     * @return 当前用户信息
      */
-    @PutMapping("/{id}/avatar")
-    @Operation(summary = "更新用户头像")
-    public Result<Void> updateUserAvatar(@PathVariable Long id, @RequestBody Map<String, String> request) {
-        String avatar = request.get("avatar");
-        userService.updateUserAvatar(id, avatar);
-        return Result.success();
+    @GetMapping("/info")
+    @Operation(summary = "获取当前用户信息")
+    public Result<UserVO> getCurrentUser() {
+        UserVO userVO = userService.getCurrentUser();
+        return Result.success(userVO);
     }
+
 }

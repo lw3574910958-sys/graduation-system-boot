@@ -20,13 +20,4 @@ public class IdUtil {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
-    /**
-     * 生成 Long 类型的唯一 ID。
-     * 基于 AtomicLong，线程安全。
-     * @return Long 类型 ID
-     */
-    public static Long nextId() {
-        return counter.incrementAndGet();
-    }
-
 }

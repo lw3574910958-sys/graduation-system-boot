@@ -13,6 +13,8 @@ logging:
     root: info
   file:
     path: D:\Project\myapps\data\logs\graduation-system
+    max-size: 100MB
+    max-history: 30
 
 # debug配置
 debug: false
@@ -27,8 +29,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/graduation_system?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true
-    username: root
-    password: rctf1234
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:rctf1234}
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       # 初始化大小
@@ -77,7 +79,7 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password: ""  # 若无密码留空
+      password: ${REDIS_PASSWORD:}
       database: 1   # 使用 db1 存储会话，避免与业务数据冲突
       # 超时时间
       timeout: 2000ms

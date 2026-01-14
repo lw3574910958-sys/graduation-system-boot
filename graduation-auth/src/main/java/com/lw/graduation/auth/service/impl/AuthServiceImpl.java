@@ -3,16 +3,16 @@ package com.lw.graduation.auth.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
-import com.lw.graduation.api.vo.auth.UserVO;
 import com.lw.graduation.auth.util.CaptchaUtil;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
  */
 @Service // 标记为 Spring 服务组件
 @RequiredArgsConstructor // Lombok 注解，为所有 final 修饰的字段生成构造函数，实现依赖注入
-public class AuthServiceImpl implements AuthService {
+public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements AuthService {
 
     private final SysUserMapper sysUserMapper; // 注入用户数据访问层
     private final CaptchaUtil captchaUtil;     // 注入验证码工具类
@@ -80,20 +80,12 @@ public class AuthServiceImpl implements AuthService {
 
         // 3. 检查用户是否存在
         if (user == null) {
-            // 为了安全起见，即使用户不存在也要更新失败计数
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
-        }
-
-        // 4. 检查账户是否被临时锁定（如果设置了锁定时间且当前时间仍在锁定期内）
-        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(ResponseCode.ACCOUNT_DISABLED);
         }
 
         // 5. 验证密码是否正确
         // 使用 PasswordUtil 工具类进行密码校验
-        boolean passwordMatches = passwordUtil.matches(dto.getPassword(), user.getPassword());
-
-        if (!passwordMatches) {
+        if (!passwordUtil.matches(dto.getPassword(), user.getPassword())) {
             // 密码错误，更新登录失败次数
             SysUser updateEntity = new SysUser();
             updateEntity.setLoginFailCount(user.getLoginFailCount() + 1);
@@ -105,6 +97,11 @@ public class AuthServiceImpl implements AuthService {
         if (user.getStatus() != 1) {
             // 即使密码正确，但账户被禁用，仍视为登录失败
             throw new BusinessException(ResponseCode.ACCOUNT_DISABLED);
+        }
+
+        // 4. 检查账户是否被临时锁定（如果设置了锁定时间且当前时间仍在锁定期内）
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ResponseCode.ACCOUNT_LOCKED);
         }
 
         // 7. 密码验证成功，重置登录失败次数并更新最后登录时间
@@ -124,43 +121,58 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 获取当前登录用户信息方法。
-     * 根据用户ID查询数据库并返回用户视图对象。
+     * 获取验证码图片的 DataTransferObject 方法。
+     * 生成验证码图片并返回 DataTransferObject，包含验证码图片的 Base64 编码和验证码的 Key。
      *
-     * @param userId 用户ID
-     * @return 包含用户基本信息的 UserVO 对象
-     * @throws BusinessException 如果用户不存在
+     * @return 包含验证码图片的 Base64 编码和验证码的 Key 的 CaptchaDTO 对象
+     * @throws BusinessException 如果生成验证码图片时发生错误
      */
     @Override
-    public UserVO getCurrentUser(Long userId) {
-        // 1. 根据ID查询用户实体
-        SysUser user = sysUserMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+    public CaptchaVO generateCaptchaDto() {
+        try {
+            // 调用 CaptchaUtil 生成验证码DTO
+            return captchaUtil.generateCaptchaDto();
+        } catch (IOException e) {
+            throw new BusinessException(ResponseCode.CREATE_CAPTCHA_ERROR);
         }
-
-        // 2. 将实体对象转换为视图对象 (VO)
-        UserVO userVO = new UserVO();
-        userVO.setId(user.getId());
-        userVO.setUsername(user.getUsername());
-        userVO.setRealName(user.getRealName());
-        userVO.setRole(user.getUserType()); // 角色通常对应用户类型
-        userVO.setCreatedAt(user.getCreatedAt());
-
-        return userVO; // 返回用户视图对象
     }
 
     /**
-     * 生成验证码图片方法。
-     * 生成验证码图片并写入 HTTP 响应流，同时返回验证码的 Key。
-     *
-     * @param response HTTP 响应对象，用于写入图片流和设置响应头
-     * @return 验证码的唯一标识 Key
-     * @throws IOException 如果写入图片流时发生错误
+     * 登出方法。
+     * 使用 Sa-Token 进行登出操作。
      */
     @Override
-    public String generateCaptcha(HttpServletResponse response) throws IOException {
-        // 调用 CaptchaUtil 生成验证码图片并写入响应
-        return captchaUtil.generateCaptcha(response);
+    public void logout() {
+        // 使用 Sa-Token 进行登出操作
+        StpUtil.logout();
+    }
+
+    /**
+     * 验证验证码方法。
+     * 验证用户输入的验证码是否正确。
+     *
+     * @param captchaKey   验证码的 Key
+     * @param captchaCode  用户输入的验证码
+     * @return 如果验证码正确，返回 true；否则返回 false
+     */
+    @Override
+    public boolean checkCaptcha(String captchaKey, String captchaCode) {
+        return captchaUtil.validate(captchaKey, captchaCode);
+    }
+
+    @Override
+    public String refreshToken() {
+        // 验证当前用户是否已登录
+        if (StpUtil.isLogin()) {
+            // 检查当前token是否即将过期，如果是则刷新它
+            // 在Sa-Token中，保持活跃状态可以通过重新获取token来实现
+            // 但更常见的是通过设置会话的最后活跃时间
+            StpUtil.checkLogin(); // 确保用户仍然处于登录状态
+            // 返回当前token
+            return StpUtil.getTokenValue();
+        }
+
+        // 如果用户未登录，抛出异常
+        throw new BusinessException(ResponseCode.UNAUTHORIZED);
     }
 }

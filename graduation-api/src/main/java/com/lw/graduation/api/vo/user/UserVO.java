@@ -1,4 +1,4 @@
-package com.lw.graduation.api.vo.auth;
+package com.lw.graduation.api.vo.user;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,7 +32,7 @@ public class UserVO {
      * 角色
      */
     @Schema(description = "角色")
-    private String role; // STUDENT, TEACHER, ADMIN
+    private String userType; // STUDENT, TEACHER, ADMIN
 
     /**
      * 创建时间

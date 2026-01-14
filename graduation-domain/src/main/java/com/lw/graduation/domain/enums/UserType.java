@@ -29,12 +29,12 @@ public enum UserType {
     private final String description;
 
     /**
-     * 校验用户类型是否合法
+     * 校验用户类型是否有效
      *
      * @param code 用户类型
      * @return 合法返回 true，否则返回 false
      */
-    public static boolean isValid(String code) {
+    public static boolean isInvalid(String code) {
         for (UserType type : values()) {
             if (type.code.equals(code)) {
                 return true;

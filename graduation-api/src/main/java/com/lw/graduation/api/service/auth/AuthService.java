@@ -1,10 +1,8 @@
 package com.lw.graduation.api.service.auth;
 
+import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
-import com.lw.graduation.api.vo.auth.UserVO;
-import jakarta.servlet.http.HttpServletResponse;
 
-import java.io.IOException;
 
 /**
  * 认证服务
@@ -22,18 +20,30 @@ public interface AuthService {
     String login(LoginDTO dto);
 
     /**
-     * 获取当前用户信息
+     * 获取验证码DTO（新方法，返回JSON格式）
      *
-     * @param userId 用户ID
-     * @return 当前用户信息
+     * @return CaptchaDTO 包含验证码图片base64编码和唯一标识
      */
-    UserVO getCurrentUser(Long userId);
+    CaptchaVO generateCaptchaDto();
 
     /**
-     * 获取验证码图片
-     *
-     * @param response 响应
-     * @throws IOException IO异常
+     * 用户登出
      */
-    String generateCaptcha(HttpServletResponse response) throws IOException;
+    void logout();
+
+    /**
+     * 检查验证码
+     *
+     * @param captchaKey 验证码键
+     * @param captchaCode 验证码
+     * @return 验证结果
+     */
+    boolean checkCaptcha(String captchaKey, String captchaCode);
+
+    /**
+     * 刷新token，延长token有效期
+     *
+     * @return 新的token
+     */
+    String refreshToken();
 }

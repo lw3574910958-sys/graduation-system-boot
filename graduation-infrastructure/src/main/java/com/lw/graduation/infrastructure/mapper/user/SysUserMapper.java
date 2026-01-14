@@ -12,6 +12,4 @@ import com.lw.graduation.infrastructure.mapper.MyBaseMapper;
  * @since 2025-12-30
  */
 public interface SysUserMapper extends MyBaseMapper<SysUser> {
-
-
 }
