@@ -233,13 +233,21 @@ CREATE TABLE `biz_grade` (
 DROP TABLE IF EXISTS `sys_log`;
 CREATE TABLE `sys_log` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL COMMENT '操作人ID',
-  `user_type` VARCHAR(20) NOT NULL COMMENT '操作人类型',
+  `user_id` BIGINT NULL COMMENT '操作人ID',
+  `username` VARCHAR(50) NULL COMMENT '用户名',
+  `user_type` VARCHAR(20) NOT NULL COMMENT '用户类型',
+  `module` VARCHAR(30) NOT NULL COMMENT '模块:user/topic/selection/document/grade/admin',
   `operation` VARCHAR(200) NOT NULL COMMENT '操作描述',
+  `business_id` BIGINT NULL COMMENT '业务关联ID',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态:0-失败,1-成功',
   `ip_address` VARCHAR(45) NOT NULL COMMENT '操作IP',
+  `duration_ms` INT NULL COMMENT '耗时(毫秒)',
+  `error_message` VARCHAR(500) NULL COMMENT '错误信息',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `idx_user` (`user_id`),
-  KEY `idx_created_at` (`created_at`),
-  CONSTRAINT `fk_log_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`id`) ON DELETE CASCADE
+  KEY `idx_module` (`module`),
+  KEY `idx_business` (`business_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统日志表';

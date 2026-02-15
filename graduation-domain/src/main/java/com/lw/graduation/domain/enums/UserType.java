@@ -32,14 +32,24 @@ public enum UserType {
      * 校验用户类型是否有效
      *
      * @param code 用户类型
-     * @return 合法返回 true，否则返回 false
+     * @return 有效返回 true，否则返回 false
      */
-    public static boolean isInvalid(String code) {
+    public static boolean isValid(String code) {
         for (UserType type : values()) {
             if (type.code.equals(code)) {
                 return true;
             }
         }
         return false;
+    }
+    
+    /**
+     * 校验用户类型是否无效（为了向后兼容保留原方法）
+     *
+     * @param code 用户类型
+     * @return 无效返回 true，否则返回 false
+     */
+    public static boolean isInvalid(String code) {
+        return !isValid(code);
     }
 }

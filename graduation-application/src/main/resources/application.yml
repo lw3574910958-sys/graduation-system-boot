@@ -12,9 +12,11 @@ logging:
   level:
     root: info
   file:
-    path: D:\Project\myapps\data\logs\graduation-system
-    max-size: 100MB
-    max-history: 30
+    path: D:\Project\myapps\graduation-system\data\logs\graduation-system-boot
+  logback:
+    rolling policy:
+      max-file-size: 100MB
+      max-history: 30
 
 # debug配置
 debug: false
@@ -126,11 +128,11 @@ mybatis-plus:
 # sa-token 配置
 sa-token:
   token-name: user_token # Token 名称
-  token-prefix: Bearer # Token 前缀（注意空格）
+  token-prefix: Bearer # Token 前缀（注意空格，符合HTTP标准格式）
   is-read-header: true # 从 Header 读取 Token
   is-read-cookie: false # 禁用 Cookie 模式
-  timeout: 2592000 # Token 有效期（秒）
-  active-timeout: -1 # 最低活跃频率（秒）
+  timeout: 86400 # Token 有效期（秒）
+  active-timeout: 1800 # 最低活跃频率（秒）
   is-concurrent: true # 是否允许多地同时登录
   is-share: false # 是否共用同一 Token
   token-style: uuid # Token 风格
@@ -160,5 +162,5 @@ knife4j:
 
 # 上传文件配置
 file:
-  dir: D:/Project/myapps/data/uploadFiles
+  dir: ${UPLOAD_DIR:D:/Project/myapps/graduation-system/data/uploadFiles}
   path: upload

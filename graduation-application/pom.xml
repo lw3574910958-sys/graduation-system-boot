@@ -22,6 +22,10 @@
         </dependency>
         <dependency>
             <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-department</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
             <artifactId>graduation-topic</artifactId>
         </dependency>
         <dependency>
@@ -59,6 +63,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Jackson 时间格式转换 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
         <!-- 参数校验 -->

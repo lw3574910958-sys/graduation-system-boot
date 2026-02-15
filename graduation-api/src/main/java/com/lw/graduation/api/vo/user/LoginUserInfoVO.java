@@ -1,19 +1,20 @@
 package com.lw.graduation.api.vo.user;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.common.constant.CommonConstants;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 /**
- * 用户信息
+ * 登录用户信息
  *
  * @author lw
  */
 @Data
 @Schema(description = "用户信息")
-public class UserVO {
+public class LoginUserInfoVO {
     /**
      * 用户ID
      */
@@ -38,6 +39,6 @@ public class UserVO {
      * 创建时间
      */
     @Schema(description = "创建时间")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 }

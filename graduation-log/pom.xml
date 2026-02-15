@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.lw.graduation</groupId>
+        <artifactId>graduation-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>graduation-log</artifactId>
+    <name>Graduation Log Module</name>
+    <description>系统日志模块：基于项目现有基础设施的高性能日志管理</description>
+
+    <dependencies>
+        <!-- API契约 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-api</artifactId>
+        </dependency>
+
+        <!-- Infrastructure基础设施 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-infrastructure</artifactId>
+        </dependency>
+
+        <!-- Domain领域模型 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-domain</artifactId>
+        </dependency>
+
+        <!-- Common通用组件 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-common</artifactId>
+        </dependency>
+
+        <!-- Web支持 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+
+        <!-- AOP支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- 异步支持 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-support</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 测试依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

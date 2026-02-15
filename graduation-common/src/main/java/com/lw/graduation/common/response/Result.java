@@ -4,6 +4,7 @@ import com.lw.graduation.common.enums.ResponseCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
+import java.util.Collections;
 
 /**
  * 统一响应结果
@@ -32,7 +33,6 @@ public class Result<T> {
     private final T data;
 
     // ---------------- 构造函数（私有，通过静态工厂方法创建） ----------------
-
     private Result(int code) {
         this(code, null, null);
     }

@@ -4,8 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
-import com.lw.graduation.api.vo.user.SysUserVO;
-import com.lw.graduation.api.vo.user.UserVO;
+import com.lw.graduation.api.vo.user.UserListInfoVO;
 
 /**
  * 用户服务接口
@@ -21,7 +20,7 @@ public interface UserService{
      * @param queryDTO 查询条件 DTO
      * @return 分页结果
      */
-    IPage<SysUserVO> getUserPage(UserPageQueryDTO queryDTO);
+    IPage<UserListInfoVO> getUserPage(UserPageQueryDTO queryDTO);
 
     /**
      * 根据ID获取用户详情
@@ -29,7 +28,7 @@ public interface UserService{
      * @param id 用户ID
      * @return 用户详情 VO
      */
-    SysUserVO getUserById(Long id);
+    UserListInfoVO getUserById(Long id);
 
     /**
      * 创建新用户
@@ -59,11 +58,4 @@ public interface UserService{
      * @param id 用户ID
      */
     void resetPassword(Long id);
-
-    /**
-     * 获取当前登录用户信息
-     *
-     * @return 当前用户信息
-     */
-    UserVO getCurrentUser();
 }

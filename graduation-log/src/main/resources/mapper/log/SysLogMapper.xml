@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lw.graduation.log.mapper.SysLogMapper">
+
+    <!-- 批量插入日志记录 -->
+    <insert id="insertBatchSomeColumn">
+        INSERT INTO sys_log_enhanced 
+        (user_id, username, user_type, module, operation, business_id, status, ip_address, duration_ms, error_message, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.username}, #{item.userType}, #{item.module}, 
+             #{item.operation}, #{item.businessId}, #{item.status}, 
+             #{item.ipAddress}, #{item.durationMs}, #{item.errorMessage}, NOW(3))
+        </foreach>
+    </insert>
+
+    <!-- 清理过期日志 -->
+    <delete id="deleteExpiredLogs">
+        DELETE FROM sys_log_enhanced 
+        WHERE created_at &lt; DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </delete>
+
+    <!-- 按模块统计日志数量 -->
+    <select id="countByModule" resultType="int">
+        SELECT COUNT(*) 
+        FROM sys_log_enhanced 
+        WHERE module = #{module} 
+        AND created_at &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
+    <!-- 统计失败操作数量 -->
+    <select id="countFailedOperations" resultType="int">
+        SELECT COUNT(*) 
+        FROM sys_log_enhanced 
+        WHERE status = 0 
+        AND created_at &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
+    <!-- 获取平均操作耗时 -->
+    <select id="getAverageDuration" resultType="double">
+        SELECT AVG(duration_ms) 
+        FROM sys_log_enhanced 
+        WHERE module = #{module} 
+        AND duration_ms IS NOT NULL
+        AND created_at &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
+</mapper>

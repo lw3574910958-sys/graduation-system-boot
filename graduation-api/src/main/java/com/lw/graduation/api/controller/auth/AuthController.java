@@ -6,6 +6,7 @@ import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
 import com.lw.graduation.api.vo.auth.CaptchaCheckVO;
 import com.lw.graduation.api.vo.auth.LoginVO;
+import com.lw.graduation.api.vo.user.LoginUserInfoVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
 
 /**
  * 认证服务控制器
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+
 
     /**
      * 登录
@@ -46,6 +49,18 @@ public class AuthController {
     }
 
     /**
+     * 用户登出
+     *
+     * @return 登出结果
+     */
+    @PostMapping("/logout")
+    @Operation(summary = "用户登出")
+    public Result<Void> logout() {
+        authService.logout();
+        return Result.success("登出成功");
+    }
+
+    /**
      * 获取验证码
      *
      * @return 验证码信息DTO
@@ -56,18 +71,6 @@ public class AuthController {
     public Result<CaptchaVO> generateCaptcha() {
         CaptchaVO captcha = authService.generateCaptchaDto();
         return Result.success(captcha);
-    }
-
-    /**
-     * 用户登出
-     *
-     * @return 登出结果
-     */
-    @PostMapping("/logout")
-    @Operation(summary = "用户登出")
-    public Result<Void> logout() {
-        authService.logout();
-        return Result.success("登出成功");
     }
 
     /**
@@ -95,7 +98,19 @@ public class AuthController {
     @PostMapping("/refresh-token")
     @Operation(summary = "刷新token")
     public Result<LoginVO> refreshToken() {
-        String newToken = authService.refreshToken();
-        return Result.success(new LoginVO(newToken));
+        String refreshToken = authService.refreshToken();
+        return Result.success(new LoginVO(refreshToken));
+    }
+
+    /**
+     * 获取当前登录用户信息
+     *
+     * @return 当前用户信息
+     */
+    @GetMapping("/me")
+    @Operation(summary = "获取当前用户信息")
+    public Result<LoginUserInfoVO> getCurrentUser() {
+        LoginUserInfoVO userVO = authService.getCurrentUser();
+        return Result.success(userVO);
     }
 }

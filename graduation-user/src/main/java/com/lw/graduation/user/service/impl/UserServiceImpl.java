@@ -8,20 +8,22 @@ import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
-import com.lw.graduation.api.vo.user.SysUserVO;
-import com.lw.graduation.api.vo.user.UserVO;
+import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.auth.util.PasswordUtil;
+import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.UserType;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import cn.dev33.satoken.stp.StpUtil;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户服务实现类
@@ -31,10 +33,12 @@ import cn.dev33.satoken.stp.StpUtil;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements UserService {
 
     private final SysUserMapper sysUserMapper; // 引入用户数据访问接口
     private final PasswordUtil passwordUtil; // 注入密码工具类
+    private final RedisTemplate<String, Object> redisTemplate; // 注入Redis模板
 
     /**
      * 分页查询用户列表
@@ -43,7 +47,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 分页结果
      */
     @Override
-    public IPage<SysUserVO> getUserPage(UserPageQueryDTO queryDTO){
+    public IPage<UserListInfoVO> getUserPage(UserPageQueryDTO queryDTO){
         // 1. 构建查询条件
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(queryDTO.getUsername() != null, SysUser::getUsername, queryDTO.getUsername())
@@ -57,9 +61,9 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         IPage<SysUser> userPage = sysUserMapper.selectPage(page, wrapper);
 
         // 3. 将实体列表转换为 VO 列表（优化：减少不必要的对象创建）
-        IPage<SysUserVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        IPage<UserListInfoVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(userPage.getRecords().stream()
-                .map(this::convertToSysUserVO) // 转换方法
+                .map(this::convertToUserListInfoVO) // 转换方法
                 .toList());
         voPage.setTotal(userPage.getTotal());
 
@@ -67,18 +71,53 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     }
 
     /**
-     * 根据ID获取用户详情
+     * 根据ID获取用户详情（带缓存穿透防护）
      *
      * @param id 用户ID
      * @return 用户详情 VO
      */
     @Override
-    public SysUserVO getUserById(Long id) { // 修改返回类型
+    public UserListInfoVO getUserById(Long id) {
+        if (id == null) {
+            return null;
+        }
+
+        String cacheKey = CacheConstants.KeyPrefix.USER_INFO + id;
+
+        // 1. 查 Redis 缓存
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
+                log.debug("缓存命中空值标记，用户不存在: {}", id);
+                return null;
+            }
+            return (UserListInfoVO) cached;
+        }
+
+        // 2. 缓存未命中，查数据库
         SysUser user = sysUserMapper.selectById(id);
         if (user == null) {
-            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+            // 缓存空值防止穿透
+            redisTemplate.opsForValue().set(
+                cacheKey,
+                CacheConstants.CacheValue.NULL_MARKER,
+                CacheConstants.CacheValue.NULL_EXPIRE,
+                TimeUnit.SECONDS
+            );
+            log.debug("用户不存在，缓存空值标记: {}", cacheKey);
+            return null;
         }
-        return convertToSysUserVO(user);
+
+        // 3. 转换并缓存结果
+        UserListInfoVO result = convertToUserListInfoVO(user);
+        redisTemplate.opsForValue().set(
+            cacheKey,
+            result,
+            CacheConstants.ExpireTime.USER_INFO_EXPIRE,
+            TimeUnit.SECONDS
+        );
+        log.debug("缓存用户信息: {}", cacheKey);
+        return result;
     }
 
     /**
@@ -87,7 +126,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @param createDTO 创建用户 DTO
      */
     @Override
-    @Transactional // 开启事务
+    @Transactional
     public void createUser(UserCreateDTO createDTO) {
         // 1. 检查用户名是否已存在
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
@@ -98,20 +137,31 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 2. 验证用户类型是否有效
         if (!UserType.isInvalid(createDTO.getUserType())) {
-            throw new BusinessException(ResponseCode.USER_TYPE_INVALID.getCode(), "无效的用户类型");
+            throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
 
         // 3. 创建用户实体
         SysUser user = new SysUser();
         user.setUsername(createDTO.getUsername());
         user.setRealName(createDTO.getRealName());
+
+        // 设置默认密码（随机生成）
+        String defaultPassword = generateRandomPassword();
+        user.setPassword(passwordUtil.encryptPassword(defaultPassword));
+
         user.setUserType(createDTO.getUserType());
-        // 使用 PasswordUtil 加密密码
-        user.setPassword(passwordUtil.encryptPassword(createDTO.getPassword()));
         user.setStatus(createDTO.getStatus() != null ? createDTO.getStatus() : 1); // 默认启用
+        user.setLoginFailCount(0);
+        user.setLastLoginAt(null);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        user.setIsDeleted(0);
 
         // 4. 插入数据库
         sysUserMapper.insert(user);
+
+        // 5. 清除可能存在的空值缓存
+        clearUserCache(user.getId());
     }
 
     /**
@@ -129,28 +179,30 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
 
-        // 2. 验证用户类型是否有效 (如果更新了类型)
-        if (updateDTO.getUserType() != null && !UserType.isInvalid(updateDTO.getUserType())) {
-            throw new BusinessException(ResponseCode.USER_TYPE_INVALID.getCode(), "无效的用户类型");
-        }
+        // 2. 检查用户名是否已存在（排除自己）
+        // 注意：UserUpdateDTO中没有username字段，所以这里不需要检查用户名唯一性
+        // 如果需要支持用户名修改，需要在DTO中添加username字段
 
         // 3. 构建更新实体
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
-        updateUser.setRealName(updateDTO.getRealName());
+        // 注意：UserUpdateDTO中没有username字段，所以不更新用户名
+        if (updateDTO.getRealName() != null) {
+            updateUser.setRealName(updateDTO.getRealName());
+        }
         if (updateDTO.getUserType() != null) {
             updateUser.setUserType(updateDTO.getUserType());
         }
         if (updateDTO.getStatus() != null) {
             updateUser.setStatus(updateDTO.getStatus());
         }
-        if (updateDTO.getAvatar() != null) {
-            updateUser.setAvatar(updateDTO.getAvatar());
-        }
         updateUser.setUpdatedAt(LocalDateTime.now());
 
         // 4. 执行更新
         sysUserMapper.updateById(updateUser);
+
+        // 5. 清除缓存
+        clearUserCache(id);
     }
 
     /**
@@ -166,8 +218,12 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (user == null) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
+
         // 2. 执行删除（MyBatis-Plus会自动处理逻辑删除，通过@TableLogic注解）
         sysUserMapper.deleteById(id);
+
+        // 3. 清除缓存
+        clearUserCache(id);
     }
 
     /**
@@ -178,68 +234,40 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     @Override
     @Transactional
     public void resetPassword(Long id) {
-        // 1. 检查用户是否存在
-        SysUser user = sysUserMapper.selectById(id);
-        if (user == null) {
+        // 1. 查询用户是否存在
+        SysUser existingUser = sysUserMapper.selectById(id);
+        if (existingUser == null) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
 
-        // 2. 设置新密码 (使用系统默认密码)
-        String defaultPassword = generateRandomPassword(); // 使用随机生成的默认密码
-        String encryptedPassword = passwordUtil.encryptPassword(defaultPassword);
+        // 2. 生成新密码
+        String newPassword = generateRandomPassword();
+        String encodedPassword = passwordUtil.encryptPassword(newPassword);
 
         // 3. 更新密码
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
-        updateUser.setPassword(encryptedPassword);
+        updateUser.setPassword(encodedPassword);
         updateUser.setUpdatedAt(LocalDateTime.now());
+
         sysUserMapper.updateById(updateUser);
+
+        // 4. 清除缓存（密码变更）
+        clearUserCache(id);
+
+        // 安全通知机制替代明文输出
+        log.info("用户 {} 密码已重置成功", existingUser.getUsername());
+        // TODO(lw): 实现安全的密码通知机制（邮件/短信）@2024-12-31前完成
     }
 
     /**
-     * 获取当前登录用户信息
-     *
-     * @return 当前登录用户信息
-     */
-    @Override
-    public UserVO getCurrentUser() {
-        // 从 Sa-Token 中获取当前登录用户ID
-        Long userId = StpUtil.getLoginIdAsLong();
-
-        // 根据ID查询用户实体
-        SysUser user = sysUserMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
-        }
-
-        return convertToUserVO(user); // 返回用户视图对象
-    }
-
-    /**
-     * 将 SysUser 实体转换为 UserVO 视图对象
+     * 将 SysUser 实体转换为 UserListInfoVO 视图对象
      *
      * @param user 用户实体
      * @return 用户视图对象
      */
-    private UserVO convertToUserVO(SysUser user) {
-        UserVO vo = new UserVO();
-        vo.setId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setRealName(user.getRealName());
-        vo.setUserType(user.getUserType());
-        vo.setCreatedAt(user.getCreatedAt());
-
-        return vo;
-    }
-
-    /**
-     * 将 SysUser 实体转换为 SysUserVO 视图对象
-     *
-     * @param user 用户实体
-     * @return 用户视图对象
-     */
-    private SysUserVO convertToSysUserVO(SysUser user) { // 修改方法返回类型
-        SysUserVO vo = new SysUserVO(); // 修改实例化类型
+    private UserListInfoVO convertToUserListInfoVO(SysUser user) { // 修改方法返回类型
+        UserListInfoVO vo = new UserListInfoVO(); // 修改实例化类型
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setRealName(user.getRealName());
@@ -253,17 +281,26 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     }
 
     /**
+     * 统一清除用户缓存
+     */
+    private void clearUserCache(Long userId) {
+        if (userId != null) {
+            String cacheKey = CacheConstants.KeyPrefix.USER_INFO + userId;
+            redisTemplate.delete(cacheKey);
+            log.debug("清除用户缓存: {}", cacheKey);
+        }
+    }
+
+    /**
      * 生成随机密码
-     *
-     * @return 随机生成的密码
+     * @return 随机密码
      */
     private String generateRandomPassword() {
-        // 生成包含字母和数字的随机密码
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
         StringBuilder sb = new StringBuilder();
+        java.util.Random random = new java.util.Random();
         for (int i = 0; i < 8; i++) {
-            int index = (int) (Math.random() * chars.length());
-            sb.append(chars.charAt(index));
+            sb.append(chars.charAt(random.nextInt(chars.length())));
         }
         return sb.toString();
     }

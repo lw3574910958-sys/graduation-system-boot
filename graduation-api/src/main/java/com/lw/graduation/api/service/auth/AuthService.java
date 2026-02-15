@@ -2,6 +2,7 @@ package com.lw.graduation.api.service.auth;
 
 import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
+import com.lw.graduation.api.vo.user.LoginUserInfoVO;
 
 
 /**
@@ -46,4 +47,11 @@ public interface AuthService {
      * @return 新的token
      */
     String refreshToken();
+
+    /**
+     * 获取当前登录用户信息
+     *
+     * @return 当前用户信息
+     */
+    LoginUserInfoVO getCurrentUser();
 }

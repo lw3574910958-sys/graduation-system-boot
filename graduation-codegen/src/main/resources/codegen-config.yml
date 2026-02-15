@@ -2,7 +2,7 @@
 database:
   url: jdbc:mysql://localhost:3306/graduation_system?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true
   username: root
-  password: rctf1234
+  password: ${CODEGEN_DB_PASSWORD:rctf1234}  # 使用环境变量，开发环境默认值
 
 
 # 表名 → 模块名映射（用于包路径隔离）

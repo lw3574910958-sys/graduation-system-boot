@@ -19,9 +19,11 @@ import java.util.Map;
  * @author lw
  */
 public class CodeGenerator {
+    
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CodeGenerator.class);
 
     public static void main(String[] args) {
-        System.out.println("🚀 启动 MyBatis-Plus 代码生成器");
+        log.info("🚀 启动 MyBatis-Plus 代码生成器");
 
         // 加载配置
         YamlConfigLoader.DbConfig dbConfig = YamlConfigLoader.loadDbConfig();
@@ -32,11 +34,11 @@ public class CodeGenerator {
         }
 
         String maskedUrl = dbConfig.getUrl().replaceAll("(password=)([^&]*)", "$1******");
-        System.out.println("🔗 数据库连接: " + maskedUrl);
+        log.info("🔗 数据库连接: {}", maskedUrl);
 
         // 动态计算项目根目录（关键！）
         String projectRoot = getProjectRoot();
-        System.out.println("🏠 项目根目录: " + projectRoot);
+        log.info("🏠 项目根目录: {}", projectRoot);
 
         // 3. 自动创建所有输出目录（防止静默失败）
         createRequiredDirectories(projectRoot, TABLE_MODULE_MAP);
@@ -79,7 +81,7 @@ public class CodeGenerator {
      * 创建所有必要输出目录（包括 Java 包路径和资源路径）
      */
     private static void createRequiredDirectories(String projectRoot, Map<String, String> tableModuleMap) {
-        System.out.println("📂 正在创建输出目录...");
+        log.info("📂 正在创建输出目录...");
 
         // Entity 根目录（后续会按模块自动创建子包）
         File entityDir = new File(projectRoot, "graduation-domain/src/main/java/com/lw/graduation/domain/entity");
@@ -116,7 +118,7 @@ public class CodeGenerator {
             }
         }
 
-        System.out.println("✅ 输出目录创建完成");
+        log.info("✅ 输出目录创建完成");
     }
 
     /**
@@ -126,7 +128,7 @@ public class CodeGenerator {
                                       String projectRoot,
                                       String tableName,
                                       String module) {
-        System.out.println("\n📝 生成表 [" + tableName + "] → 模块 [" + module + "]");
+        log.info("\n📝 生成表 [{}] → 模块 [{}]", tableName, module);
 
         // 构建完整的物理输出路径（含模块子目录）
         String entityOutputPath = projectRoot + "/graduation-domain/src/main/java/com/lw/graduation/domain/entity/" + module;
@@ -186,6 +188,6 @@ public class CodeGenerator {
                 .templateEngine(new FreemarkerTemplateEngine())
                 .execute();
 
-        System.out.println("✅ [" + tableName + "] 生成成功");
+        log.info("✅ [{}] 生成成功", tableName);
     }
 }

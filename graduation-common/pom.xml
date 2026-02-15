@@ -54,6 +54,12 @@
 			<artifactId>sa-token-core</artifactId>
 		</dependency>
 
+		<!-- Redis支持 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
 		<!-- SLF4J 日志门面 -->
 		<dependency>
 			<groupId>org.slf4j</groupId>

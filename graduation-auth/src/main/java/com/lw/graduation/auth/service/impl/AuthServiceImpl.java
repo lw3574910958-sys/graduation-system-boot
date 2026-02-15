@@ -7,17 +7,22 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
+import com.lw.graduation.api.vo.user.LoginUserInfoVO;
 import com.lw.graduation.auth.util.CaptchaUtil;
 import com.lw.graduation.auth.util.PasswordUtil;
+import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 认证服务实现类
@@ -28,11 +33,14 @@ import java.time.LocalDateTime;
  */
 @Service // 标记为 Spring 服务组件
 @RequiredArgsConstructor // Lombok 注解，为所有 final 修饰的字段生成构造函数，实现依赖注入
+@Slf4j
 public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements AuthService {
 
     private final SysUserMapper sysUserMapper; // 注入用户数据访问层
     private final CaptchaUtil captchaUtil;     // 注入验证码工具类
     private final PasswordUtil passwordUtil;   // 注入密码工具类
+    private final RedisTemplate<String, Object> redisTemplate; // 注入Redis模板
+
 
     /**
      * 更新用户信息的私有辅助方法。
@@ -112,10 +120,14 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 8. 使用 Sa-Token 进行登录操作
         StpUtil.login(user.getId()); // 登录，生成 Token
+
         // 将用户信息存入 Session，便于后续访问
-        StpUtil.getSession().set("username", user.getUsername());
-        StpUtil.getSession().set("realName", user.getRealName());
-        StpUtil.getSession().set("userType", user.getUserType());
+        StpUtil.getTokenSession().set("username", user.getUsername());
+        StpUtil.getTokenSession().set("realName", user.getRealName());
+        StpUtil.getTokenSession().set("userType", user.getUserType());
+
+        // 预热当前用户缓存
+        warmUpCurrentUserCache(user.getId());
 
         return StpUtil.getTokenValue(); // 返回生成的 Token
     }
@@ -160,6 +172,13 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         return captchaUtil.validate(captchaKey, captchaCode);
     }
 
+    /**
+     * 刷新Token方法。
+     * 验证当前用户是否已登录，并返回当前用户的Token。
+     *
+     * @return 当前用户的Token
+     * @throws BusinessException 如果用户未登录
+     */
     @Override
     public String refreshToken() {
         // 验证当前用户是否已登录
@@ -172,7 +191,104 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             return StpUtil.getTokenValue();
         }
 
-        // 如果用户未登录，抛出异常
+        // 如果用户未登录抛出异常
         throw new BusinessException(ResponseCode.UNAUTHORIZED);
+    }
+
+    /**
+     * 获取当前登录用户信息（带缓存支持）
+     *
+     * @return 当前登录用户信息
+     */
+    @Override
+    public LoginUserInfoVO getCurrentUser() {
+        // 从 Sa-Token 中获取当前登录用户ID
+        Long userId = StpUtil.getLoginIdAsLong();
+
+        String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
+        
+        // 1. 查 Redis 缓存
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
+                log.debug("缓存命中空值标记，用户不存在: " + userId);
+                throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+            }
+            log.debug("缓存命中当前用户信息: " + userId);
+            return (LoginUserInfoVO) cached;
+        }
+
+        // 2. 缓存未命中，查数据库
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            // 缓存空值防止穿透
+            redisTemplate.opsForValue().set(
+                cacheKey,
+                CacheConstants.CacheValue.NULL_MARKER,
+                CacheConstants.CacheValue.NULL_EXPIRE,
+                TimeUnit.SECONDS
+            );
+            log.debug("用户不存在，缓存空值标记: " + cacheKey);
+            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+
+        // 3. 转换并缓存结果
+        LoginUserInfoVO result = convertToLoginUserInfoVO(user);
+        redisTemplate.opsForValue().set(
+            cacheKey,
+            result,
+            CacheConstants.ExpireTime.CURRENT_USER_EXPIRE,
+            TimeUnit.SECONDS
+        );
+        log.debug("缓存当前用户信息: " + cacheKey);
+        return result;
+    }
+
+    /**
+     * 清除当前用户缓存（用于用户信息变更后调用）
+     */
+    public void clearCurrentUserCache(Long userId) {
+        if (userId != null) {
+            String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
+            redisTemplate.delete(cacheKey);
+            log.debug("清除当前用户缓存: " + cacheKey);
+        }
+    }
+
+    /**
+     * 在用户登录成功后预热当前用户缓存
+     */
+    public void warmUpCurrentUserCache(Long userId) {
+        if (userId != null) {
+            SysUser user = sysUserMapper.selectById(userId);
+            if (user != null) {
+                String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
+                LoginUserInfoVO userInfo = convertToLoginUserInfoVO(user);
+                redisTemplate.opsForValue().set(
+                    cacheKey,
+                    userInfo,
+                    CacheConstants.ExpireTime.CURRENT_USER_EXPIRE,
+                    TimeUnit.SECONDS
+                );
+                log.debug("预热当前用户缓存: " + cacheKey);
+            }
+        }
+    }
+
+    /**
+     * 将 SysUser 实体转换为 LoginUserInfoVO 视图对象
+     *
+     * @param user 用户实体
+     * @return 用户视图对象
+     */
+    private LoginUserInfoVO convertToLoginUserInfoVO(SysUser user) {
+        LoginUserInfoVO vo = new LoginUserInfoVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setRealName(user.getRealName());
+        vo.setUserType(user.getUserType());
+        vo.setCreatedAt(user.getCreatedAt());
+
+        return vo;
     }
 }

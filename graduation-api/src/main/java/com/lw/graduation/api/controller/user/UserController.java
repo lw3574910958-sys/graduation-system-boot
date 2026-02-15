@@ -1,13 +1,13 @@
 package com.lw.graduation.api.controller.user;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaIgnore;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
-import com.lw.graduation.api.vo.user.SysUserVO;
+import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.lw.graduation.api.vo.user.UserVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,7 +47,7 @@ public class UserController {
     @GetMapping("/page")
     @Operation(summary = "分页查询用户列表")
     @SaCheckRole("admin") // 仅管理员可访问
-    public Result<IPage<SysUserVO>> getUserPage(UserPageQueryDTO queryDTO) {
+    public Result<IPage<UserListInfoVO>> getUserPage(UserPageQueryDTO queryDTO) {
         return Result.success(userService.getUserPage(queryDTO));
     }
 
@@ -60,7 +60,7 @@ public class UserController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取用户详情")
     @SaCheckRole("admin") // 仅管理员可访问
-    public Result<SysUserVO> getUserById(@PathVariable Long id) {
+    public Result<UserListInfoVO> getUserById(@PathVariable Long id) {
         return Result.success(userService.getUserById(id));
     }
 
@@ -119,18 +119,6 @@ public class UserController {
     public Result<Void> resetPassword(@PathVariable Long id) {
         userService.resetPassword(id);
         return Result.success();
-    }
-
-    /**
-     * 获取当前登录用户信息
-     *
-     * @return 当前用户信息
-     */
-    @GetMapping("/info")
-    @Operation(summary = "获取当前用户信息")
-    public Result<UserVO> getCurrentUser() {
-        UserVO userVO = userService.getCurrentUser();
-        return Result.success(userVO);
     }
 
 }

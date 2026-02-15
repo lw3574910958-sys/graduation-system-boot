@@ -18,7 +18,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
-        return Result.error(e.getMessage());
+        log.error("系统异常: ", e); // 记录详细日志
+        return Result.error("系统繁忙，请稍后重试"); // 返回通用错误信息
     }
     /**
      * 处理业务异常

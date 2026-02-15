@@ -19,28 +19,34 @@
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-domain</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-common</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-infrastructure</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 		<!-- 依赖 selection（文档属于某个选题） -->
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-selection</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-api</artifactId>
+		</dependency>
+		<!-- Lombok -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>

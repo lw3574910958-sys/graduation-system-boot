@@ -15,7 +15,7 @@
 	<!-- 统一版本管理 -->
 	<properties>
 
-		<spring-boot.version>3.5.9</spring-boot.version>
+		<spring-boot.version>3.5.10</spring-boot.version>
 		<!-- 第三方依赖版本 -->
 		<mysql.version>9.5.0</mysql.version>
 		<mybatis-plus.version>3.5.15</mybatis-plus.version>
@@ -30,7 +30,6 @@
 		<security.version>7.0.2</security.version>
 		<knife4j.version>4.5.0</knife4j.version>
 		<hutool.version>5.8.42</hutool.version>
-		<slf4j.version>2.0.17</slf4j.version>
 		<swagger.version>2.2.41</swagger.version>
 
 	</properties>
@@ -76,6 +75,11 @@
 			<dependency>
 				<groupId>com.lw.graduation</groupId>
 				<artifactId>graduation-user</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.lw.graduation</groupId>
+				<artifactId>graduation-department</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
@@ -195,6 +199,12 @@
 				<artifactId>sa-token-spring-boot3-starter</artifactId>
 				<version>${sa-token.version}</version>
 			</dependency>
+			<!-- Sa-Token 整合 Redis (Jackson) -->
+			<dependency>
+				<groupId>cn.dev33</groupId>
+				<artifactId>sa-token-redis-jackson</artifactId>
+				<version>${sa-token.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>cn.dev33</groupId>
 				<artifactId>sa-token-core</artifactId>
@@ -211,6 +221,11 @@
 				<groupId>com.fasterxml.jackson.core</groupId>
 				<artifactId>jackson-databind</artifactId>
 				<version>${jackson.version}</version> <!-- Use a recent version -->
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.datatype</groupId>
+				<artifactId>jackson-datatype-jsr310</artifactId>
+				<version>${jackson.version}</version>
 			</dependency>
 
 			<!-- BCrypt 密码加密 -->
@@ -244,13 +259,6 @@
 				<groupId>cn.hutool</groupId>
 				<artifactId>hutool-all</artifactId>
 				<version>${hutool.version}</version>
-			</dependency>
-
-			<!-- SLF4J 日志门面 -->
-			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-api</artifactId>
-				<version>${slf4j.version}</version>
 			</dependency>
 
 			<!-- 测试依赖 -->

@@ -7,9 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.http.HttpServletResponse;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -35,29 +32,6 @@ public class CaptchaUtil {
      * Redis 操作工具类
      */
     private final StringRedisTemplate redisTemplate;
-
-    /**
-     * 生成验证码并直接写入HTTP响应（保持原有方法用于兼容）
-     *
-     * @param response 响应
-     * @return 验证码 key
-     */
-    public String generateCaptcha(HttpServletResponse response) throws IOException {
-        String text = kaptchaProducer.createText();
-        BufferedImage image = kaptchaProducer.createImage(text);
-
-        String captchaKey = "captcha:" + IdUtil.simpleUUID();
-        redisTemplate.opsForValue().set(captchaKey, text, 5, TimeUnit.MINUTES);
-
-        response.setHeader("Content-Type", "image/png");
-        ServletOutputStream out = response.getOutputStream();
-        ImageIO.write(image, "png", out);
-        out.close();
-
-        // 可通过响应头返回 key，前端下次请求携带
-        response.setHeader("Captcha-Key", captchaKey);
-        return captchaKey;
-    }
 
     /**
      * 验证验证码

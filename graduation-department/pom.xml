@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.lw.graduation</groupId>
+		<artifactId>graduation-system</artifactId>
+		<version>1.0.0</version>
+	</parent>
+
+	<artifactId>graduation-department</artifactId>
+	<name>Graduation Department Module</name>
+	<description>院系管理模块</description>
+
+	<dependencies>
+
+		<!-- 引入公共模块 -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-common</artifactId>
+		</dependency>
+
+		<!-- 引入领域模型模块 -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-domain</artifactId>
+		</dependency>
+
+		<!-- 引入基础设施模块 -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-infrastructure</artifactId>
+		</dependency>
+
+		<!-- 引入API模块 (包含Controller, DTO, VO, Service接口) -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-api</artifactId>
+		</dependency>
+
+		<!-- Web 支持 -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+		</dependency>
+
+		<!-- Lombok：简化 DTO 的 getter/setter -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Swagger core -->
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-annotations-jakarta</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-models-jakarta</artifactId>
+		</dependency>
+
+	</dependencies>
+
+</project>
