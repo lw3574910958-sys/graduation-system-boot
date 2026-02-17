@@ -7,9 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -23,9 +21,7 @@ import java.time.LocalDateTime;
  * @author lw
  * @since 2025-12-30
  */
-@Getter
-@Setter
-@ToString
+@Data
 @TableName("biz_topic")
 public class BizTopic implements Serializable {
 
@@ -54,10 +50,58 @@ public class BizTopic implements Serializable {
     private Long teacherId;
 
     /**
-     * 状态: 0-开放, 1-已选, 2-关闭
+     * 状态: 1-开放, 2-已选, 3-关闭
      */
     @TableField("status")
     private Integer status;
+
+    /**
+     * 所属院系ID
+     */
+    @TableField("department_id")
+    private Long departmentId;
+
+    /**
+     * 题目来源
+     */
+    @TableField("source")
+    private String source;
+
+    /**
+     * 题目类型
+     */
+    @TableField("type")
+    private String type;
+
+    /**
+     * 题目性质
+     */
+    @TableField("nature")
+    private String nature;
+
+    /**
+     * 预计难度(1-5)
+     */
+    @TableField("difficulty")
+    private Integer difficulty;
+
+    /**
+     * 预计工作量(1-5)
+     */
+    @TableField("workload")
+    private Integer workload;
+
+    /**
+     * 选题人数限制
+     */
+    @TableField("max_selections")
+    private Integer maxSelections;
+
+    /**
+     * 已选人数
+     */
+    @TableField("selected_count")
+    private Integer selectedCount;
 
     /**
      * 创建时间

@@ -11,12 +11,17 @@ server:
 logging:
   level:
     root: info
+    com.lw.graduation: debug
+    com.baomidou.mybatisplus: warn
   file:
     path: D:\Project\myapps\graduation-system\data\logs\graduation-system-boot
   logback:
     rolling policy:
       max-file-size: 100MB
       max-history: 30
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 # debug配置
 debug: false
@@ -48,13 +53,13 @@ spring:
       # 多久才进行一次检测需要关闭的空闲连接，单位是毫秒
       time-between-eviction-runs-millis: 60000
       # 配置扩展插件：stat-监控统计，log4j-日志，wall-防火墙（防止SQL注入），去掉后，监控界面的sql无法统计
-      filters: stat,wall
+      filters: stat,wall,log4j
       # 检测连接是否有效的 SQL语句，为空时以下三个配置均无效
       validation-query: SELECT 1
       # 申请连接时执行validationQuery检测连接是否有效，默认true，开启后会降低性能
-      test-on-borrow: true
+      test-on-borrow: false
       # 归还连接时执行validationQuery检测连接是否有效，默认false，开启后会降低性能
-      test-on-return: true
+      test-on-return: false
       # 申请连接时如果空闲时间大于timeBetweenEvictionRunsMillis，执行validationQuery检测连接是否有效，默认false，建议开启，不影响性能
       test-while-idle: true
       # 是否开启 StatViewServlet
@@ -64,6 +69,8 @@ spring:
         allow: 127.0.0.1
         login-username: admin
         login-password: admin@lw123
+        # 禁用HTML页面上的"Reset All"功能
+        reset-enable: false
       # FilterStat
       filter:
         stat:
@@ -75,6 +82,17 @@ spring:
           slow-sql-millis: 2000
           # 合并多个连接池的监控数据，默认false
           merge-sql: true
+        # Wall防火墙配置
+        wall:
+          config:
+            # 允许删除操作
+            delete-allow: true
+            # 允许更新操作
+            update-allow: true
+            # 允许插入操作
+            insert-allow: true
+            # 允许SELECT操作
+            select-allow: true
 
   # redis 配置
   data:
@@ -85,13 +103,14 @@ spring:
       database: 1   # 使用 db1 存储会话，避免与业务数据冲突
       # 超时时间
       timeout: 2000ms
-      # 连接池
+      # 连接池优化配置
       lettuce:
         pool:
-          max-active: 8
+          max-active: 16
           max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
+          min-idle: 2
+          max-wait: 2000ms
+          time-between-eviction-runs: 30000ms
 
   # 上传文件配置
   servlet:

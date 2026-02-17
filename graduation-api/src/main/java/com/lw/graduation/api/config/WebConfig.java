@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${file.dir:D:/Project/myapps/data/uploadFiles}")
+    @Value("${file.dir:${UPLOAD_DIR:D:/Project/myapps/graduation-system/data/uploadFiles}}")
     private String uploadDir;
 
     @Override

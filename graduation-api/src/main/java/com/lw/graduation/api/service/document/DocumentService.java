@@ -1,10 +1,12 @@
 package com.lw.graduation.api.service.document;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.lw.graduation.api.dto.document.DocumentCreateDTO;
 import com.lw.graduation.api.dto.document.DocumentPageQueryDTO;
-import com.lw.graduation.api.dto.document.DocumentUpdateDTO;
+import com.lw.graduation.api.dto.document.DocumentReviewDTO;
+import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.vo.document.DocumentVO;
+
+import java.io.InputStream;
 
 /**
  * 文档服务接口
@@ -31,24 +33,37 @@ public interface DocumentService {
     DocumentVO getDocumentById(Long id);
 
     /**
-     * 创建新文档
+     * 上传文档
      *
-     * @param createDTO 创建文档 DTO
+     * @param uploadDTO 上传文档 DTO
+     * @param userId 用户ID
+     * @return 文档VO
      */
-    void createDocument(DocumentCreateDTO createDTO);
+    DocumentVO uploadDocument(DocumentUploadDTO uploadDTO, Long userId);
 
     /**
-     * 更新文档信息
+     * 下载文档
      *
-     * @param id        文档ID
-     * @param updateDTO 更新文档 DTO
+     * @param documentId 文档ID
+     * @param userId 用户ID
+     * @return 文件输入流
      */
-    void updateDocument(Long id, DocumentUpdateDTO updateDTO);
+    InputStream downloadDocument(Long documentId, Long userId);
+
+    /**
+     * 审核文档
+     *
+     * @param reviewDTO 审核DTO
+     * @param reviewerId 审核人ID
+     */
+    void reviewDocument(DocumentReviewDTO reviewDTO, Long reviewerId);
 
     /**
      * 删除文档
      *
      * @param id 文档ID
+     * @param userId 用户ID
+     * @return 删除成功返回true
      */
-    void deleteDocument(Long id);
+    boolean deleteDocument(Long id, Long userId);
 }

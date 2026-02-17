@@ -1,10 +1,13 @@
 package com.lw.graduation.api.service.grade;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.lw.graduation.api.dto.grade.GradeCreateDTO;
+import com.lw.graduation.api.dto.grade.GradeInputDTO;
 import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
-import com.lw.graduation.api.dto.grade.GradeUpdateDTO;
+import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.vo.grade.GradeVO;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 成绩服务接口
@@ -31,24 +34,53 @@ public interface GradeService {
     GradeVO getGradeById(Long id);
 
     /**
-     * 创建新成绩
+     * 录入成绩
      *
-     * @param createDTO 创建成绩 DTO
+     * @param inputDTO 成绩录入DTO
+     * @param graderId 评分教师ID
+     * @return 录入的成绩VO
      */
-    void createGrade(GradeCreateDTO createDTO);
+    GradeVO inputGrade(GradeInputDTO inputDTO, Long graderId);
 
     /**
-     * 更新成绩信息
+     * 自动计算综合成绩
      *
-     * @param id        成绩ID
-     * @param updateDTO 更新成绩 DTO
+     * @param studentId 学生ID
+     * @param topicId 题目ID
+     * @return 计算后的综合成绩
      */
-    void updateGrade(Long id, GradeUpdateDTO updateDTO);
+    BigDecimal calculateCompositeGrade(Long studentId, Long topicId);
+
+    /**
+     * 获取学生的所有成绩
+     *
+     * @param studentId 学生ID
+     * @return 成绩列表
+     */
+    List<GradeVO> getGradesByStudent(Long studentId);
+
+    /**
+     * 获取教师指导学生的成绩
+     *
+     * @param teacherId 教师ID
+     * @return 成绩列表
+     */
+    List<GradeVO> getGradesByTeacher(Long teacherId);
+
+    /**
+     * 获取成绩统计信息
+     *
+     * @param queryDTO 统计查询条件
+     * @return 成绩分布统计JSON字符串
+     */
+    String getGradeStatistics(GradeStatisticsQueryDTO queryDTO);
 
     /**
      * 删除成绩
      *
      * @param id 成绩ID
+     * @param graderId 教师ID
+     * @return 删除成功返回true
      */
-    void deleteGrade(Long id);
+    boolean deleteGrade(Long id, Long graderId);
 }

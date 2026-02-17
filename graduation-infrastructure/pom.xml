@@ -9,7 +9,7 @@
 	</parent>
 
 	<artifactId>graduation-infrastructure</artifactId>
-	<name>Graduation Infrastructure</name>
+	<name>Graduation Infrastructure  Module</name>
 	<description>基础设施：数据库、缓存、文件存储等</description>
 
 	<dependencies>
@@ -79,6 +79,12 @@
 		<dependency>
 			<groupId>cn.hutool</groupId>
 			<artifactId>hutool-all</artifactId>
+		</dependency>
+
+		<!-- 公共模块（工具类、枚举等） -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-common</artifactId>
 		</dependency>
 
 	</dependencies>

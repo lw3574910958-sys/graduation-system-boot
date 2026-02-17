@@ -68,6 +68,8 @@
         <module>graduation-document</module>
         <!-- 成绩模块 -->
         <module>graduation-grade</module>
+        <!-- 通知公告模块 -->
+        <module>graduation-notice</module>
         <!-- 系统日志模块 -->
         <module>graduation-log</module>
         <!-- 后续添加其他模块 -->

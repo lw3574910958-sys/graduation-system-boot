@@ -85,4 +85,40 @@ public class GradeVO {
     @Schema(description = "更新时间")
     @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
+
+    /**
+     * 学号
+     */
+    @Schema(description = "学号")
+    private String studentNumber;
+
+    /**
+     * 成绩等级
+     */
+    @Schema(description = "成绩等级")
+    private String gradeLevel;
+
+    /**
+     * 绩点
+     */
+    @Schema(description = "绩点")
+    private java.math.BigDecimal gpa;
+
+    /**
+     * 是否及格
+     */
+    @Schema(description = "是否及格")
+    private Boolean passing;
+
+    /**
+     * 是否优秀
+     */
+    @Schema(description = "是否优秀")
+    private Boolean excellent;
+
+    /**
+     * 评分教师姓名
+     */
+    @Schema(description = "评分教师姓名")
+    private String graderName;
 }

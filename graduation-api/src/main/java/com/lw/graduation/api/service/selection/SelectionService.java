@@ -1,14 +1,16 @@
 package com.lw.graduation.api.service.selection;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.lw.graduation.api.dto.selection.SelectionCreateDTO;
+import com.lw.graduation.api.dto.selection.SelectionApplyDTO;
 import com.lw.graduation.api.dto.selection.SelectionPageQueryDTO;
-import com.lw.graduation.api.dto.selection.SelectionUpdateDTO;
+import com.lw.graduation.api.dto.selection.SelectionReviewDTO;
 import com.lw.graduation.api.vo.selection.SelectionVO;
+
+import java.util.List;
 
 /**
  * 选题服务接口
- * 定义选题管理模块的核心业务逻辑。
+ * 定义选题管理模块的核心业务逻辑，包括申请、审核、确认等完整流程。
  *
  * @author lw
  */
@@ -31,24 +33,63 @@ public interface SelectionService {
     SelectionVO getSelectionById(Long id);
 
     /**
-     * 创建新选题
+     * 学生申请选题
      *
-     * @param createDTO 创建选题 DTO
+     * @param applyDTO 申请DTO
+     * @param studentId 学生ID
+     * @return 申请结果
      */
-    void createSelection(SelectionCreateDTO createDTO);
+    SelectionVO applySelection(SelectionApplyDTO applyDTO, Long studentId);
 
     /**
-     * 更新选题信息
+     * 教师审核选题申请
      *
-     * @param id        选题ID
-     * @param updateDTO 更新选题 DTO
+     * @param reviewDTO 审核DTO
+     * @param teacherId 教师ID
+     * @return 审核结果
      */
-    void updateSelection(Long id, SelectionUpdateDTO updateDTO);
+    SelectionVO reviewSelection(SelectionReviewDTO reviewDTO, Long teacherId);
 
     /**
-     * 删除选题
+     * 学生确认选题
+     *
+     * @param selectionId 选题ID
+     * @param studentId 学生ID
+     * @return 确认结果
+     */
+    SelectionVO confirmSelection(Long selectionId, Long studentId);
+
+    /**
+     * 获取学生的所有选题申请
+     *
+     * @param studentId 学生ID
+     * @return 选题列表
+     */
+    List<SelectionVO> getSelectionsByStudent(Long studentId);
+
+    /**
+     * 获取教师需要审核的选题申请
+     *
+     * @param teacherId 教师ID
+     * @return 选题列表
+     */
+    List<SelectionVO> getSelectionsForReview(Long teacherId);
+
+    /**
+     * 撤销选题申请
+     *
+     * @param selectionId 选题ID
+     * @param studentId 学生ID
+     * @return 撤销结果
+     */
+    boolean cancelSelection(Long selectionId, Long studentId);
+
+    /**
+     * 删除选题记录
      *
      * @param id 选题ID
+     * @param userId 用户ID
+     * @return 删除结果
      */
-    void deleteSelection(Long id);
+    boolean deleteSelection(Long id, Long userId);
 }

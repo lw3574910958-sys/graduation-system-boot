@@ -91,7 +91,12 @@ public enum ResponseCode {
     /**
      * 用户类型无效
      */
-    USER_TYPE_INVALID(1007, "用户类型无效！");
+    USER_TYPE_INVALID(1007, "用户类型无效！"),
+    
+    /**
+     * 院系存在关联数据
+     */
+    DEPARTMENT_HAS_ASSOCIATED_DATA(1008, "该院系存在关联的学生或教师数据，无法删除！");
 
 
     /**

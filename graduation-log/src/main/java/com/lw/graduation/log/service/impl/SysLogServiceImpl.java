@@ -1,10 +1,8 @@
 package com.lw.graduation.log.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
-import com.lw.graduation.log.entity.SysLog;
-import com.lw.graduation.log.mapper.SysLogMapper;
+import com.lw.graduation.domain.entity.log.SysLog;
+import com.lw.graduation.infrastructure.mapper.log.SysLogMapper;
 import com.lw.graduation.log.service.SysLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +10,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,11 +26,9 @@ import java.util.List;
 public class SysLogServiceImpl extends ServiceImpl<SysLogMapper, SysLog> implements SysLogService {
 
     private final SysLogMapper sysLogMapper;
-    private final SysUserMapper sysUserMapper;
 
     @Override
     @Async
-    @Transactional(rollbackFor = Exception.class)
     public void logOperation(Long userId, String userType, String operation, String ipAddress) {
         try {
             SysLog logEntry = new SysLog();
@@ -54,7 +49,6 @@ public class SysLogServiceImpl extends ServiceImpl<SysLogMapper, SysLog> impleme
 
     @Override
     @Async
-    @Transactional(rollbackFor = Exception.class)
     public void logOperationEnhanced(Long userId, String username, String userType, String module,
                                    String operation, Long businessId, Integer status, String ipAddress,
                                    Integer durationMs, String errorMessage) {
@@ -83,7 +77,6 @@ public class SysLogServiceImpl extends ServiceImpl<SysLogMapper, SysLog> impleme
 
     @Override
     @Async
-    @Transactional(rollbackFor = Exception.class)
     public void logSecurityEvent(String username, String operation, String ipAddress, String remark) {
         try {
             // 使用预置的匿名用户ID记录安全事件
@@ -111,7 +104,6 @@ public class SysLogServiceImpl extends ServiceImpl<SysLogMapper, SysLog> impleme
 
     @Override
     @Async
-    @Transactional(rollbackFor = Exception.class)
     public void logBatch(Iterable<SysLog> logs) {
         try {
             List<SysLog> logList = new ArrayList<>();

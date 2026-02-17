@@ -9,7 +9,7 @@
 	</parent>
 
 	<artifactId>graduation-domain</artifactId>
-	<name>Graduation Domain</name>
+	<name>Graduation Domain Module</name>
 	<description>领域模型：包含核心业务实体、值对象、领域服务、领域枚举等，与业务强相关</description>
 
 	<dependencies>

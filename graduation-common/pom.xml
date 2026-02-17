@@ -11,7 +11,7 @@
 	</parent>
 
 	<artifactId>graduation-common</artifactId>
-	<name>Graduation Common</name>
+	<name>Graduation Common Module</name>
 	<description>通用组件：返回体、工具类、常量、异常、枚举等，不依赖业务模型</description>
 
 	<dependencies>

@@ -8,9 +8,8 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 文档信息视图对象 (View Object)
- * 用于向外部（如前端）展示文档的详细信息。
- * 对应领域层的 BizDocument 实体。
+ * 文档信息视图对象
+ * 用于向外部展示文档的详细信息
  *
  * @author lw
  */
@@ -21,6 +20,7 @@ public class DocumentVO {
     /**
      * 文档ID
      */
+    @Schema(description = "文档ID")
     private Long id;
 
     /**
@@ -30,16 +30,34 @@ public class DocumentVO {
     private Long userId;
 
     /**
+     * 上传人姓名
+     */
+    @Schema(description = "上传人姓名")
+    private String userName;
+
+    /**
      * 关联题目ID
      */
     @Schema(description = "关联题目ID")
     private Long topicId;
 
     /**
-     * 文件类型: 0-开题报告, 1-中期报告, 2-毕业论文
+     * 题目标题
      */
-    @Schema(description = "文件类型: 0-开题报告, 1-中期报告, 2-毕业论文")
+    @Schema(description = "题目标题")
+    private String topicTitle;
+
+    /**
+     * 文件类型
+     */
+    @Schema(description = "文件类型: 0-开题报告, 1-中期报告, 2-毕业论文, 3-外文翻译, 4-其他文档")
     private Integer fileType;
+
+    /**
+     * 文件类型描述
+     */
+    @Schema(description = "文件类型描述")
+    private String fileTypeDesc;
 
     /**
      * 原始文件名
@@ -48,22 +66,34 @@ public class DocumentVO {
     private String originalFilename;
 
     /**
-     * 服务器存储路径
+     * 文件大小（字节）
      */
-    @Schema(description = "服务器存储路径")
-    private String storedPath;
-
-    /**
-     * 文件大小(字节)
-     */
-    @Schema(description = "文件大小(字节)")
+    @Schema(description = "文件大小（字节）")
     private Long fileSize;
 
     /**
-     * 审核状态: 0-待审, 1-通过, 2-驳回
+     * 文件大小显示格式
+     */
+    @Schema(description = "文件大小显示格式")
+    private String fileSizeDisplay;
+
+    /**
+     * 文件扩展名
+     */
+    @Schema(description = "文件扩展名")
+    private String fileExtension;
+
+    /**
+     * 审核状态
      */
     @Schema(description = "审核状态: 0-待审, 1-通过, 2-驳回")
     private Integer reviewStatus;
+
+    /**
+     * 审核状态描述
+     */
+    @Schema(description = "审核状态描述")
+    private String reviewStatusDesc;
 
     /**
      * 审核时间
@@ -77,6 +107,12 @@ public class DocumentVO {
      */
     @Schema(description = "审核人ID")
     private Long reviewerId;
+
+    /**
+     * 审核人姓名
+     */
+    @Schema(description = "审核人姓名")
+    private String reviewerName;
 
     /**
      * 审核意见
@@ -95,7 +131,7 @@ public class DocumentVO {
      * 创建时间
      */
     @Schema(description = "创建时间")
-    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD) // 格式化时间输出
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**

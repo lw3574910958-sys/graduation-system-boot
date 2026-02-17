@@ -138,14 +138,24 @@ CREATE TABLE `biz_topic` (
   `title` VARCHAR(200) NOT NULL COMMENT '题目标题',
   `description` TEXT NOT NULL COMMENT '题目描述',
   `teacher_id` BIGINT NOT NULL COMMENT '发布教师ID(biz_teacher.id)',
-  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0-开放, 1-已选, 2-关闭',
+  `department_id` BIGINT NOT NULL COMMENT '所属院系ID',
+  `source` VARCHAR(100) NULL DEFAULT NULL COMMENT '题目来源',
+  `type` VARCHAR(50) NULL DEFAULT NULL COMMENT '题目类型',
+  `nature` VARCHAR(50) NULL DEFAULT NULL COMMENT '题目性质',
+  `difficulty` TINYINT NULL DEFAULT NULL COMMENT '预计难度(1-5)',
+  `workload` TINYINT NULL DEFAULT NULL COMMENT '预计工作量(1-5)',
+  `max_selections` INT NOT NULL DEFAULT 1 COMMENT '选题人数限制',
+  `selected_count` INT NOT NULL DEFAULT 0 COMMENT '已选人数',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 1-开放, 2-已选, 3-关闭',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_teacher` (`teacher_id`),
+  KEY `idx_department` (`department_id`),
   KEY `idx_status` (`status`),
-  CONSTRAINT `fk_topic_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `biz_teacher` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_topic_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `biz_teacher` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_topic_department` FOREIGN KEY (`department_id`) REFERENCES `sys_department` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='题目表';
 
 -- ----------------------------
@@ -225,6 +235,24 @@ CREATE TABLE `biz_grade` (
   CONSTRAINT `fk_grade_topic` FOREIGN KEY (`topic_id`) REFERENCES `biz_topic` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_grade_grader` FOREIGN KEY (`grader_id`) REFERENCES `sys_user` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成绩表';
+
+-- ----------------------------
+-- Table structure for sys_user_role
+-- 用户角色关联表
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_user_role`;
+CREATE TABLE `sys_user_role` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID(sys_user.id)',
+  `role_code` VARCHAR(50) NOT NULL COMMENT '角色编码',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_role_code` (`role_code`),
+  CONSTRAINT `fk_user_role_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关联表';
 
 -- ----------------------------
 -- Table structure for sys_log

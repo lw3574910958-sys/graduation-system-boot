@@ -66,4 +66,48 @@ public class SelectionVO {
     @Schema(description = "更新时间")
     @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
+
+    /**
+     * 学号
+     */
+    @Schema(description = "学号")
+    private String studentNumber;
+
+    /**
+     * 状态描述
+     */
+    @Schema(description = "状态描述")
+    private String statusDesc;
+
+    /**
+     * 审核教师ID
+     */
+    @Schema(description = "审核教师ID")
+    private Long reviewerId;
+
+    /**
+     * 审核教师姓名
+     */
+    @Schema(description = "审核教师姓名")
+    private String reviewerName;
+
+    /**
+     * 审核时间
+     */
+    @Schema(description = "审核时间")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
+    private LocalDateTime reviewedAt;
+
+    /**
+     * 审核意见
+     */
+    @Schema(description = "审核意见")
+    private String reviewComment;
+
+    /**
+     * 学生确认时间
+     */
+    @Schema(description = "学生确认时间")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
+    private LocalDateTime confirmedAt;
 }

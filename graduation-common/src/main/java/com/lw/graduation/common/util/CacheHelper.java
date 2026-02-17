@@ -110,4 +110,84 @@ public class CacheHelper {
             log.error("批量清除缓存失败: error={}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 带缓存的数据获取方法（推荐使用）
+     * 自动处理缓存穿透和数据加载
+     *
+     * @param key 缓存键
+     * @param clazz 返回类型
+     * @param loader 数据加载函数
+     * @param expireSeconds 过期时间（秒）
+     * @param <T> 泛型类型
+     * @return 缓存或加载的数据
+     */
+    public <T> T getFromCache(String key, Class<T> clazz, java.util.function.Supplier<T> loader, int expireSeconds) {
+        // 1. 先从缓存获取
+        T cached = getFromCache(key, clazz);
+        if (cached != null) {
+            return cached;
+        }
+        
+        // 2. 缓存未命中，加载数据
+        T data = loader.get();
+        if (data == null) {
+            // 3. 数据为空，缓存空值标记
+            putNullMarker(key);
+        } else {
+            // 4. 数据不为空，缓存数据
+            putToCache(key, data, expireSeconds);
+        }
+        
+        return data;
+    }
+
+    /**
+     * 简化版缓存获取（适用于已有数据的情况）
+     *
+     * @param key 缓存键
+     * @param data 数据
+     * @param expireSeconds 过期时间
+     * @param <T> 泛型类型
+     * @return 数据
+     */
+    public <T> T cacheIfAbsent(String key, T data, int expireSeconds) {
+        if (data == null) {
+            putNullMarker(key);
+            return null;
+        }
+        putToCache(key, data, expireSeconds);
+        return data;
+    }
+
+    /**
+     * 检查缓存是否存在
+     *
+     * @param key 缓存键
+     * @return 是否存在
+     */
+    public boolean hasKey(String key) {
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+        } catch (Exception e) {
+            log.error("检查缓存键失败: key={}, error={}", key, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取缓存剩余过期时间
+     *
+     * @param key 缓存键
+     * @return 剩余过期时间（秒），-1表示永不过期，-2表示不存在
+     */
+    public long getExpire(String key) {
+        try {
+            Long expire = redisTemplate.getExpire(key);
+            return expire != null ? expire : -2;
+        } catch (Exception e) {
+            log.error("获取缓存过期时间失败: key={}, error={}", key, e.getMessage(), e);
+            return -2;
+        }
+    }
 }

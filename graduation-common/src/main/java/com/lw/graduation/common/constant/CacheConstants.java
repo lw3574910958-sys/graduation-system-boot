@@ -22,15 +22,15 @@ public class CacheConstants {
         public static final String SELECTION_INFO = "selection:info:";
         /** 成绩信息缓存前缀 */
         public static final String GRADE_INFO = "grade:info:";
+        /** 通知信息缓存前缀 */
+        public static final String NOTICE_INFO = "notice:info:";
         
         /** 当前用户信息缓存前缀 */
-        public static final String CURRENT_USER_INFO = "current:user:info:";
+        public static final String CURRENT_USER = "user:current:";
         /** 文档信息缓存前缀 */
         public static final String DOCUMENT_INFO = "document:info:";
         /** 所有院系列表缓存键 */
         public static final String ALL_DEPARTMENTS = "departments:all";
-        /** 当前用户信息缓存键 */
-        public static final String CURRENT_USER = "user:current:";
     }
 
     /**
@@ -60,6 +60,8 @@ public class CacheConstants {
         public static final int WARM_DATA_EXPIRE = 3600;
         /** 成绩信息缓存过期时间：1小时 */
         public static final int GRADE_INFO_EXPIRE = 3600;
+        /** 通知信息缓存过期时间：1小时 */
+        public static final int NOTICE_INFO_EXPIRE = 3600;
         
         // 冷数据（低频访问，经常变化）
         /** 选题信息缓存过期时间：30分钟 */
@@ -94,6 +96,8 @@ public class CacheConstants {
         public static final String SELECTION_CACHE = "selectionCache";
         /** 成绩缓存 */
         public static final String GRADE_CACHE = "gradeCache";
+        /** 通知缓存 */
+        public static final String NOTICE_CACHE = "noticeCache";
         /** 文档缓存 */
         public static final String DOCUMENT_CACHE = "documentCache";
         /** 系统配置缓存 */

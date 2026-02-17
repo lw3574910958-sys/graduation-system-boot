@@ -14,12 +14,9 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * <p>
  * 选题记录表
- * </p>
- *
- * @author lw
- * @since 2025-12-30
+ * 用于管理学生的选题申请，包括提交、审核、确认等完整流程。
+ * 支持教师审核、学生确认、状态跟踪等功能。
  */
 @Data
 @TableName("biz_selection")
@@ -50,7 +47,7 @@ public class BizSelection implements Serializable {
     private String topicTitle;
 
     /**
-     * 状态: 0-待确认, 1-已确认
+     * 状态: 0-待审核, 1-审核通过, 2-审核驳回, 3-已确认
      */
     @TableField("status")
     private Integer status;
@@ -75,4 +72,66 @@ public class BizSelection implements Serializable {
     @TableLogic
     @TableField("is_deleted")
     private Integer isDeleted;
+
+    /**
+     * 审核教师ID(sys_user.id)
+     */
+    @TableField("reviewer_id")
+    private Long reviewerId;
+
+    /**
+     * 审核时间
+     */
+    @TableField("reviewed_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime reviewedAt;
+
+    /**
+     * 审核意见
+     */
+    @TableField("review_comment")
+    private String reviewComment;
+
+    /**
+     * 学生确认时间
+     */
+    @TableField("confirmed_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime confirmedAt;
+
+    /**
+     * 检查选题是否已通过审核
+     *
+     * @return 通过审核返回true
+     */
+    public boolean isApproved() {
+        return this.status != null && this.status == 1;
+    }
+
+    /**
+     * 检查选题是否被驳回
+     *
+     * @return 被驳回返回true
+     */
+    public boolean isRejected() {
+        return this.status != null && this.status == 2;
+    }
+
+    /**
+     * 检查选题是否待审核
+     *
+     * @return 待审核返回true
+     */
+    public boolean isPendingReview() {
+        return this.status == null || this.status == 0;
+    }
+
+    /**
+     * 检查选题是否已确认
+     *
+     * @return 已确认返回true
+     */
+    public boolean isConfirmed() {
+        return this.status != null && this.status == 3;
+    }
 }

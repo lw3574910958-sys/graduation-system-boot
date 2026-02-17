@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.lw.graduation</groupId>
+        <artifactId>graduation-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>graduation-notice</artifactId>
+    <name>Graduation Notice Module</name>
+    <description>公告模块</description>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <!-- API 模块 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-api</artifactId>
+        </dependency>
+
+        <!-- Infrastructure 模块 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-infrastructure</artifactId>
+        </dependency>
+
+        <!-- Domain 模块 -->
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-domain</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lw.graduation.infrastructure.mapper.notice.BizNoticeMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.notice.BizNotice">
+        <id column="id" property="id" />
+        <result column="title" property="title" />
+        <result column="content" property="content" />
+        <result column="type" property="type" />
+        <result column="priority" property="priority" />
+        <result column="publisher_id" property="publisherId" />
+        <result column="published_at" property="publishedAt" />
+        <result column="start_time" property="startTime" />
+        <result column="end_time" property="endTime" />
+        <result column="is_sticky" property="isSticky" />
+        <result column="target_scope" property="targetScope" />
+        <result column="attachment_url" property="attachmentUrl" />
+        <result column="read_count" property="readCount" />
+        <result column="status" property="status" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_deleted" property="isDeleted" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, title, content, type, priority, publisher_id, published_at, start_time, end_time, 
+        is_sticky, target_scope, attachment_url, read_count, status, created_at, updated_at, is_deleted
+    </sql>
+
+</mapper>

@@ -4,14 +4,16 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.lw.graduation.api.dto.document.DocumentCreateDTO;
 import com.lw.graduation.api.dto.document.DocumentPageQueryDTO;
-import com.lw.graduation.api.dto.document.DocumentUpdateDTO;
+import com.lw.graduation.api.dto.document.DocumentReviewDTO;
+import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.service.document.DocumentService;
 import com.lw.graduation.api.vo.document.DocumentVO;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.common.util.BeanMapperUtil;
+import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
@@ -22,19 +24,23 @@ import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
+import com.lw.graduation.infrastructure.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * 文档服务实现类
- * 实现文档管理模块的核心业务逻辑。
+ * 实现文档管理模块的核心业务逻辑，调用基础设施层的文件存储服务
  *
  * @author lw
  */
@@ -47,44 +53,41 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     private final BizSelectionMapper bizSelectionMapper;
     private final BizTopicMapper bizTopicMapper;
     private final SysUserMapper sysUserMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final CacheHelper cacheHelper;
+    private final FileStorageService fileStorageService;
 
-    /**
-     * 分页查询文档列表
-     *
-     * @param queryDTO 查询条件
-     * @return 分页结果
-     */
     @Override
     public IPage<DocumentVO> getDocumentPage(DocumentPageQueryDTO queryDTO) {
+        log.info("分页查询文档列表: {}", queryDTO);
+        
         // 1. 构建查询条件
         LambdaQueryWrapper<BizDocument> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(queryDTO.getUserId() != null, BizDocument::getUserId, queryDTO.getUserId())
                 .eq(queryDTO.getTopicId() != null, BizDocument::getTopicId, queryDTO.getTopicId())
                 .eq(queryDTO.getFileType() != null, BizDocument::getFileType, queryDTO.getFileType())
                 .eq(queryDTO.getReviewStatus() != null, BizDocument::getReviewStatus, queryDTO.getReviewStatus())
-                .orderByDesc(BizDocument::getCreatedAt); // 按创建时间倒序
+                .eq(BizDocument::getIsDeleted, 0);
+        
+        // 关键词搜索
+        if (StringUtils.hasText(queryDTO.getKeyword())) {
+            wrapper.like(BizDocument::getOriginalFilename, queryDTO.getKeyword());
+        }
+        
+        wrapper.orderByDesc(BizDocument::getUploadedAt);
 
         // 2. 执行分页查询
         IPage<BizDocument> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<BizDocument> documentPage = bizDocumentMapper.selectPage(page, wrapper);
 
-        // 3. 转换为VO
+        // 3. 转换为VO并批量填充关联信息（优化N+1查询）
+        List<DocumentVO> voList = convertToDocumentVOListOptimized(documentPage.getRecords());
         IPage<DocumentVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
-        voPage.setRecords(documentPage.getRecords().stream()
-                .map(this::convertToDocumentVO)
-                .collect(Collectors.toList()));
+        voPage.setRecords(voList);
         voPage.setTotal(documentPage.getTotal());
 
         return voPage;
     }
 
-    /**
-     * 根据ID获取文档详情（带缓存穿透防护）
-     *
-     * @param id 文档ID
-     * @return 文档详情
-     */
     @Override
     public DocumentVO getDocumentById(Long id) {
         if (id == null) {
@@ -93,239 +96,340 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         String cacheKey = CacheConstants.KeyPrefix.DOCUMENT_INFO + id;
         
-        // 1. 查 Redis 缓存
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
-                log.debug("缓存命中空值标记，文档不存在: " + id);
+        return cacheHelper.getFromCache(cacheKey, DocumentVO.class, () -> {
+            BizDocument document = bizDocumentMapper.selectById(id);
+            if (document == null || document.getIsDeleted() == 1) {
                 return null;
             }
-            return (DocumentVO) cached;
-        }
-
-        // 2. 缓存未命中，查数据库
-        BizDocument document = bizDocumentMapper.selectById(id);
-        if (document == null) {
-            // 缓存空值防止穿透
-            redisTemplate.opsForValue().set(
-                cacheKey,
-                CacheConstants.CacheValue.NULL_MARKER,
-                CacheConstants.CacheValue.NULL_EXPIRE,
-                TimeUnit.SECONDS
-            );
-            log.debug("文档不存在，缓存空值标记: " + cacheKey);
-            return null;
-        }
-
-        // 3. 转换并缓存结果
-        DocumentVO result = convertToDocumentVO(document);
-        redisTemplate.opsForValue().set(
-            cacheKey,
-            result,
-            CacheConstants.ExpireTime.DOCUMENT_INFO_EXPIRE,
-            TimeUnit.SECONDS
-        );
-        log.debug("缓存文档信息: " + cacheKey);
-        return result;
+            return convertToDocumentVO(document);
+        }, CacheConstants.ExpireTime.WARM_DATA_EXPIRE);
     }
 
-    /**
-     * 创建文档
-     *
-     * @param createDTO 创建参数
-     */
     @Override
-    @Transactional
-    public void createDocument(DocumentCreateDTO createDTO) {
-        // 1. 验证用户是否存在
-        SysUser user = sysUserMapper.selectById(createDTO.getUserId());
-        if (user == null) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "用户不存在");
+    @Transactional(rollbackFor = Exception.class)
+    public DocumentVO uploadDocument(DocumentUploadDTO uploadDTO, Long userId) throws IOException {
+        log.info("用户 {} 上传文档: {}, 类型: {}", userId, uploadDTO.getFile().getOriginalFilename(), uploadDTO.getFileType());
+        
+        // 1. 验证文件类型
+        FileType fileType = FileType.getByValue(uploadDTO.getFileType());
+        if (fileType == null) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "不支持的文件类型");
         }
-
-        // 2. 验证选题是否存在
-        BizSelection selection = bizSelectionMapper.selectById(createDTO.getTopicId());
-        if (selection == null) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "选题不存在");
+        
+        // 2. 验证用户是否有权限上传该题目的文档
+        validateUploadPermission(userId, uploadDTO.getTopicId());
+        
+        // 3. 检查是否已存在相同类型的文档
+        LambdaQueryWrapper<BizDocument> existWrapper = new LambdaQueryWrapper<>();
+        existWrapper.eq(BizDocument::getUserId, userId)
+                   .eq(BizDocument::getTopicId, uploadDTO.getTopicId())
+                   .eq(BizDocument::getFileType, uploadDTO.getFileType())
+                   .eq(BizDocument::getIsDeleted, 0);
+        
+        if (count(existWrapper) > 0) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型文档已存在，请先删除原文件");
         }
-
-        // 3. 验证文件类型是否合法
-        if (createDTO.getFileType() != null) {
-            boolean validType = false;
-            for (FileType type : FileType.values()) {
-                if (type.getValue().equals(createDTO.getFileType())) {
-                    validType = true;
-                    break;
-                }
-            }
-            if (!validType) {
-                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文件类型不合法");
-            }
-        }
-
-        // 4. 检查同一选题下是否已存在相同类型的文档
-        LambdaQueryWrapper<BizDocument> duplicateWrapper = new LambdaQueryWrapper<>();
-        duplicateWrapper.eq(BizDocument::getTopicId, createDTO.getTopicId())
-                .eq(BizDocument::getFileType, createDTO.getFileType())
-                .eq(BizDocument::getReviewStatus, ReviewStatus.APPROVED.getValue()); // 已通过审核的文档
-        if (bizDocumentMapper.selectCount(duplicateWrapper) > 0) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该选题已存在相同类型的已审核文档");
-        }
-
-        // 5. 创建文档实体
+        
+        // 4. 上传文件到存储服务
+        String folder = "documents/" + fileType.name().toLowerCase();
+        String storedPath = fileStorageService.store(uploadDTO.getFile(), folder);
+        
+        // 5. 创建文档记录
         BizDocument document = new BizDocument();
-        document.setUserId(createDTO.getUserId());
-        document.setTopicId(createDTO.getTopicId());
-        document.setFileType(createDTO.getFileType());
-        document.setOriginalFilename(createDTO.getOriginalFilename());
-        document.setStoredPath(createDTO.getStoredPath());
-        document.setFileSize(createDTO.getFileSize());
-        document.setReviewStatus(createDTO.getReviewStatus() != null ? createDTO.getReviewStatus() : 0); // 默认待审
+        document.setUserId(userId);
+        document.setTopicId(uploadDTO.getTopicId());
+        document.setFileType(uploadDTO.getFileType());
+        document.setOriginalFilename(uploadDTO.getFile().getOriginalFilename());
+        document.setStoredPath(storedPath);
+        document.setFileSize(uploadDTO.getFile().getSize());
+        document.setReviewStatus(ReviewStatus.PENDING.getValue());
         document.setUploadedAt(LocalDateTime.now());
-
-        // 6. 插入数据库
-        bizDocumentMapper.insert(document);
         
-        // 7. 清除相关缓存
-        clearUserDocumentsCache(createDTO.getUserId());
-        clearTopicDocumentsCache(createDTO.getTopicId());
+        boolean saved = save(document);
+        if (!saved) {
+            // 上传失败时删除已存储的文件
+            deleteStoredFile(storedPath);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文档上传失败");
+        }
+        
+        // 6. 清除相关缓存
+        clearDocumentCache(document.getId());
+        
+        log.info("文档上传成功，ID: {}", document.getId());
+        return convertToDocumentVO(document);
     }
 
-    /**
-     * 更新文档
-     *
-     * @param id 文档ID
-     * @param updateDTO 更新参数
-     */
     @Override
-    @Transactional
-    public void updateDocument(Long id, DocumentUpdateDTO updateDTO) {
-        // 1. 查询文档是否存在
-        BizDocument existingDocument = bizDocumentMapper.selectById(id);
-        if (existingDocument == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND);
-        }
-
-        // 2. 如果更新审核状态，需要设置审核时间和审核人
-        BizDocument updateDocument = new BizDocument();
-        updateDocument.setId(id);
-        updateDocument.setOriginalFilename(updateDTO.getOriginalFilename());
-        updateDocument.setStoredPath(updateDTO.getStoredPath());
-        updateDocument.setFileSize(updateDTO.getFileSize());
+    public InputStream downloadDocument(Long documentId, Long userId) {
+        log.info("用户 {} 下载文档: {}", userId, documentId);
         
-        if (updateDTO.getUserId() != null) {
-            updateDocument.setUserId(updateDTO.getUserId());
+        // 1. 获取文档信息
+        BizDocument document = getById(documentId);
+        if (document == null || document.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
-        if (updateDTO.getTopicId() != null) {
-            updateDocument.setTopicId(updateDTO.getTopicId());
+        
+        // 2. 验证下载权限
+        validateDownloadPermission(userId, document);
+        
+        // 3. 下载文件
+        try {
+            // 注意：这里需要根据具体的文件存储实现来获取InputStream
+            // 当前假设LocalFileStorageServiceImpl提供了相应的方法
+            // 实际使用时可能需要扩展FileStorageService接口
+            throw new UnsupportedOperationException("当前文件存储实现暂不支持直接返回InputStream");
+        } catch (Exception e) {
+            log.error("文档下载失败: {}", documentId, e);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文档下载失败");
         }
-        if (updateDTO.getFileType() != null) {
-            updateDocument.setFileType(updateDTO.getFileType());
-        }
-        if (updateDTO.getReviewStatus() != null) {
-            updateDocument.setReviewStatus(updateDTO.getReviewStatus());
-            updateDocument.setReviewedAt(LocalDateTime.now());
-            // TODO(lw): 这里应该从上下文中获取当前登录用户的ID作为审核人 @2024-12-31前完成
-            // updateDocument.setReviewerId(currentUserId);
-        }
-        updateDocument.setUpdatedAt(LocalDateTime.now());
+    }
 
-        // 3. 执行更新
-        bizDocumentMapper.updateById(updateDocument);
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reviewDocument(DocumentReviewDTO reviewDTO, Long reviewerId) {
+        log.info("审核员 {} 审核文档: {}, 结果: {}", reviewerId, reviewDTO.getDocumentId(), reviewDTO.getReviewStatus());
+        
+        // 1. 获取文档信息
+        BizDocument document = getById(reviewDTO.getDocumentId());
+        if (document == null || document.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
+        }
+        
+        // 2. 验证审核状态
+        ReviewStatus reviewStatus = ReviewStatus.getByValue(reviewDTO.getReviewStatus());
+        if (reviewStatus == null) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的审核状态");
+        }
+        
+        if (reviewStatus.isFinalStatus() && document.isApproved()) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档已通过审核，无需重复审核");
+        }
+        
+        // 3. 更新审核信息
+        document.setReviewStatus(reviewDTO.getReviewStatus());
+        document.setReviewerId(reviewerId);
+        document.setReviewedAt(LocalDateTime.now());
+        document.setFeedback(reviewDTO.getFeedback());
+        
+        boolean updated = updateById(document);
+        if (!updated) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文档审核失败");
+        }
         
         // 4. 清除缓存
-        clearDocumentCache(id);
-        if (updateDTO.getUserId() != null && !updateDTO.getUserId().equals(existingDocument.getUserId())) {
-            clearUserDocumentsCache(existingDocument.getUserId());
-            clearUserDocumentsCache(updateDTO.getUserId());
-        }
-        if (updateDTO.getTopicId() != null && !updateDTO.getTopicId().equals(existingDocument.getTopicId())) {
-            clearTopicDocumentsCache(existingDocument.getTopicId());
-            clearTopicDocumentsCache(updateDTO.getTopicId());
-        }
-    }
-
-    /**
-     * 删除文档
-     *
-     * @param id 文档ID
-     */
-    @Override
-    @Transactional
-    public void deleteDocument(Long id) {
-        // 1. 检查文档是否存在
-        BizDocument document = bizDocumentMapper.selectById(id);
-        if (document == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND);
-        }
-
-        // 2. 已通过审核的文档不能直接删除
-        if (document.getReviewStatus() != null && document.getReviewStatus() == ReviewStatus.APPROVED.getValue()) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已通过审核的文档不能删除");
-        }
-
-        // 3. 执行删除（逻辑删除）
-        bizDocumentMapper.deleteById(id);
+        clearDocumentCache(document.getId());
         
-        // 4. 清除缓存
+        log.info("文档审核完成，ID: {}", document.getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteDocument(Long id, Long userId) {
+        log.info("用户 {} 删除文档: {}", userId, id);
+        
+        // 1. 获取文档信息
+        BizDocument document = getById(id);
+        if (document == null || document.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
+        }
+        
+        // 2. 验证删除权限
+        if (!document.getUserId().equals(userId)) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权删除他人文档");
+        }
+        
+        // 3. 删除文件存储
+        try {
+            deleteStoredFile(document.getStoredPath());
+        } catch (Exception e) {
+            log.warn("文件删除失败，但继续删除数据库记录: {}", document.getStoredPath(), e);
+        }
+        
+        // 4. 逻辑删除数据库记录
+        boolean removed = removeById(id);
+        if (!removed) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文档删除失败");
+        }
+        
+        // 5. 清除缓存
         clearDocumentCache(id);
-        clearUserDocumentsCache(document.getUserId());
-        clearTopicDocumentsCache(document.getTopicId());
+        
+        log.info("文档删除成功，ID: {}", id);
+        return true;
     }
 
     /**
-     * 将BizDocument实体转换为DocumentVO
-     *
-     * @param document 文档实体
-     * @return 文档VO
+     * 删除存储的文件（需要扩展FileStorageService接口）
+     */
+    private void deleteStoredFile(String filePath) {
+        // TODO: 需要在FileStorageService接口中添加delete方法
+        // 或者创建一个专门的文件管理服务
+        log.warn("文件删除功能待实现，路径: {}", filePath);
+    }
+
+    /**
+     * 验证上传权限
+     */
+    private void validateUploadPermission(Long userId, Long topicId) {
+        // 检查用户是否选择了该题目
+        LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
+        selectionWrapper.eq(BizSelection::getStudentId, userId)
+                       .eq(BizSelection::getTopicId, topicId)
+                       .eq(BizSelection::getStatus, 1); // 已确认状态
+        
+        if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权上传该题目的文档");
+        }
+    }
+
+    /**
+     * 验证下载权限
+     */
+    private void validateDownloadPermission(Long userId, BizDocument document) {
+        // 文档所有者可以下载
+        if (document.getUserId().equals(userId)) {
+            return;
+        }
+        
+        // 指导教师可以下载
+        BizTopic topic = bizTopicMapper.selectById(document.getTopicId());
+        if (topic != null && topic.getTeacherId().equals(userId)) {
+            return;
+        }
+        
+        // 管理员可以下载
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user != null && "admin".equals(user.getUsername())) {
+            return;
+        }
+        
+        throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权下载该文档");
+    }
+
+    /**
+     * 转换文档实体为VO
      */
     private DocumentVO convertToDocumentVO(BizDocument document) {
-        DocumentVO vo = new DocumentVO();
-        vo.setId(document.getId());
-        vo.setUserId(document.getUserId());
-        vo.setTopicId(document.getTopicId());
-        vo.setFileType(document.getFileType());
-        vo.setOriginalFilename(document.getOriginalFilename());
-        vo.setStoredPath(document.getStoredPath());
-        vo.setFileSize(document.getFileSize());
-        vo.setReviewStatus(document.getReviewStatus());
-        vo.setReviewedAt(document.getReviewedAt());
-        vo.setReviewerId(document.getReviewerId());
-        vo.setFeedback(document.getFeedback());
-        vo.setUploadedAt(document.getUploadedAt());
-        vo.setCreatedAt(document.getCreatedAt());
-        vo.setUpdatedAt(document.getUpdatedAt());
+        DocumentVO vo = BeanMapperUtil.copyProperties(document, DocumentVO.class);
+        
+        // 填充扩展信息
+        vo.setFileSizeDisplay(document.getFileSizeDisplay());
+        vo.setFileExtension(document.getFileExtension());
+        
+        // 填充文件类型描述
+        FileType fileType = FileType.getByValue(document.getFileType());
+        if (fileType != null) {
+            vo.setFileTypeDesc(fileType.getDescription());
+        }
+        
+        // 填充审核状态描述
+        ReviewStatus reviewStatus = ReviewStatus.getByValue(document.getReviewStatus());
+        if (reviewStatus != null) {
+            vo.setReviewStatusDesc(reviewStatus.getDescription());
+        }
+        
+        // 填充用户信息
+        if (document.getUserId() != null) {
+            SysUser user = sysUserMapper.selectById(document.getUserId());
+            if (user != null) {
+                vo.setUserName(user.getRealName());
+            }
+        }
+        
+        // 填充题目信息
+        if (document.getTopicId() != null) {
+            BizTopic topic = bizTopicMapper.selectById(document.getTopicId());
+            if (topic != null) {
+                vo.setTopicTitle(topic.getTitle());
+            }
+        }
+        
+        // 填充审核人信息
+        if (document.getReviewerId() != null) {
+            SysUser reviewer = sysUserMapper.selectById(document.getReviewerId());
+            if (reviewer != null) {
+                vo.setReviewerName(reviewer.getRealName());
+            }
+        }
+        
         return vo;
     }
 
     /**
-     * 清除单个文档缓存
+     * 批量转换文档实体为VO（优化N+1查询）
+     * 通过批量查询减少数据库访问次数
+     */
+    private List<DocumentVO> convertToDocumentVOListOptimized(List<BizDocument> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 提取所有需要查询的ID
+        List<Long> documentIds = documents.stream()
+                .map(BizDocument::getId)
+                .collect(Collectors.toList());
+        
+        // 批量查询关联信息
+        List<Map<String, Object>> documentDetails = bizDocumentMapper.selectDocumentDetailsWithRelations(documentIds);
+        
+        // 构建ID到详情的映射
+        Map<Long, Map<String, Object>> detailsMap = documentDetails.stream()
+                .collect(Collectors.toMap(
+                        detail -> ((Number) detail.get("id")).longValue(),
+                        detail -> detail,
+                        (existing, replacement) -> existing
+                ));
+        
+        // 转换为VO列表
+        return documents.stream().map(document -> {
+            DocumentVO vo = new DocumentVO();
+            vo.setId(document.getId());
+            vo.setUserId(document.getUserId());
+            vo.setTopicId(document.getTopicId());
+            vo.setFileType(document.getFileType());
+            vo.setOriginalFilename(document.getOriginalFilename());
+            vo.setFileSize(document.getFileSize());
+            vo.setReviewStatus(document.getReviewStatus());
+            vo.setReviewedAt(document.getReviewedAt());
+            vo.setReviewerId(document.getReviewerId());
+            vo.setFeedback(document.getFeedback());
+            vo.setUploadedAt(document.getUploadedAt());
+            vo.setCreatedAt(document.getCreatedAt());
+            vo.setUpdatedAt(document.getUpdatedAt());
+            
+            // 填充扩展信息
+            vo.setFileSizeDisplay(document.getFileSizeDisplay());
+            vo.setFileExtension(document.getFileExtension());
+            
+            // 填充文件类型描述
+            FileType fileType = FileType.getByValue(document.getFileType());
+            if (fileType != null) {
+                vo.setFileTypeDesc(fileType.getDescription());
+            }
+            
+            // 填充审核状态描述
+            ReviewStatus reviewStatus = ReviewStatus.getByValue(document.getReviewStatus());
+            if (reviewStatus != null) {
+                vo.setReviewStatusDesc(reviewStatus.getDescription());
+            }
+            
+            // 从批量查询结果中获取关联信息
+            Map<String, Object> detail = detailsMap.get(document.getId());
+            if (detail != null) {
+                vo.setUserName((String) detail.get("user_name"));
+                vo.setTopicTitle((String) detail.get("topic_title"));
+                vo.setReviewerName((String) detail.get("reviewer_name"));
+            }
+            
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 清除文档相关缓存
      */
     private void clearDocumentCache(Long documentId) {
-        if (documentId != null) {
-            String cacheKey = CacheConstants.KeyPrefix.DOCUMENT_INFO + documentId;
-            redisTemplate.delete(cacheKey);
-            log.debug("清除文档缓存: " + cacheKey);
-        }
-    }
-
-    /**
-     * 清除用户相关文档缓存
-     */
-    private void clearUserDocumentsCache(Long userId) {
-        if (userId != null) {
-            // 可以扩展清除用户相关的文档列表缓存
-            log.debug("清除用户文档相关缓存: " + userId);
-        }
-    }
-
-    /**
-     * 清除课题相关文档缓存
-     */
-    private void clearTopicDocumentsCache(Long topicId) {
-        if (topicId != null) {
-            // 可以扩展清除课题相关的文档列表缓存
-            log.debug("清除课题文档相关缓存: " + topicId);
-        }
+        String cacheKey = CacheConstants.KeyPrefix.DOCUMENT_INFO + documentId;
+        cacheHelper.evictCache(cacheKey);
     }
 }

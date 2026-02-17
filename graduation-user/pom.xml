@@ -19,35 +19,30 @@
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-common</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<!-- 引入领域模型模块 -->
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-domain</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<!-- 引入基础设施模块 -->
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-infrastructure</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<!-- 引入权限模块 -->
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-auth</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<!-- 引入API模块 (包含Controller, DTO, VO, Service接口) -->
 		<dependency>
 			<groupId>com.lw.graduation</groupId>
 			<artifactId>graduation-api</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Web 支持 -->

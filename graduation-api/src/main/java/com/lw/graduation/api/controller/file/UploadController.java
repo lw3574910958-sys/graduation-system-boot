@@ -1,18 +1,17 @@
 package com.lw.graduation.api.controller.file;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
-import com.lw.graduation.api.config.FileConfig;
+import cn.dev33.satoken.stp.StpUtil;
+import com.lw.graduation.api.service.file.UnifiedFileUploadService;
+import com.lw.graduation.api.vo.file.FileUploadResultVO;
 import com.lw.graduation.common.response.Result;
-import com.lw.graduation.infrastructure.storage.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 文件上传控制器
@@ -24,38 +23,29 @@ import java.util.Map;
 @RequestMapping("/api/upload")
 @Tag(name = "文件上传", description = "文件上传相关接口")
 @RequiredArgsConstructor
+@Slf4j
 public class UploadController {
 
-    private final FileStorageService fileStorageService;
+    private final UnifiedFileUploadService unifiedFileUploadService;
 
     /**
      * 通用文件上传接口
      *
      * @param file 上传的文件
+     * @param category 文件分类
      * @return 上传结果
      */
     @PostMapping("/file")
     @SaCheckLogin // 需要登录才能上传
     @Operation(summary = "上传文件")
-    public Result<Map<String, Object>> uploadFile(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            return Result.error("文件不能为空");
-        }
-
+    public Result<FileUploadResultVO> uploadFile(
+            @Parameter(description = "上传的文件") @RequestParam("file") MultipartFile file,
+            @Parameter(description = "文件分类") @RequestParam(required = false, defaultValue = "general") String category) {
         try {
-            // 使用文件存储服务保存文件
-            String storedPath = fileStorageService.store(file, FileConfig.UPLOAD_BASE_PATH);
-
-            // 构建返回结果
-            Map<String, Object> result = new HashMap<>();
-            result.put("name", file.getOriginalFilename());
-            result.put("size", file.getSize());
-            result.put("type", file.getContentType());
-            result.put("storedPath", storedPath);
-            result.put("url", "/files" + storedPath); // 提供访问URL
-
+            FileUploadResultVO result = unifiedFileUploadService.uploadFile(file, category);
             return Result.success(result);
         } catch (Exception e) {
+            log.error("文件上传失败", e);
             return Result.error("文件上传失败: " + e.getMessage());
         }
     }
@@ -69,40 +59,14 @@ public class UploadController {
     @PostMapping("/avatar")
     @SaCheckLogin // 需要登录才能上传头像
     @Operation(summary = "上传头像")
-    public Result<Map<String, Object>> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            return Result.error("头像文件不能为空");
-        }
-
-        // 验证文件类型（仅允许图片格式）
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            return Result.error("仅支持图片格式文件");
-        }
-        
-        // 额外验证：检查文件扩展名
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename != null) {
-            String extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
-            if (!Arrays.asList(".jpg", ".jpeg", ".png", ".gif").contains(extension)) {
-                return Result.error("仅支持 JPG、JPEG、PNG、GIF 格式的图片");
-            }
-        }
-
+    public Result<FileUploadResultVO> uploadAvatar(
+            @Parameter(description = "上传的头像文件") @RequestParam("file") MultipartFile file) {
         try {
-            // 使用文件存储服务保存头像文件
-            String storedPath = fileStorageService.store(file, FileConfig.UPLOAD_BASE_PATH + FileConfig.AVATAR_DIR);
-
-            // 构建返回结果
-            Map<String, Object> result = new HashMap<>();
-            result.put("name", file.getOriginalFilename());
-            result.put("size", file.getSize());
-            result.put("type", file.getContentType());
-            result.put("storedPath", storedPath);
-            result.put("url", "/files" + storedPath); // 提供访问URL
-
+            Long userId = StpUtil.getLoginIdAsLong();
+            FileUploadResultVO result = unifiedFileUploadService.uploadAvatar(file, userId);
             return Result.success(result);
         } catch (Exception e) {
+            log.error("头像上传失败", e);
             return Result.error("头像上传失败: " + e.getMessage());
         }
     }

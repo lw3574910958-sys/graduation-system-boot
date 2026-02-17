@@ -13,15 +13,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 高级代码生成器：支持按表隔离包路径 + 自动建目录 + 多模块输出
  *
  * @author lw
  */
+@Slf4j
 public class CodeGenerator {
     
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CodeGenerator.class);
-
     public static void main(String[] args) {
         log.info("🚀 启动 MyBatis-Plus 代码生成器");
 

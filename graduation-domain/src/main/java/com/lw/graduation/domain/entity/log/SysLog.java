@@ -37,10 +37,22 @@ public class SysLog implements Serializable {
     private Long userId;
 
     /**
+     * 用户名 (用于未认证场景)
+     */
+    @TableField("username")
+    private String username;
+
+    /**
      * 操作人类型
      */
     @TableField("user_type")
     private String userType;
+
+    /**
+     * 模块名称 (user/topic/selection/document/grade/admin/security)
+     */
+    @TableField("module")
+    private String module;
 
     /**
      * 操作描述
@@ -49,10 +61,34 @@ public class SysLog implements Serializable {
     private String operation;
 
     /**
+     * 业务关联ID
+     */
+    @TableField("business_id")
+    private Long businessId;
+
+    /**
+     * 操作状态: 0-失败, 1-成功, 2-进行中
+     */
+    @TableField("status")
+    private Integer status;
+
+    /**
      * 操作IP
      */
     @TableField("ip_address")
     private String ipAddress;
+
+    /**
+     * 操作耗时(毫秒)
+     */
+    @TableField("duration_ms")
+    private Integer durationMs;
+
+    /**
+     * 错误信息
+     */
+    @TableField("error_message")
+    private String errorMessage;
 
     /**
      * 创建时间

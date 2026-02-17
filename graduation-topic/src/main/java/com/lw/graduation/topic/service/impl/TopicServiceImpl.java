@@ -12,7 +12,10 @@ import com.lw.graduation.api.vo.topic.TopicVO;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.common.util.BeanMapperUtil;
+import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.domain.entity.topic.BizTopic;
+import com.lw.graduation.domain.enums.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,12 +24,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * 课题服务实现类
- * 实现课题管理模块的核心业务逻辑。
+ * 题目服务实现类
+ * 实现题目管理模块的核心业务逻辑。
  *
  * @author lw
  */
@@ -36,14 +40,8 @@ import java.util.stream.Collectors;
 public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> implements TopicService {
 
     private final BizTopicMapper bizTopicMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final CacheHelper cacheHelper;
 
-    /**
-     * 分页查询课题列表
-     *
-     * @param queryDTO 查询条件
-     * @return 分页结果
-     */
     @Override
     public IPage<TopicVO> getTopicPage(TopicPageQueryDTO queryDTO) {
         // 1. 构建查询条件
@@ -51,7 +49,8 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         wrapper.like(queryDTO.getTitle() != null, BizTopic::getTitle, queryDTO.getTitle())
                 .eq(queryDTO.getTeacherId() != null, BizTopic::getTeacherId, queryDTO.getTeacherId())
                 .eq(queryDTO.getStatus() != null, BizTopic::getStatus, queryDTO.getStatus())
-                .orderByDesc(BizTopic::getCreatedAt); // 按创建时间倒序
+                .eq(BizTopic::getIsDeleted, 0)
+                .orderByDesc(BizTopic::getCreatedAt);
 
         // 2. 执行分页查询
         IPage<BizTopic> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
@@ -67,12 +66,6 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         return voPage;
     }
 
-    /**
-     * 根据ID获取课题详情（带缓存穿透防护）
-     *
-     * @param id 课题ID
-     * @return 课题详情
-     */
     @Override
     public TopicVO getTopicById(Long id) {
         if (id == null) {
@@ -81,150 +74,178 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         String cacheKey = CacheConstants.KeyPrefix.TOPIC_INFO + id;
         
-        // 1. 查 Redis 缓存
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
-                log.debug("缓存命中空值标记，课题不存在: " + id);
+        return cacheHelper.getFromCache(cacheKey, TopicVO.class, () -> {
+            BizTopic topic = bizTopicMapper.selectById(id);
+            if (topic == null || topic.getIsDeleted() == 1) {
                 return null;
             }
-            return (TopicVO) cached;
-        }
-
-        // 2. 缓存未命中，查数据库
-        BizTopic topic = bizTopicMapper.selectById(id);
-        if (topic == null) {
-            // 缓存空值防止穿透
-            redisTemplate.opsForValue().set(
-                cacheKey,
-                CacheConstants.CacheValue.NULL_MARKER,
-                CacheConstants.CacheValue.NULL_EXPIRE,
-                TimeUnit.SECONDS
-            );
-            log.debug("课题不存在，缓存空值标记: " + cacheKey);
-            return null;
-        }
-
-        // 3. 转换并缓存结果
-        TopicVO result = convertToTopicVO(topic);
-        redisTemplate.opsForValue().set(
-            cacheKey,
-            result,
-            CacheConstants.ExpireTime.TOPIC_INFO_EXPIRE,
-            TimeUnit.SECONDS
-        );
-        log.debug("缓存课题信息: " + cacheKey);
-        return result;
+            return convertToTopicVO(topic);
+        }, CacheConstants.ExpireTime.WARM_DATA_EXPIRE);
     }
 
-    /**
-     * 创建课题
-     *
-     * @param createDTO 创建参数
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void createTopic(TopicCreateDTO createDTO) {
-        // 1. 创建课题实体
+        log.info("创建新题目: {}", createDTO.getTitle());
+        
+        // 1. 构造题目实体
         BizTopic topic = new BizTopic();
         topic.setTitle(createDTO.getTitle());
         topic.setDescription(createDTO.getDescription());
-        topic.setTeacherId(createDTO.getTeacherId());
-        topic.setStatus(createDTO.getStatus() != null ? createDTO.getStatus() : 0); // 默认开放
-
-        // 2. 插入数据库
-        bizTopicMapper.insert(topic);
+        // 注意：教师ID需要从上下文获取，这里暂时设置为0，实际应该从认证信息中获取
+        topic.setTeacherId(0L);
+        topic.setDepartmentId(createDTO.getDepartmentId());
+        topic.setSource(createDTO.getSource());
+        topic.setType(createDTO.getType());
+        topic.setNature(createDTO.getNature());
+        topic.setDifficulty(createDTO.getDifficulty());
+        topic.setWorkload(createDTO.getWorkload());
+        topic.setMaxSelections(createDTO.getMaxSelections() != null ? createDTO.getMaxSelections() : 1);
+        topic.setSelectedCount(0);
+        topic.setStatus(TopicStatus.OPEN.getValue()); // 默认开放状态
         
-        // 3. 清除相关缓存（如果有教师相关的缓存）
+        // 2. 保存到数据库
+        boolean saved = save(topic);
+        if (!saved) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "题目创建失败");
+        }
+        
+        // 3. 清除相关缓存
+        clearTopicCache(topic.getId());
+        
+        log.info("题目创建成功，ID: {}", topic.getId());
     }
 
-    /**
-     * 更新课题
-     *
-     * @param id 课题ID
-     * @param updateDTO 更新参数
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateTopic(Long id, TopicUpdateDTO updateDTO) {
-        // 1. 查询课题是否存在
-        BizTopic existingTopic = bizTopicMapper.selectById(id);
-        if (existingTopic == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND);
-        }
-
-        // 2. 构建更新实体
-        BizTopic updateTopic = new BizTopic();
-        updateTopic.setId(id);
-        updateTopic.setTitle(updateDTO.getTitle());
-        updateTopic.setDescription(updateDTO.getDescription());
-        if (updateDTO.getTeacherId() != null) {
-            updateTopic.setTeacherId(updateDTO.getTeacherId());
-        }
-        if (updateDTO.getStatus() != null) {
-            updateTopic.setStatus(updateDTO.getStatus());
-        }
-        updateTopic.setUpdatedAt(LocalDateTime.now());
-
-        // 3. 执行更新
-        bizTopicMapper.updateById(updateTopic);
+        log.info("更新题目: {}", id);
         
-        // 4. 清除缓存
+        // 1. 检查题目是否存在
+        BizTopic existingTopic = getById(id);
+        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
+        }
+        
+        // 2. 检查题目状态是否允许修改
+        if (TopicStatus.getByValue(existingTopic.getStatus()) == TopicStatus.SELECTED) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已选题目不能修改");
+        }
+        
+        // 3. 更新题目信息
+        existingTopic.setTitle(updateDTO.getTitle());
+        existingTopic.setDescription(updateDTO.getDescription());
+        existingTopic.setSource(updateDTO.getSource());
+        existingTopic.setType(updateDTO.getType());
+        existingTopic.setNature(updateDTO.getNature());
+        existingTopic.setDifficulty(updateDTO.getDifficulty());
+        existingTopic.setWorkload(updateDTO.getWorkload());
+        existingTopic.setMaxSelections(updateDTO.getMaxSelections());
+        
+        // 只有开放状态的题目才能改变状态
+        if (TopicStatus.getByValue(existingTopic.getStatus()) == TopicStatus.OPEN 
+            && updateDTO.getStatus() != null) {
+            existingTopic.setStatus(updateDTO.getStatus());
+        }
+        
+        // 4. 保存更新
+        boolean updated = updateById(existingTopic);
+        if (!updated) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "题目更新失败");
+        }
+        
+        // 5. 清除缓存
         clearTopicCache(id);
+        
+        log.info("题目更新成功，ID: {}", id);
     }
 
-    /**
-     * 删除课题
-     *
-     * @param id 课题ID
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteTopic(Long id) {
-        // 1. 检查课题是否存在
-        BizTopic topic = bizTopicMapper.selectById(id);
-        if (topic == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND);
+        log.info("删除题目: {}", id);
+        
+        // 1. 检查题目是否存在
+        BizTopic existingTopic = getById(id);
+        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
-
-        // 2. 检查是否已被选中（状态为已选时不能删除）
-        if (topic.getStatus() != null && topic.getStatus() == 1) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已选中的课题不能删除");
+        
+        // 2. 检查题目状态是否允许删除
+        if (TopicStatus.getByValue(existingTopic.getStatus()) == TopicStatus.SELECTED) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已选题目不能删除");
         }
-
-        // 3. 执行删除（逻辑删除）
-        bizTopicMapper.deleteById(id);
+        
+        // 3. 逻辑删除
+        boolean removed = removeById(id);
+        if (!removed) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "题目删除失败");
+        }
         
         // 4. 清除缓存
         clearTopicCache(id);
+        
+        log.info("题目删除成功，ID: {}", id);
     }
 
     /**
-     * 将BizTopic实体转换为TopicVO
+     * 教师获取自己发布的题目列表
      *
-     * @param topic 课题实体
-     * @return 课题VO
+     * @param teacherId 教师ID
+     * @param status 题目状态(null表示所有状态)
+     * @return 题目列表
+     */
+    public List<TopicVO> getTopicsByTeacher(Long teacherId, Integer status) {
+        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizTopic::getTeacherId, teacherId)
+               .eq(BizTopic::getIsDeleted, 0);
+        
+        if (status != null) {
+            wrapper.eq(BizTopic::getStatus, status);
+        }
+        
+        wrapper.orderByDesc(BizTopic::getCreatedAt);
+        
+        return list(wrapper).stream()
+                .map(this::convertToTopicVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取可选题目列表（开放状态的题目）
+     *
+     * @param departmentId 院系ID(null表示所有院系)
+     * @return 可选题目列表
+     */
+    public List<TopicVO> getAvailableTopics(Long departmentId) {
+        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizTopic::getStatus, TopicStatus.OPEN.getValue()) // 开放状态
+               .apply("selected_count < max_selections") // 未满员
+               .eq(BizTopic::getIsDeleted, 0);
+        
+        if (departmentId != null) {
+            wrapper.eq(BizTopic::getDepartmentId, departmentId);
+        }
+        
+        wrapper.orderByDesc(BizTopic::getCreatedAt);
+        
+        return list(wrapper).stream()
+                .map(this::convertToTopicVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 转换题目实体为VO
      */
     private TopicVO convertToTopicVO(BizTopic topic) {
-        TopicVO vo = new TopicVO();
-        vo.setId(topic.getId());
-        vo.setTitle(topic.getTitle());
-        vo.setDescription(topic.getDescription());
-        vo.setTeacherId(topic.getTeacherId());
-        vo.setStatus(topic.getStatus());
-        vo.setCreatedAt(topic.getCreatedAt());
-        vo.setUpdatedAt(topic.getUpdatedAt());
-        return vo;
+        return BeanMapperUtil.copyProperties(topic, TopicVO.class);
     }
 
     /**
-     * 清除单个课题缓存
+     * 清除题目相关缓存
      */
     private void clearTopicCache(Long topicId) {
-        if (topicId != null) {
-            String cacheKey = CacheConstants.KeyPrefix.TOPIC_INFO + topicId;
-            redisTemplate.delete(cacheKey);
-            log.debug("清除课题缓存: " + cacheKey);
-        }
+        String cacheKey = CacheConstants.KeyPrefix.TOPIC_INFO + topicId;
+        cacheHelper.evictCache(cacheKey);
     }
 }

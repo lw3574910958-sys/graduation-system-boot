@@ -1,0 +1,67 @@
+package com.lw.graduation.user.service.role;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.lw.graduation.domain.entity.role.SysUserRole;
+import com.lw.graduation.domain.enums.SystemRole;
+
+import java.util.List;
+
+/**
+ * 用户角色服务接口
+ * 提供用户角色关联管理的核心业务逻辑
+ *
+ * @author lw
+ */
+public interface UserRoleService extends IService<SysUserRole> {
+
+    /**
+     * 为用户分配角色
+     *
+     * @param userId 用户ID
+     * @param roles 角色列表
+     * @return 是否分配成功
+     */
+    boolean assignRoles(Long userId, List<SystemRole> roles);
+
+    /**
+     * 获取用户的所有角色
+     *
+     * @param userId 用户ID
+     * @return 角色编码列表
+     */
+    List<String> getUserRoles(Long userId);
+
+    /**
+     * 检查用户是否拥有指定角色
+     *
+     * @param userId 用户ID
+     * @param role 角色枚举
+     * @return 是否拥有该角色
+     */
+    boolean hasRole(Long userId, SystemRole role);
+
+    /**
+     * 检查用户是否拥有指定角色编码
+     *
+     * @param userId 用户ID
+     * @param roleCode 角色编码
+     * @return 是否拥有该角色
+     */
+    boolean hasRole(Long userId, String roleCode);
+
+    /**
+     * 移除用户的所有角色
+     *
+     * @param userId 用户ID
+     * @return 是否移除成功
+     */
+    boolean removeAllRoles(Long userId);
+
+    /**
+     * 获取拥有指定角色的所有用户ID
+     *
+     * @param roleCode 角色编码
+     * @return 用户ID列表
+     */
+    List<Long> getUsersByRole(String roleCode);
+}

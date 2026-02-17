@@ -102,6 +102,11 @@
 				<artifactId>graduation-grade</artifactId>
 				<version>${project.version}</version>
 			</dependency>
+			<dependency>
+				<groupId>com.lw.graduation</groupId>
+				<artifactId>graduation-notice</artifactId>
+				<version>${project.version}</version>
+			</dependency>
 
 			<!-- Web 层 -->
 			<dependency>

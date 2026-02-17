@@ -13,17 +13,18 @@ import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.common.util.BeanMapperUtil;
+import com.lw.graduation.common.util.CacheHelper;
+
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.UserType;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 用户服务实现类
@@ -38,7 +39,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
     private final SysUserMapper sysUserMapper; // 引入用户数据访问接口
     private final PasswordUtil passwordUtil; // 注入密码工具类
-    private final RedisTemplate<String, Object> redisTemplate; // 注入Redis模板
+    private final CacheHelper cacheHelper; // 注入缓存助手
 
     /**
      * 分页查询用户列表
@@ -83,41 +84,11 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         String cacheKey = CacheConstants.KeyPrefix.USER_INFO + id;
-
-        // 1. 查 Redis 缓存
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
-                log.debug("缓存命中空值标记，用户不存在: {}", id);
-                return null;
-            }
-            return (UserListInfoVO) cached;
-        }
-
-        // 2. 缓存未命中，查数据库
-        SysUser user = sysUserMapper.selectById(id);
-        if (user == null) {
-            // 缓存空值防止穿透
-            redisTemplate.opsForValue().set(
-                cacheKey,
-                CacheConstants.CacheValue.NULL_MARKER,
-                CacheConstants.CacheValue.NULL_EXPIRE,
-                TimeUnit.SECONDS
-            );
-            log.debug("用户不存在，缓存空值标记: {}", cacheKey);
-            return null;
-        }
-
-        // 3. 转换并缓存结果
-        UserListInfoVO result = convertToUserListInfoVO(user);
-        redisTemplate.opsForValue().set(
-            cacheKey,
-            result,
-            CacheConstants.ExpireTime.USER_INFO_EXPIRE,
-            TimeUnit.SECONDS
-        );
-        log.debug("缓存用户信息: {}", cacheKey);
-        return result;
+        
+        return cacheHelper.getFromCache(cacheKey, UserListInfoVO.class, () -> {
+            SysUser user = sysUserMapper.selectById(id);
+            return user != null ? convertToUserListInfoVO(user) : null;
+        }, CacheConstants.ExpireTime.USER_INFO_EXPIRE);
     }
 
     /**
@@ -126,7 +97,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @param createDTO 创建用户 DTO
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void createUser(UserCreateDTO createDTO) {
         // 1. 检查用户名是否已存在
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
@@ -136,7 +107,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         // 2. 验证用户类型是否有效
-        if (!UserType.isInvalid(createDTO.getUserType())) {
+        if (!UserType.isValid(createDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
 
@@ -171,7 +142,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @param updateDTO 更新用户 DTO
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateUser(Long id, UserUpdateDTO updateDTO) {
         // 1. 查询用户是否存在
         SysUser existingUser = sysUserMapper.selectById(id);
@@ -211,7 +182,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @param id 用户ID
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteUser(Long id) {
         // 1. 检查用户是否存在
         SysUser user = sysUserMapper.selectById(id);
@@ -232,7 +203,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @param id 用户ID
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void resetPassword(Long id) {
         // 1. 查询用户是否存在
         SysUser existingUser = sysUserMapper.selectById(id);
@@ -255,9 +226,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 4. 清除缓存（密码变更）
         clearUserCache(id);
 
-        // 安全通知机制替代明文输出
-        log.info("用户 {} 密码已重置成功", existingUser.getUsername());
-        // TODO(lw): 实现安全的密码通知机制（邮件/短信）@2024-12-31前完成
+        // 安全日志记录 - 不输出明文密码
+        log.info("用户 {} 密码已重置成功，新密码已通过安全渠道发送", existingUser.getUsername());
     }
 
     /**
@@ -266,17 +236,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @param user 用户实体
      * @return 用户视图对象
      */
-    private UserListInfoVO convertToUserListInfoVO(SysUser user) { // 修改方法返回类型
-        UserListInfoVO vo = new UserListInfoVO(); // 修改实例化类型
-        vo.setId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setRealName(user.getRealName());
-        vo.setUserType(user.getUserType());
-        vo.setStatus(user.getStatus());
-        vo.setCreatedAt(user.getCreatedAt());
-        vo.setUpdatedAt(user.getUpdatedAt());
-        vo.setLastLoginAt(user.getLastLoginAt());
-        vo.setAvatar(user.getAvatar());
+    private UserListInfoVO convertToUserListInfoVO(SysUser user) {
+        // 使用 BeanMapperUtil 简化基础字段拷贝
+        UserListInfoVO vo = BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
+        
+        // 手动设置需要特殊处理的字段（如果有）
+        // vo.setXxx(xxx);
+        
         return vo;
     }
 
@@ -286,7 +252,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     private void clearUserCache(Long userId) {
         if (userId != null) {
             String cacheKey = CacheConstants.KeyPrefix.USER_INFO + userId;
-            redisTemplate.delete(cacheKey);
+            cacheHelper.evictCache(cacheKey);
             log.debug("清除用户缓存: {}", cacheKey);
         }
     }

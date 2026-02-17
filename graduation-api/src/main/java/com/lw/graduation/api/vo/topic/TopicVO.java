@@ -42,10 +42,58 @@ public class TopicVO {
     private Long teacherId;
 
     /**
-     * 状态 (0-开放, 1-已选, 2-关闭)
+     * 状态 (1-开放, 2-已选, 3-关闭)
      */
-    @Schema(description = "状态 (0-开放, 1-已选, 2-关闭)")
+    @Schema(description = "状态 (1-开放, 2-已选, 3-关闭)")
     private Integer status;
+
+    /**
+     * 所属院系ID
+     */
+    @Schema(description = "所属院系ID")
+    private Long departmentId;
+
+    /**
+     * 题目来源
+     */
+    @Schema(description = "题目来源")
+    private String source;
+
+    /**
+     * 题目类型
+     */
+    @Schema(description = "题目类型")
+    private String type;
+
+    /**
+     * 题目性质
+     */
+    @Schema(description = "题目性质")
+    private String nature;
+
+    /**
+     * 预计难度(1-5)
+     */
+    @Schema(description = "预计难度(1-5)")
+    private Integer difficulty;
+
+    /**
+     * 预计工作量(1-5)
+     */
+    @Schema(description = "预计工作量(1-5)")
+    private Integer workload;
+
+    /**
+     * 选题人数限制
+     */
+    @Schema(description = "选题人数限制")
+    private Integer maxSelections;
+
+    /**
+     * 已选人数
+     */
+    @Schema(description = "已选人数")
+    private Integer selectedCount;
 
     /**
      * 创建时间

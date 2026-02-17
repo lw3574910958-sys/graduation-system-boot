@@ -1,37 +1,35 @@
 package com.lw.graduation.api.controller.grade;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
-import cn.dev33.satoken.annotation.SaIgnore;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.lw.graduation.api.dto.grade.GradeCreateDTO;
+import com.lw.graduation.api.dto.grade.GradeInputDTO;
 import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
-import com.lw.graduation.api.dto.grade.GradeUpdateDTO;
+import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.service.grade.GradeService;
 import com.lw.graduation.api.vo.grade.GradeVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 成绩管理控制器
- * 提供成绩信息的增删改查、分页查询、详情获取等API端点。
+ * 提供成绩录入、查询、统计分析等完整的API端点。
  *
  * @author lw
  */
 @RestController
 @RequestMapping("/api/grades")
-@Tag(name = "成绩管理", description = "成绩信息的增删改查、分页查询、详情获取、统计分析等接口")
+@Tag(name = "成绩管理", description = "成绩录入、查询、统计分析、自动计算等接口")
 @RequiredArgsConstructor
+@Slf4j
 public class GradeController {
 
     private final GradeService gradeService;
@@ -63,30 +61,33 @@ public class GradeController {
     /**
      * 录入成绩
      *
-     * @param createDTO 创建参数
-     * @return 创建结果
+     * @param inputDTO 录入参数
+     * @return 录入结果
      */
-    @PostMapping
+    @PostMapping("/input")
     @Operation(summary = "录入成绩")
-    @SaCheckRole("teacher") // 仅教师可录入成绩
-    public Result<Void> createGrade(@Validated @RequestBody GradeCreateDTO createDTO) {
-        gradeService.createGrade(createDTO);
-        return Result.success();
+    @SaCheckRole("teacher")
+    public Result<GradeVO> inputGrade(@Validated @RequestBody GradeInputDTO inputDTO) {
+        Long graderId = StpUtil.getLoginIdAsLong();
+        GradeVO gradeVO = gradeService.inputGrade(inputDTO, graderId);
+        return Result.success(gradeVO);
     }
 
     /**
-     * 更新成绩信息
+     * 自动计算综合成绩
      *
-     * @param id 成绩ID
-     * @param updateDTO 更新参数
-     * @return 更新结果
+     * @param studentId 学生ID
+     * @param topicId 题目ID
+     * @return 计算结果
      */
-    @PutMapping("/{id}")
-    @Operation(summary = "更新成绩信息")
-    @SaCheckRole("teacher") // 仅教师可更新成绩
-    public Result<Void> updateGrade(@PathVariable Long id, @Validated @RequestBody GradeUpdateDTO updateDTO) {
-        gradeService.updateGrade(id, updateDTO);
-        return Result.success();
+    @PostMapping("/calculate")
+    @Operation(summary = "自动计算综合成绩")
+    @SaCheckRole("teacher")
+    public Result<BigDecimal> calculateCompositeGrade(
+            @RequestParam Long studentId,
+            @RequestParam Long topicId) {
+        BigDecimal compositeScore = gradeService.calculateCompositeGrade(studentId, topicId);
+        return Result.success(compositeScore);
     }
 
     /**
@@ -97,10 +98,26 @@ public class GradeController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除成绩")
-    @SaCheckRole("admin") // 仅管理员可删除成绩
+    @SaCheckRole("teacher")
     public Result<Void> deleteGrade(@PathVariable Long id) {
-        gradeService.deleteGrade(id);
+        Long graderId = StpUtil.getLoginIdAsLong();
+        gradeService.deleteGrade(id, graderId);
         return Result.success();
+    }
+
+    /**
+     * 获取当前教师录入的成绩列表
+     *
+     * @param queryDTO 查询条件
+     * @return 成绩列表
+     */
+    @GetMapping("/my")
+    @Operation(summary = "获取当前教师成绩列表")
+    @SaCheckRole("teacher")
+    public Result<IPage<GradeVO>> getMyGrades(GradePageQueryDTO queryDTO) {
+        Long teacherId = StpUtil.getLoginIdAsLong();
+        queryDTO.setGraderId(teacherId);
+        return Result.success(gradeService.getGradePage(queryDTO));
     }
 
     /**
@@ -111,62 +128,91 @@ public class GradeController {
      */
     @GetMapping("/student/{studentId}")
     @Operation(summary = "获取学生成绩列表")
-    public Result<IPage<GradeVO>> getGradesByStudent(@PathVariable Long studentId, GradePageQueryDTO queryDTO) {
-        queryDTO.setStudentId(studentId);
-        return Result.success(gradeService.getGradePage(queryDTO));
+    public Result<List<GradeVO>> getGradesByStudent(@PathVariable Long studentId) {
+        return Result.success(gradeService.getGradesByStudent(studentId));
     }
 
     /**
-     * 获取某课题的成绩列表
+     * 获取当前学生的所有成绩
      *
-     * @param topicId 课题ID
      * @return 成绩列表
      */
-    @GetMapping("/topic/{topicId}")
-    @Operation(summary = "获取课题成绩列表")
-    public Result<IPage<GradeVO>> getGradesByTopic(@PathVariable Long topicId, GradePageQueryDTO queryDTO) {
-        queryDTO.setTopicId(topicId);
-        return Result.success(gradeService.getGradePage(queryDTO));
+    @GetMapping("/my/student")
+    @Operation(summary = "获取当前学生成绩")
+    @SaCheckRole("student")
+    public Result<List<GradeVO>> getMyStudentGrades() {
+        Long studentId = StpUtil.getLoginIdAsLong();
+        return Result.success(gradeService.getGradesByStudent(studentId));
     }
 
     /**
-     * 获取某教师评分的成绩列表
+     * 获取某教师指导学生的成绩列表
      *
-     * @param graderId 教师ID
+     * @param teacherId 教师ID
      * @return 成绩列表
      */
-    @GetMapping("/grader/{graderId}")
-    @Operation(summary = "获取教师评分成绩列表")
-    public Result<IPage<GradeVO>> getGradesByGrader(@PathVariable Long graderId, GradePageQueryDTO queryDTO) {
-        queryDTO.setGraderId(graderId);
-        return Result.success(gradeService.getGradePage(queryDTO));
+    @GetMapping("/teacher/{teacherId}")
+    @Operation(summary = "获取教师指导学生成绩列表")
+    public Result<List<GradeVO>> getGradesByTeacher(@PathVariable Long teacherId) {
+        return Result.success(gradeService.getGradesByTeacher(teacherId));
+    }
+
+    /**
+     * 获取当前教师指导学生的成绩列表
+     *
+     * @return 成绩列表
+     */
+    @GetMapping("/my/teacher")
+    @Operation(summary = "获取当前教师指导学生成绩")
+    @SaCheckRole("teacher")
+    public Result<List<GradeVO>> getMyTeacherGrades() {
+        Long teacherId = StpUtil.getLoginIdAsLong();
+        return Result.success(gradeService.getGradesByTeacher(teacherId));
     }
 
     /**
      * 获取成绩统计信息
      *
-     * @param queryDTO 查询条件
-     * @return 统计结果
+     * @param queryDTO 统计查询条件
+     * @return 统计结果JSON
      */
     @GetMapping("/statistics")
     @Operation(summary = "获取成绩统计信息")
-    @SaCheckRole({"teacher", "admin"}) // 教师和管理员可查看统计
-    public Result<Object> getGradeStatistics(GradePageQueryDTO queryDTO) {
-        // TODO: 实现成绩统计逻辑，如平均分、最高分、最低分、分布情况等
-        return Result.success("统计功能待实现");
+    @SaCheckRole({"teacher", "admin"})
+    public Result<String> getGradeStatistics(GradeStatisticsQueryDTO queryDTO) {
+        String statistics = gradeService.getGradeStatistics(queryDTO);
+        return Result.success(statistics);
     }
 
     /**
-     * 导出成绩报表
+     * 获取特定题目的成绩分布
      *
-     * @param queryDTO 查询条件
-     * @return 导出结果
+     * @param topicId 题目ID
+     * @return 成绩分布统计
      */
-    @GetMapping("/export")
-    @Operation(summary = "导出成绩报表")
-    @SaCheckRole({"teacher", "admin"}) // 教师和管理员可导出报表
-    public Result<String> exportGradeReport(GradePageQueryDTO queryDTO) {
-        // TODO: 实现成绩报表导出功能
-        return Result.success("导出功能待实现");
+    @GetMapping("/topic/{topicId}/distribution")
+    @Operation(summary = "获取题目成绩分布")
+    @SaCheckRole({"teacher", "admin"})
+    public Result<String> getTopicGradeDistribution(@PathVariable Long topicId) {
+        GradeStatisticsQueryDTO queryDTO = new GradeStatisticsQueryDTO();
+        queryDTO.setTopicId(topicId);
+        String statistics = gradeService.getGradeStatistics(queryDTO);
+        return Result.success(statistics);
+    }
+
+    /**
+     * 获取特定院系的成绩统计
+     *
+     * @param departmentId 院系ID
+     * @return 成绩统计
+     */
+    @GetMapping("/department/{departmentId}/statistics")
+    @Operation(summary = "获取院系成绩统计")
+    @SaCheckRole({"teacher", "admin"})
+    public Result<String> getDepartmentGradeStatistics(@PathVariable Long departmentId) {
+        GradeStatisticsQueryDTO queryDTO = new GradeStatisticsQueryDTO();
+        queryDTO.setDepartmentId(departmentId);
+        String statistics = gradeService.getGradeStatistics(queryDTO);
+        return Result.success(statistics);
     }
 }

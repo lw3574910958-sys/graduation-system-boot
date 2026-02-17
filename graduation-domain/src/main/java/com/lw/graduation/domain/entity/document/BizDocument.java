@@ -14,12 +14,9 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * <p>
  * 文档表
- * </p>
- *
- * @author lw
- * @since 2025-12-30
+ * 用于管理毕业设计过程中的各类文档，包括开题报告、中期报告、毕业论文等。
+ * 支持文档上传、审核、下载等完整功能。
  */
 @Data
 @TableName("biz_document")
@@ -119,4 +116,70 @@ public class BizDocument implements Serializable {
     @TableLogic
     @TableField("is_deleted")
     private Integer isDeleted;
+
+    /**
+     * 获取文件大小的友好显示格式
+     *
+     * @return 格式化的文件大小字符串
+     */
+    public String getFileSizeDisplay() {
+        if (this.fileSize == null) {
+            return "0 B";
+        }
+        
+        long size = this.fileSize;
+        if (size < 1024) {
+            return size + " B";
+        } else if (size < 1024 * 1024) {
+            return String.format("%.1f KB", size / 1024.0);
+        } else if (size < 1024 * 1024 * 1024) {
+            return String.format("%.1f MB", size / (1024.0 * 1024));
+        } else {
+            return String.format("%.1f GB", size / (1024.0 * 1024 * 1024));
+        }
+    }
+
+    /**
+     * 获取文件扩展名
+     *
+     * @return 文件扩展名（小写）
+     */
+    public String getFileExtension() {
+        if (this.originalFilename == null) {
+            return "";
+        }
+        
+        int lastDotIndex = this.originalFilename.lastIndexOf('.');
+        if (lastDotIndex > 0 && lastDotIndex < this.originalFilename.length() - 1) {
+            return this.originalFilename.substring(lastDotIndex + 1).toLowerCase();
+        }
+        return "";
+    }
+
+    /**
+     * 检查文档是否已通过审核
+     *
+     * @return 通过审核返回true
+     */
+    public boolean isApproved() {
+        return this.reviewStatus != null && this.reviewStatus == 1;
+    }
+
+    /**
+     * 检查文档是否被驳回
+     *
+     * @return 被驳回返回true
+     */
+    public boolean isRejected() {
+        return this.reviewStatus != null && this.reviewStatus == 2;
+    }
+
+    /**
+     * 检查文档是否待审核
+     *
+     * @return 待审核返回true
+     */
+    public boolean isPendingReview() {
+        return this.reviewStatus == null || this.reviewStatus == 0;
+    }
 }
