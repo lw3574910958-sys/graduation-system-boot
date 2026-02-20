@@ -59,7 +59,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     @Override
     public IPage<DocumentVO> getDocumentPage(DocumentPageQueryDTO queryDTO) {
         log.info("分页查询文档列表: {}", queryDTO);
-        
+
         // 1. 构建查询条件
         LambdaQueryWrapper<BizDocument> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(queryDTO.getUserId() != null, BizDocument::getUserId, queryDTO.getUserId())
@@ -67,12 +67,12 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 .eq(queryDTO.getFileType() != null, BizDocument::getFileType, queryDTO.getFileType())
                 .eq(queryDTO.getReviewStatus() != null, BizDocument::getReviewStatus, queryDTO.getReviewStatus())
                 .eq(BizDocument::getIsDeleted, 0);
-        
+
         // 关键词搜索
         if (StringUtils.hasText(queryDTO.getKeyword())) {
             wrapper.like(BizDocument::getOriginalFilename, queryDTO.getKeyword());
         }
-        
+
         wrapper.orderByDesc(BizDocument::getUploadedAt);
 
         // 2. 执行分页查询
@@ -95,7 +95,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         }
 
         String cacheKey = CacheConstants.KeyPrefix.DOCUMENT_INFO + id;
-        
+
         return cacheHelper.getFromCache(cacheKey, DocumentVO.class, () -> {
             BizDocument document = bizDocumentMapper.selectById(id);
             if (document == null || document.getIsDeleted() == 1) {
@@ -107,33 +107,39 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DocumentVO uploadDocument(DocumentUploadDTO uploadDTO, Long userId) throws IOException {
+    public DocumentVO uploadDocument(DocumentUploadDTO uploadDTO, Long userId) {
         log.info("用户 {} 上传文档: {}, 类型: {}", userId, uploadDTO.getFile().getOriginalFilename(), uploadDTO.getFileType());
-        
+
         // 1. 验证文件类型
         FileType fileType = FileType.getByValue(uploadDTO.getFileType());
         if (fileType == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "不支持的文件类型");
         }
-        
+
         // 2. 验证用户是否有权限上传该题目的文档
         validateUploadPermission(userId, uploadDTO.getTopicId());
-        
+
         // 3. 检查是否已存在相同类型的文档
         LambdaQueryWrapper<BizDocument> existWrapper = new LambdaQueryWrapper<>();
         existWrapper.eq(BizDocument::getUserId, userId)
-                   .eq(BizDocument::getTopicId, uploadDTO.getTopicId())
-                   .eq(BizDocument::getFileType, uploadDTO.getFileType())
-                   .eq(BizDocument::getIsDeleted, 0);
-        
+                .eq(BizDocument::getTopicId, uploadDTO.getTopicId())
+                .eq(BizDocument::getFileType, uploadDTO.getFileType())
+                .eq(BizDocument::getIsDeleted, 0);
+
         if (count(existWrapper) > 0) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型文档已存在，请先删除原文件");
         }
-        
+
         // 4. 上传文件到存储服务
         String folder = "documents/" + fileType.name().toLowerCase();
-        String storedPath = fileStorageService.store(uploadDTO.getFile(), folder);
-        
+        String storedPath;
+        try {
+            storedPath = fileStorageService.store(uploadDTO.getFile(), folder);
+        } catch (Exception e) {
+            log.error("文件存储失败", e);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件上传失败");
+        }
+
         // 5. 创建文档记录
         BizDocument document = new BizDocument();
         document.setUserId(userId);
@@ -144,34 +150,35 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         document.setFileSize(uploadDTO.getFile().getSize());
         document.setReviewStatus(ReviewStatus.PENDING.getValue());
         document.setUploadedAt(LocalDateTime.now());
-        
+
         boolean saved = save(document);
         if (!saved) {
             // 上传失败时删除已存储的文件
             deleteStoredFile(storedPath);
             throw new BusinessException(ResponseCode.ERROR.getCode(), "文档上传失败");
         }
-        
+
         // 6. 清除相关缓存
         clearDocumentCache(document.getId());
-        
+
         log.info("文档上传成功，ID: {}", document.getId());
         return convertToDocumentVO(document);
     }
 
+
     @Override
     public InputStream downloadDocument(Long documentId, Long userId) {
         log.info("用户 {} 下载文档: {}", userId, documentId);
-        
+
         // 1. 获取文档信息
         BizDocument document = getById(documentId);
         if (document == null || document.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
-        
+
         // 2. 验证下载权限
         validateDownloadPermission(userId, document);
-        
+
         // 3. 下载文件
         try {
             // 注意：这里需要根据具体的文件存储实现来获取InputStream
@@ -188,37 +195,37 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     @Transactional(rollbackFor = Exception.class)
     public void reviewDocument(DocumentReviewDTO reviewDTO, Long reviewerId) {
         log.info("审核员 {} 审核文档: {}, 结果: {}", reviewerId, reviewDTO.getDocumentId(), reviewDTO.getReviewStatus());
-        
+
         // 1. 获取文档信息
         BizDocument document = getById(reviewDTO.getDocumentId());
         if (document == null || document.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
-        
+
         // 2. 验证审核状态
         ReviewStatus reviewStatus = ReviewStatus.getByValue(reviewDTO.getReviewStatus());
         if (reviewStatus == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的审核状态");
         }
-        
+
         if (reviewStatus.isFinalStatus() && document.isApproved()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档已通过审核，无需重复审核");
         }
-        
+
         // 3. 更新审核信息
         document.setReviewStatus(reviewDTO.getReviewStatus());
         document.setReviewerId(reviewerId);
         document.setReviewedAt(LocalDateTime.now());
         document.setFeedback(reviewDTO.getFeedback());
-        
+
         boolean updated = updateById(document);
         if (!updated) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "文档审核失败");
         }
-        
+
         // 4. 清除缓存
         clearDocumentCache(document.getId());
-        
+
         log.info("文档审核完成，ID: {}", document.getId());
     }
 
@@ -226,34 +233,34 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteDocument(Long id, Long userId) {
         log.info("用户 {} 删除文档: {}", userId, id);
-        
+
         // 1. 获取文档信息
         BizDocument document = getById(id);
         if (document == null || document.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
-        
+
         // 2. 验证删除权限
         if (!document.getUserId().equals(userId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权删除他人文档");
         }
-        
+
         // 3. 删除文件存储
         try {
             deleteStoredFile(document.getStoredPath());
         } catch (Exception e) {
             log.warn("文件删除失败，但继续删除数据库记录: {}", document.getStoredPath(), e);
         }
-        
+
         // 4. 逻辑删除数据库记录
         boolean removed = removeById(id);
         if (!removed) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "文档删除失败");
         }
-        
+
         // 5. 清除缓存
         clearDocumentCache(id);
-        
+
         log.info("文档删除成功，ID: {}", id);
         return true;
     }
@@ -276,7 +283,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         selectionWrapper.eq(BizSelection::getStudentId, userId)
                        .eq(BizSelection::getTopicId, topicId)
                        .eq(BizSelection::getStatus, 1); // 已确认状态
-        
+
         if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权上传该题目的文档");
         }
@@ -290,19 +297,19 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         if (document.getUserId().equals(userId)) {
             return;
         }
-        
+
         // 指导教师可以下载
         BizTopic topic = bizTopicMapper.selectById(document.getTopicId());
         if (topic != null && topic.getTeacherId().equals(userId)) {
             return;
         }
-        
+
         // 管理员可以下载
         SysUser user = sysUserMapper.selectById(userId);
         if (user != null && "admin".equals(user.getUsername())) {
             return;
         }
-        
+
         throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权下载该文档");
     }
 
@@ -311,23 +318,23 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
      */
     private DocumentVO convertToDocumentVO(BizDocument document) {
         DocumentVO vo = BeanMapperUtil.copyProperties(document, DocumentVO.class);
-        
+
         // 填充扩展信息
         vo.setFileSizeDisplay(document.getFileSizeDisplay());
         vo.setFileExtension(document.getFileExtension());
-        
+
         // 填充文件类型描述
         FileType fileType = FileType.getByValue(document.getFileType());
         if (fileType != null) {
             vo.setFileTypeDesc(fileType.getDescription());
         }
-        
+
         // 填充审核状态描述
         ReviewStatus reviewStatus = ReviewStatus.getByValue(document.getReviewStatus());
         if (reviewStatus != null) {
             vo.setReviewStatusDesc(reviewStatus.getDescription());
         }
-        
+
         // 填充用户信息
         if (document.getUserId() != null) {
             SysUser user = sysUserMapper.selectById(document.getUserId());
@@ -335,7 +342,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 vo.setUserName(user.getRealName());
             }
         }
-        
+
         // 填充题目信息
         if (document.getTopicId() != null) {
             BizTopic topic = bizTopicMapper.selectById(document.getTopicId());
@@ -343,7 +350,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 vo.setTopicTitle(topic.getTitle());
             }
         }
-        
+
         // 填充审核人信息
         if (document.getReviewerId() != null) {
             SysUser reviewer = sysUserMapper.selectById(document.getReviewerId());
@@ -351,7 +358,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 vo.setReviewerName(reviewer.getRealName());
             }
         }
-        
+
         return vo;
     }
 
@@ -363,15 +370,15 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         if (documents == null || documents.isEmpty()) {
             return new ArrayList<>();
         }
-        
+
         // 提取所有需要查询的ID
         List<Long> documentIds = documents.stream()
                 .map(BizDocument::getId)
                 .collect(Collectors.toList());
-        
+
         // 批量查询关联信息
         List<Map<String, Object>> documentDetails = bizDocumentMapper.selectDocumentDetailsWithRelations(documentIds);
-        
+
         // 构建ID到详情的映射
         Map<Long, Map<String, Object>> detailsMap = documentDetails.stream()
                 .collect(Collectors.toMap(
@@ -379,7 +386,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                         detail -> detail,
                         (existing, replacement) -> existing
                 ));
-        
+
         // 转换为VO列表
         return documents.stream().map(document -> {
             DocumentVO vo = new DocumentVO();
@@ -396,23 +403,23 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             vo.setUploadedAt(document.getUploadedAt());
             vo.setCreatedAt(document.getCreatedAt());
             vo.setUpdatedAt(document.getUpdatedAt());
-            
+
             // 填充扩展信息
             vo.setFileSizeDisplay(document.getFileSizeDisplay());
             vo.setFileExtension(document.getFileExtension());
-            
+
             // 填充文件类型描述
             FileType fileType = FileType.getByValue(document.getFileType());
             if (fileType != null) {
                 vo.setFileTypeDesc(fileType.getDescription());
             }
-            
+
             // 填充审核状态描述
             ReviewStatus reviewStatus = ReviewStatus.getByValue(document.getReviewStatus());
             if (reviewStatus != null) {
                 vo.setReviewStatusDesc(reviewStatus.getDescription());
             }
-            
+
             // 从批量查询结果中获取关联信息
             Map<String, Object> detail = detailsMap.get(document.getId());
             if (detail != null) {
@@ -420,7 +427,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 vo.setTopicTitle((String) detail.get("topic_title"));
                 vo.setReviewerName((String) detail.get("reviewer_name"));
             }
-            
+
             return vo;
         }).collect(Collectors.toList());
     }

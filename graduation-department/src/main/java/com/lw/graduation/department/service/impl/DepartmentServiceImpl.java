@@ -7,12 +7,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lw.graduation.api.dto.department.DepartmentCreateDTO;
 import com.lw.graduation.api.dto.department.DepartmentPageQueryDTO;
 import com.lw.graduation.api.dto.department.DepartmentUpdateDTO;
+import com.lw.graduation.api.service.department.DepartmentService;
 import com.lw.graduation.api.vo.department.DepartmentVO;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.CacheHelper;
-import com.lw.graduation.department.service.DepartmentService;
 import com.lw.graduation.domain.entity.department.SysDepartment;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
@@ -26,8 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -76,7 +76,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         }
 
         String cacheKey = CacheConstants.KeyPrefix.DEPARTMENT_INFO + id;
-        
+
         return cacheHelper.getFromCache(cacheKey, DepartmentVO.class, () -> {
             SysDepartment department = sysDepartmentMapper.selectById(id);
             return department != null ? convertToDepartmentVO(department) : null;
@@ -107,7 +107,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
 
         // 4. 插入数据库
         sysDepartmentMapper.insert(department);
-        
+
         // 5. 清除所有院系缓存
         clearAllDepartmentsCache();
     }
@@ -154,7 +154,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
 
         // 5. 执行更新
         sysDepartmentMapper.updateById(updateDepartment);
-        
+
         // 6. 清除缓存
         clearDepartmentCache(id);
         clearAllDepartmentsCache();
@@ -176,7 +176,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
 
         // 3. 执行删除（逻辑删除）
         sysDepartmentMapper.deleteById(id);
-        
+
         // 4. 清除缓存
         clearDepartmentCache(id);
         clearAllDepartmentsCache();
@@ -185,8 +185,10 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
     @Override
     public List<DepartmentVO> getAllDepartments() {
         String cacheKey = CacheConstants.KeyPrefix.ALL_DEPARTMENTS;
-        
-        return cacheHelper.getFromCache(cacheKey, List.class, () -> {
+
+        // 使用Object.class作为缓存类型，然后进行类型转换
+        @SuppressWarnings("unchecked")
+        List<DepartmentVO> result = (List<DepartmentVO>) cacheHelper.getFromCache(cacheKey, Object.class, () -> {
             LambdaQueryWrapper<SysDepartment> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(SysDepartment::getIsDeleted, 0)
                     .orderByAsc(SysDepartment::getCode);
@@ -196,6 +198,8 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
                     .map(this::convertToDepartmentVO)
                     .collect(Collectors.toList());
         }, CacheConstants.ExpireTime.ALL_DEPARTMENTS_EXPIRE);
+        
+        return result != null ? result : new ArrayList<>();
     }
 
     /**
@@ -218,7 +222,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         if (departmentId != null) {
             String cacheKey = CacheConstants.KeyPrefix.DEPARTMENT_INFO + departmentId;
             redisTemplate.delete(cacheKey);
-            log.debug("清除院系缓存: " + cacheKey);
+            log.debug("清除院系缓存: {}", cacheKey);
         }
     }
 
@@ -228,12 +232,12 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
     private void clearAllDepartmentsCache() {
         String cacheKey = CacheConstants.KeyPrefix.ALL_DEPARTMENTS;
         redisTemplate.delete(cacheKey);
-        log.debug("清除所有院系列表缓存: " + cacheKey);
+        log.debug("清除所有院系列表缓存: {}", cacheKey);
     }
-    
+
     /**
      * 检查院系是否有关联的学生或教师
-     * 
+     *
      * @param departmentId 院系ID
      * @return 有关联返回true
      */
@@ -243,17 +247,17 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         studentWrapper.eq(BizStudent::getDepartmentId, departmentId)
                      .eq(BizStudent::getIsDeleted, 0);
         long studentCount = bizStudentMapper.selectCount(studentWrapper);
-        
+
         if (studentCount > 0) {
             return true;
         }
-        
+
         // 检查是否有关联的教师
         LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
         teacherWrapper.eq(BizTeacher::getDepartmentId, departmentId)
                      .eq(BizTeacher::getIsDeleted, 0);
         long teacherCount = bizTeacherMapper.selectCount(teacherWrapper);
-        
+
         return teacherCount > 0;
     }
 }
