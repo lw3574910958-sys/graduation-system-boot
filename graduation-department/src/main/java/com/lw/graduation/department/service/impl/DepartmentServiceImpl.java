@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 院系服务实现类
@@ -63,7 +62,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         IPage<DepartmentVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(departmentPage.getRecords().stream()
                 .map(this::convertToDepartmentVO)
-                .collect(Collectors.toList()));
+                .toList());
         voPage.setTotal(departmentPage.getTotal());
 
         return voPage;
@@ -196,9 +195,9 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
             List<SysDepartment> departments = sysDepartmentMapper.selectList(wrapper);
             return departments.stream()
                     .map(this::convertToDepartmentVO)
-                    .collect(Collectors.toList());
+                    .toList();
         }, CacheConstants.ExpireTime.ALL_DEPARTMENTS_EXPIRE);
-        
+
         return result != null ? result : new ArrayList<>();
     }
 

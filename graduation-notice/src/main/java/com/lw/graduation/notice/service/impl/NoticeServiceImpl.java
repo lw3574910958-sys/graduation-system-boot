@@ -261,7 +261,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
                 .filter(BizNotice::isSticky)  // 使用实体类的isSticky()方法
                 .filter(BizNotice::isEffective) // 使用实体类的isEffective()方法
                 .map(this::convertToNoticeVO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -276,7 +276,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
                 .filter(BizNotice::isEffective) // 使用实体类的isEffective()方法
                 .limit(size != null && size > 0 ? size : Long.MAX_VALUE)
                 .map(this::convertToNoticeVO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

@@ -223,7 +223,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         // 5. 如果无法按权重计算，则返回简单平均
         List<BigDecimal> allScores = grades.stream()
                 .map(BizGrade::getScore)
-                .collect(Collectors.toList());
+                .toList();
         
         BigDecimal averageScore = gradeCalculatorService.calculateAverage(allScores);
         
@@ -245,7 +245,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         return list(wrapper).stream()
                 .map(this::convertToGradeVO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -257,7 +257,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         return list(wrapper).stream()
                 .map(this::convertToGradeVO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -288,7 +288,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             List<BizGrade> grades = list(wrapper);
             List<BigDecimal> scores = grades.stream()
                     .map(BizGrade::getScore)
-                    .collect(Collectors.toList());
+                    .toList();
             
             // 3. 计算统计信息
             GradeDistribution distribution = gradeCalculatorService.calculateDistribution(scores);
@@ -531,7 +531,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         // 提取所有需要查询的ID
         List<Long> gradeIds = grades.stream()
                 .map(BizGrade::getId)
-                .collect(Collectors.toList());
+                .toList();
         
         // 批量查询关联信息
         List<Map<String, Object>> gradeDetails = bizGradeMapper.selectDetailsWithRelations(gradeIds);

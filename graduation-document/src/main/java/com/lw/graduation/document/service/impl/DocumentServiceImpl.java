@@ -14,6 +14,7 @@ import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
+import com.lw.graduation.common.util.CollectionUtils;
 import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
@@ -452,14 +453,11 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
      * 通过批量查询减少数据库访问次数
      */
     private List<DocumentVO> convertToDocumentVOListOptimized(List<BizDocument> documents) {
-        if (documents == null || documents.isEmpty()) {
+        // 使用工具方法处理空集合检查和ID提取
+        List<Long> documentIds = extractIdsFromDocuments(documents);
+        if (documentIds.isEmpty()) {
             return new ArrayList<>();
         }
-
-        // 提取所有需要查询的ID
-        List<Long> documentIds = documents.stream()
-                .map(BizDocument::getId)
-                .toList();
 
         // 批量查询关联信息
         List<Map<String, Object>> documentDetails = bizDocumentMapper.selectDetailsWithRelations(documentIds);
@@ -549,6 +547,15 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             return filename.substring(lastDotIndex + 1).toLowerCase();
         }
         return "";
+    }
+    
+    /**
+     * 从文档列表中提取ID列表（处理空值检查）
+     * @param documents 文档列表
+     * @return ID列表，如果输入为空则返回空列表
+     */
+    private List<Long> extractIdsFromDocuments(List<BizDocument> documents) {
+        return CollectionUtils.extractIds(documents, BizDocument::getId);
     }
     
     /**

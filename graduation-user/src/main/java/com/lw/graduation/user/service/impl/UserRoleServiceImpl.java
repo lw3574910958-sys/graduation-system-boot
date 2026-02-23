@@ -36,7 +36,7 @@ public class UserRoleServiceImpl extends ServiceImpl<SysUserRoleMapper, SysUserR
 
         return list(wrapper).stream()
                 .map(SysUserRole::getRoleCode)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -65,7 +65,7 @@ public class UserRoleServiceImpl extends ServiceImpl<SysUserRoleMapper, SysUserR
         // 过滤出管理员角色
         return allRoles.stream()
                 .filter(roleCode -> AdminRole.getByCode(roleCode) != null)
-                .collect(Collectors.toList());
+                .toList();
     }
     
     // 以下为扩展功能实现，可根据实际需求逐步启用

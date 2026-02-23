@@ -1,8 +1,21 @@
+# ==================== Maven ====================
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+
+# ==================== IDE ====================
+## IntelliJ IDEA ##
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
 
 ### STS ###
 .apt_generated
@@ -29,8 +42,56 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+## VS Code ##
 .vscode/
 
-### lingma ###
+# ==================== 开发工具 ====================
+## Lingma ##
 .lingma/
+
+## 数据库工具 ##
+*.sql.gz
+*.dump
+
+# ==================== 操作系统 ====================
+## Windows ##
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+*.lnk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+## Linux ##
+*~
+*#
+
+# ==================== 日志和临时文件 ====================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.orig
+
+# ==================== 环境配置 ====================
+.env
+.env.local
+.env.*.local
+
+# ==================== 证书和密钥 ====================
+*.jks
+*.keystore
+*.cert
+*.key
+*.pem
+
+# ==================== 其他 ====================
+.gradle/
+node_modules/
