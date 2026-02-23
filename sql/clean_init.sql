@@ -11,6 +11,9 @@ SET time_zone = '+08:00';
 -- ==================== 1. 清空所有表数据 (严格按外键依赖反向顺序) ====================
 -- 注意：必须按照外键依赖的反向顺序清空，避免外键约束冲突
 
+-- 关闭外键约束
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- 第一层：无外键依赖的表
 TRUNCATE TABLE sys_log;
 
@@ -31,6 +34,9 @@ TRUNCATE TABLE sys_user_role;
 -- 第五层：最基础的表
 TRUNCATE TABLE sys_user;
 TRUNCATE TABLE sys_department;
+
+-- 重新开启外键约束
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- ==================== 2. 插入院系数据 (无外键依赖) ====================
 INSERT INTO sys_department (id, code, name, created_at, updated_at) VALUES
@@ -131,10 +137,10 @@ INSERT INTO sys_log (id, user_id, username, user_type, module, operation, busine
 (10, 2011317884608471044, 'teacher003', 'teacher', 'topic', '创建课题', 7, 1, '127.0.0.1', 180, NULL, NOW(3));
 
 -- ==================== 初始化完成提示 ====================
-SELECT '==================================================' AS separator;
+SELECT '==================================================' AS `separator`;
 SELECT '数据库清空并重新初始化完成！' AS message;
 SELECT '所有表数据已清空并重新插入' AS info;
-SELECT '==================================================' AS separator;
+SELECT '==================================================' AS `separator`;
 SELECT '可以使用以下账号进行测试:' AS test_accounts;
 SELECT '' AS empty_line;
 SELECT '系统管理员: admin/admin123' AS admin_account;
@@ -142,7 +148,7 @@ SELECT '院系管理员: dept_admin_cs/admin123' AS dept_admin_account;
 SELECT '教师账号: teacher/teacher123' AS teacher_account;
 SELECT '学生账号: student/student123' AS student_account;
 SELECT '' AS empty_line;
-SELECT '==================================================' AS separator;
+SELECT '==================================================' AS `separator`;
 SELECT '初始化数据概览:' AS overview;
 SELECT CONCAT('院系数量: ', (SELECT COUNT(*) FROM sys_department)) AS department_count;
 SELECT CONCAT('用户数量: ', (SELECT COUNT(*) FROM sys_user)) AS user_count;
@@ -156,4 +162,4 @@ SELECT CONCAT('成绩数量: ', (SELECT COUNT(*) FROM biz_grade)) AS grade_count
 SELECT CONCAT('日志数量: ', (SELECT COUNT(*) FROM sys_log)) AS log_count;
 SELECT '' AS empty_line;
 SELECT '注意：所有密码均为 bcrypt 加密格式' AS password_note;
-SELECT '==================================================' AS separator;
+SELECT '==================================================' AS `separator`;
