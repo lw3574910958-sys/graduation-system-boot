@@ -26,7 +26,7 @@ public class BizDocument implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
@@ -127,7 +127,7 @@ public class BizDocument implements Serializable {
         if (this.fileSize == null) {
             return "0 B";
         }
-        
+
         long size = this.fileSize;
         if (size < 1024) {
             return size + " B";
@@ -149,7 +149,7 @@ public class BizDocument implements Serializable {
         if (this.originalFilename == null) {
             return "";
         }
-        
+
         int lastDotIndex = this.originalFilename.lastIndexOf('.');
         if (lastDotIndex > 0 && lastDotIndex < this.originalFilename.length() - 1) {
             return this.originalFilename.substring(lastDotIndex + 1).toLowerCase();

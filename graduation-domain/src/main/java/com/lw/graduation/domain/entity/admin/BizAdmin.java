@@ -29,7 +29,7 @@ public class BizAdmin implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
@@ -88,7 +88,7 @@ public class BizAdmin implements Serializable {
     @TableLogic
     @TableField("is_deleted")
     private Integer isDeleted;
-    
+
     /**
      * 获取管理员角色等级枚举
      *
@@ -97,7 +97,7 @@ public class BizAdmin implements Serializable {
     public AdminRole getRoleLevelEnum() {
         return AdminRole.getByValue(this.roleLevel);
     }
-    
+
     /**
      * 检查是否为系统管理员
      *
@@ -106,7 +106,7 @@ public class BizAdmin implements Serializable {
     public boolean isSystemAdmin() {
         return this.roleLevel != null && this.roleLevel.equals(AdminRole.SYSTEM_ADMIN.getValue());
     }
-    
+
     /**
      * 检查是否为院系管理员
      *

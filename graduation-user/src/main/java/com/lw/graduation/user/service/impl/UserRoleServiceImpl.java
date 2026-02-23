@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lw.graduation.domain.entity.role.SysUserRole;
 import com.lw.graduation.domain.enums.permission.AdminRole;
-import com.lw.graduation.domain.enums.permission.SystemRole;
 import com.lw.graduation.infrastructure.mapper.role.SysUserRoleMapper;
 import com.lw.graduation.api.service.user.UserRoleService;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 用户角色服务实现类
@@ -67,7 +63,7 @@ public class UserRoleServiceImpl extends ServiceImpl<SysUserRoleMapper, SysUserR
                 .filter(roleCode -> AdminRole.getByCode(roleCode) != null)
                 .toList();
     }
-    
+
     // 以下为扩展功能实现，可根据实际需求逐步启用
     // assignRoles - 为用户分配角色
     // hasRole(Long, SystemRole) - 检查用户是否拥有指定枚举角色

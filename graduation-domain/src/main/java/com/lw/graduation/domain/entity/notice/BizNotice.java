@@ -22,7 +22,7 @@ public class BizNotice implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
@@ -146,7 +146,7 @@ public class BizNotice implements Serializable {
         NoticeStatus status = NoticeStatus.getByValue(this.status);
         return status != null && status.isFinalStatus();
     }
-    
+
     /**
      * 检查通知是否可以发布
      *
@@ -156,7 +156,7 @@ public class BizNotice implements Serializable {
         NoticeStatus status = NoticeStatus.getByValue(this.status);
         return status != null && status.canPublish();
     }
-    
+
     /**
      * 检查通知是否可以撤回
      *
@@ -166,7 +166,7 @@ public class BizNotice implements Serializable {
         NoticeStatus status = NoticeStatus.getByValue(this.status);
         return status != null && status.canWithdraw();
     }
-    
+
     /**
      * 检查通知是否已撤回
      *

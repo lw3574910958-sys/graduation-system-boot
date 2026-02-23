@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="graduation-common" />
+        <module name="graduation-notice" />
+        <module name="graduation-api" />
+        <module name="graduation-department" />
+        <module name="graduation-infrastructure" />
+        <module name="graduation-user" />
+        <module name="graduation-topic" />
+        <module name="graduation-application" />
+        <module name="graduation-grade" />
+        <module name="graduation-selection" />
+        <module name="graduation-auth" />
+        <module name="graduation-log" />
+        <module name="graduation-codegen" />
+        <module name="graduation-domain" />
+        <module name="graduation-document" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="graduation-api" options="-parameters" />
+      <module name="graduation-application" options="-parameters" />
+      <module name="graduation-auth" options="-parameters" />
+      <module name="graduation-codegen" options="-parameters" />
+      <module name="graduation-common" options="-parameters" />
+      <module name="graduation-department" options="-parameters" />
+      <module name="graduation-document" options="-parameters" />
+      <module name="graduation-domain" options="-parameters" />
+      <module name="graduation-grade" options="-parameters" />
+      <module name="graduation-infrastructure" options="-parameters" />
+      <module name="graduation-log" options="-parameters" />
+      <module name="graduation-notice" options="-parameters" />
+      <module name="graduation-selection" options="-parameters" />
+      <module name="graduation-system" options="-parameters" />
+      <module name="graduation-topic" options="-parameters" />
+      <module name="graduation-user" options="-parameters" />
+    </option>
+  </component>
+</project>

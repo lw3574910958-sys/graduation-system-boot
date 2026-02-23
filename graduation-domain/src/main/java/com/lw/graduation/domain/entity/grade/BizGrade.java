@@ -27,7 +27,7 @@ public class BizGrade implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
@@ -97,7 +97,7 @@ public class BizGrade implements Serializable {
         if (this.score == null) {
             return "未评分";
         }
-        
+
         // 使用成绩等级枚举进行判断
         GradeLevel level = GradeLevel.getByScore(this.score);
         return level != null ? level.getDescription() : "未知等级";
@@ -112,7 +112,7 @@ public class BizGrade implements Serializable {
         if (this.score == null) {
             return false;
         }
-        
+
         // 使用成绩等级枚举判断
         GradeLevel level = GradeLevel.getByScore(this.score);
         return level != null && level.isPassing();
@@ -127,7 +127,7 @@ public class BizGrade implements Serializable {
         if (this.score == null) {
             return false;
         }
-        
+
         // 使用成绩等级枚举判断
         GradeLevel level = GradeLevel.getByScore(this.score);
         return level != null && level.isExcellent();
@@ -142,7 +142,7 @@ public class BizGrade implements Serializable {
         if (this.score == null) {
             return BigDecimal.ZERO;
         }
-        
+
         // 使用成绩等级枚举计算绩点
         GradeLevel level = GradeLevel.getByScore(this.score);
         return level != null ? level.getGpa() : BigDecimal.ZERO;

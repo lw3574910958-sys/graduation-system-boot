@@ -270,6 +270,39 @@ CREATE TABLE `sys_user_role` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关联表';
 
 -- ----------------------------
+-- Table structure for biz_notice
+-- 通知公告表
+-- ----------------------------
+DROP TABLE IF EXISTS `biz_notice`;
+CREATE TABLE `biz_notice` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `title` VARCHAR(200) NOT NULL COMMENT '通知标题',
+  `content` TEXT NOT NULL COMMENT '通知内容',
+  `type` TINYINT NOT NULL DEFAULT 1 COMMENT '通知类型: 1-系统通知, 2-公告, 3-提醒',
+  `priority` TINYINT NOT NULL DEFAULT 2 COMMENT '优先级: 1-低, 2-中, 3-高',
+  `publisher_id` BIGINT NOT NULL COMMENT '发布者ID(sys_user.id)',
+  `published_at` DATETIME(3) NULL DEFAULT NULL COMMENT '发布时间',
+  `start_time` DATETIME(3) NULL DEFAULT NULL COMMENT '生效开始时间',
+  `end_time` DATETIME(3) NULL DEFAULT NULL COMMENT '生效结束时间',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0-草稿, 1-已发布, 2-已撤回',
+  `is_sticky` TINYINT NOT NULL DEFAULT 0 COMMENT '是否置顶: 0-否, 1-是',
+  `read_count` INT NOT NULL DEFAULT 0 COMMENT '阅读次数',
+  `target_scope` TINYINT NOT NULL DEFAULT 0 COMMENT '目标范围: 0-全体, 1-学生, 2-教师, 3-管理员',
+  `attachment_url` VARCHAR(500) NULL DEFAULT NULL COMMENT '附件URL',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
+  PRIMARY KEY (`id`),
+  KEY `idx_publisher` (`publisher_id`),
+  KEY `idx_type` (`type`),
+  KEY `idx_priority` (`priority`),
+  KEY `idx_status` (`status`),
+  KEY `idx_target_scope` (`target_scope`),
+  KEY `idx_published_at` (`published_at`),
+  CONSTRAINT `fk_notice_publisher` FOREIGN KEY (`publisher_id`) REFERENCES `sys_user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='通知公告表';
+
+-- ----------------------------
 -- Table structure for sys_log
 -- 系统操作日志表
 -- ----------------------------
