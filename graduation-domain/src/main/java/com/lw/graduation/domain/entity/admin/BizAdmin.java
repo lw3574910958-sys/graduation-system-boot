@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.domain.enums.permission.AdminRole;
 import lombok.Data;
 
 import java.io.Serial;
@@ -87,4 +88,31 @@ public class BizAdmin implements Serializable {
     @TableLogic
     @TableField("is_deleted")
     private Integer isDeleted;
+    
+    /**
+     * 获取管理员角色等级枚举
+     *
+     * @return AdminRole枚举
+     */
+    public AdminRole getRoleLevelEnum() {
+        return AdminRole.getByValue(this.roleLevel);
+    }
+    
+    /**
+     * 检查是否为系统管理员
+     *
+     * @return 系统管理员返回true
+     */
+    public boolean isSystemAdmin() {
+        return this.roleLevel != null && this.roleLevel.equals(AdminRole.SYSTEM_ADMIN.getValue());
+    }
+    
+    /**
+     * 检查是否为院系管理员
+     *
+     * @return 院系管理员返回true
+     */
+    public boolean isDeptAdmin() {
+        return this.roleLevel != null && this.roleLevel.equals(AdminRole.DEPARTMENT_ADMIN.getValue());
+    }
 }

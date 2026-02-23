@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.notice.BizNoticeMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.notice.BizNotice">
         <id column="id" property="id" />
         <result column="title" property="title" />
@@ -28,5 +28,69 @@
         id, title, content, type, priority, publisher_id, published_at, start_time, end_time, 
         is_sticky, target_scope, attachment_url, read_count, status, created_at, updated_at, is_deleted
     </sql>
+    
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT 
+            n.id,
+            n.title,
+            n.content,
+            n.type,
+            n.priority,
+            n.publisher_id,
+            n.published_at,
+            n.start_time,
+            n.end_time,
+            n.is_sticky,
+            n.target_scope,
+            n.attachment_url,
+            n.read_count,
+            n.status,
+            n.created_at,
+            n.updated_at,
+            u.real_name as publisher_name
+        FROM biz_notice n
+        LEFT JOIN sys_user u ON n.publisher_id = u.id
+        WHERE n.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND n.is_deleted = 0
+    </select>
+    
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List" />
+        FROM biz_notice
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id, 
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+    
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT 
+            COUNT(*) as total_count,
+            COUNT(CASE WHEN status = 1 THEN 1 END) as published_count,
+            COUNT(CASE WHEN status = 0 THEN 1 END) as draft_count,
+            COUNT(CASE WHEN is_sticky = 1 THEN 1 END) as sticky_count,
+            AVG(read_count) as avg_read_count
+        FROM biz_notice
+        WHERE is_deleted = 0
+        <if test="condition.type != null">
+            AND type = #{condition.type}
+        </if>
+        <if test="condition.priority != null">
+            AND priority = #{condition.priority}
+        </if>
+    </select>
 
 </mapper>

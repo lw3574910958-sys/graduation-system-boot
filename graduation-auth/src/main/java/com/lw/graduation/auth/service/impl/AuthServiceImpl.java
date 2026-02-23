@@ -14,6 +14,7 @@ import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -102,7 +103,8 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         // 6. 检查账户状态是否为启用（在密码验证成功后再检查）
-        if (user.getStatus() != 1) {
+        AccountStatus accountStatus = AccountStatus.getByValue(user.getStatus());
+        if (accountStatus == AccountStatus.DISABLED) {
             // 即使密码正确，但账户被禁用，仍视为登录失败
             throw new BusinessException(ResponseCode.ACCOUNT_DISABLED);
         }
@@ -211,10 +213,10 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
             if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
-                log.debug("缓存命中空值标记，用户不存在: " + userId);
+                log.debug("缓存命中空值标记，用户不存在: {}", userId);
                 throw new BusinessException(ResponseCode.USER_NOT_FOUND);
             }
-            log.debug("缓存命中当前用户信息: " + userId);
+            log.debug("缓存命中当前用户信息: {}", userId);
             return (LoginUserInfoVO) cached;
         }
 
@@ -228,7 +230,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 CacheConstants.CacheValue.NULL_EXPIRE,
                 TimeUnit.SECONDS
             );
-            log.debug("用户不存在，缓存空值标记: " + cacheKey);
+            log.debug("用户不存在，缓存空值标记: {}", cacheKey);
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
 
@@ -240,18 +242,19 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             CacheConstants.ExpireTime.CURRENT_USER_EXPIRE,
             TimeUnit.SECONDS
         );
-        log.debug("缓存当前用户信息: " + cacheKey);
+        log.debug("缓存当前用户信息: {}", cacheKey);
         return result;
     }
 
     /**
      * 清除当前用户缓存（用于用户信息变更后调用）
+     * 注意：此方法供外部服务调用，当用户信息发生变更时清除缓存
      */
     public void clearCurrentUserCache(Long userId) {
         if (userId != null) {
             String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
             redisTemplate.delete(cacheKey);
-            log.debug("清除当前用户缓存: " + cacheKey);
+            log.debug("清除当前用户缓存: {}", cacheKey);
         }
     }
 
@@ -270,7 +273,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                     CacheConstants.ExpireTime.CURRENT_USER_EXPIRE,
                     TimeUnit.SECONDS
                 );
-                log.debug("预热当前用户缓存: " + cacheKey);
+                log.debug("预热当前用户缓存: {}", cacheKey);
             }
         }
     }

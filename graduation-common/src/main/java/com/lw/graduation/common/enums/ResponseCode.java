@@ -108,17 +108,4 @@ public enum ResponseCode {
      * 响应信息
      */
     private final String message;
-
-    /**
-     * 根据code获取响应码枚举
-     */
-    public static ResponseCode fromCode(int code) {
-        for (ResponseCode responseCode : ResponseCode.values()) {
-            if (responseCode.getCode() == code) {
-                return responseCode;
-            }
-        }
-        // 如果没有找到匹配的code，默认返回FAIL
-        return ERROR;
-    }
 }

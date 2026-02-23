@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.user.SysUserMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.user.SysUser">
         <id column="id" property="id" />
         <result column="username" property="username" />
@@ -22,9 +22,78 @@
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, username, password, real_name, user_type, status, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, avatar, is_deleted
+        u.id, u.username, u.password, u.real_name, u.user_type, u.status,
+        u.last_login_at, u.last_login_ip, u.login_fail_count, u.locked_until,
+        u.created_at, u.updated_at, u.avatar, u.is_deleted
     </sql>
 
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT
+        u.id,
+        u.username,
+        u.real_name,
+        u.user_type,
+        u.status,
+        u.last_login_at,
+        u.last_login_ip,
+        u.login_fail_count,
+        u.locked_until,
+        u.created_at,
+        u.updated_at,
+        u.avatar,
+        r.role_code,
+        CASE
+        WHEN u.user_type = 1 THEN (SELECT student_id FROM biz_student WHERE user_id = u.id AND is_deleted = 0 LIMIT 1)
+        WHEN u.user_type = 2 THEN (SELECT teacher_id FROM biz_teacher WHERE user_id = u.id AND is_deleted = 0 LIMIT 1)
+        WHEN u.user_type = 3 THEN (SELECT admin_id FROM biz_admin WHERE user_id = u.id AND is_deleted = 0 LIMIT 1)
+        END as user_specific_id
+        FROM sys_user u
+        LEFT JOIN sys_user_role r ON u.id = r.user_id AND r.is_deleted = 0
+        WHERE u.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND u.is_deleted = 0
+    </select>
 
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT
+            id, username, password, real_name, user_type, status,
+            last_login_at, last_login_ip, login_fail_count, locked_until,
+            created_at, updated_at, avatar, is_deleted
+        FROM sys_user
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id,
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT
+            COUNT(*) as total_users,
+            COUNT(CASE WHEN status = 1 THEN 1 END) as active_users,
+            COUNT(CASE WHEN status = 0 THEN 1 END) as inactive_users,
+            COUNT(CASE WHEN user_type = 1 THEN 1 END) as students,
+            COUNT(CASE WHEN user_type = 2 THEN 1 END) as teachers,
+            COUNT(CASE WHEN user_type = 3 THEN 1 END) as admins,
+            AVG(login_fail_count) as avg_login_failures
+        FROM sys_user
+        WHERE is_deleted = 0
+        <if test="condition.userType != null">
+            AND user_type = #{condition.userType}
+        </if>
+        <if test="condition.status != null">
+            AND status = #{condition.status}
+        </if>
+    </select>
 
 </mapper>

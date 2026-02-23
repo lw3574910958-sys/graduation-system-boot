@@ -35,32 +35,4 @@ public class CommonConstants {
         /** 最小页面大小 */
         public static final int MIN_SIZE = 1;
     }
-
-    /**
-     * 字符串常量
-     */
-    public static class Strings {
-        /** 空字符串 */
-        public static final String EMPTY = "";
-        /** 空格 */
-        public static final String SPACE = " ";
-        /** 逗号 */
-        public static final String COMMA = ",";
-        /** 下划线 */
-        public static final String UNDERLINE = "_";
-        /** 中横线 */
-        public static final String HYPHEN = "-";
-    }
-
-    /**
-     * 系统常量
-     */
-    public static class System {
-        /** 系统名称 */
-        public static final String SYSTEM_NAME = "graduation-system";
-        /** 版本号 */
-        public static final String VERSION = "1.0.0";
-        /** 开发者 */
-        public static final String DEVELOPER = "lw";
-    }
 }

@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.grade.BizGrade">
         <id column="id" property="id" />
         <result column="student_id" property="studentId" />
@@ -20,5 +20,65 @@
     <sql id="Base_Column_List">
         id, student_id, topic_id, score, grader_id, comment, graded_at, created_at, updated_at, is_deleted
     </sql>
+    
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT 
+            g.id,
+            g.student_id,
+            g.topic_id,
+            g.score,
+            g.grader_id,
+            g.comment,
+            g.graded_at,
+            s.student_id as student_number,
+            u.real_name as student_name,
+            t.title as topic_title,
+            ug.real_name as grader_name
+        FROM biz_grade g
+        LEFT JOIN biz_student s ON g.student_id = s.id
+        LEFT JOIN sys_user u ON s.user_id = u.id
+        LEFT JOIN biz_topic t ON g.topic_id = t.id
+        LEFT JOIN sys_user ug ON g.grader_id = ug.id
+        WHERE g.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND g.is_deleted = 0
+    </select>
+    
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List" />
+        FROM biz_grade
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id, 
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+    
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT 
+            COUNT(*) as total_count,
+            AVG(score) as avg_score,
+            MAX(score) as max_score,
+            MIN(score) as min_score
+        FROM biz_grade
+        WHERE is_deleted = 0
+        <if test="condition.minScore != null">
+            AND score <![CDATA[>=]]> #{condition.minScore}
+        </if>
+        <if test="condition.maxScore != null">
+            AND score <![CDATA[<=]]> #{condition.maxScore}
+        </if>
+    </select>
 
 </mapper>

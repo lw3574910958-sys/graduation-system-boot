@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.document.BizDocument">
         <id column="id" property="id" />
         <result column="user_id" property="userId" />
@@ -25,5 +25,68 @@
     <sql id="Base_Column_List">
         id, user_id, topic_id, file_type, original_filename, stored_path, file_size, review_status, reviewed_at, reviewer_id, feedback, uploaded_at, created_at, updated_at, is_deleted
     </sql>
+    
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT 
+            d.id,
+            d.user_id,
+            d.topic_id,
+            d.file_type,
+            d.original_filename,
+            d.stored_path,
+            d.file_size,
+            d.review_status,
+            d.reviewed_at,
+            d.reviewer_id,
+            d.feedback,
+            d.uploaded_at,
+            u.real_name as user_name,
+            t.title as topic_title,
+            ur.real_name as reviewer_name
+        FROM biz_document d
+        LEFT JOIN sys_user u ON d.user_id = u.id
+        LEFT JOIN biz_topic t ON d.topic_id = t.id
+        LEFT JOIN sys_user ur ON d.reviewer_id = ur.id
+        WHERE d.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND d.is_deleted = 0
+    </select>
+    
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List" />
+        FROM biz_document
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id, 
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+    
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT 
+            COUNT(*) as total_count,
+            AVG(file_size) as avg_size,
+            MAX(file_size) as max_size,
+            MIN(file_size) as min_size
+        FROM biz_document
+        WHERE is_deleted = 0
+        <if test="condition.fileType != null">
+            AND file_type = #{condition.fileType}
+        </if>
+        <if test="condition.reviewStatus != null">
+            AND review_status = #{condition.reviewStatus}
+        </if>
+    </select>
 
 </mapper>

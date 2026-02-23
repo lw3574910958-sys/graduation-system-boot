@@ -1,6 +1,6 @@
 package com.lw.graduation.grade.service.calculator.impl;
 
-import com.lw.graduation.domain.enums.GradeLevel;
+import com.lw.graduation.domain.enums.grade.GradeLevel;
 import com.lw.graduation.grade.service.calculator.GradeCalculatorService;
 import com.lw.graduation.grade.service.calculator.GradeDistribution;
 import lombok.extern.slf4j.Slf4j;
@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -36,7 +35,7 @@ public class GradeCalculatorServiceImpl implements GradeCalculatorService {
         for (int i = 0; i < scores.size(); i++) {
             BigDecimal score = scores.get(i);
             BigDecimal weight = weights.get(i);
-            
+
             if (score != null && weight != null) {
                 weightedSum = weightedSum.add(score.multiply(weight));
                 weightSum = weightSum.add(weight);
@@ -95,28 +94,25 @@ public class GradeCalculatorServiceImpl implements GradeCalculatorService {
             return BigDecimal.ZERO;
         }
 
-        // 4.0绩点制转换
-        if (score.compareTo(new BigDecimal("90")) >= 0) {
-            return new BigDecimal("4.0");
-        } else if (score.compareTo(new BigDecimal("85")) >= 0) {
-            return new BigDecimal("3.7");
-        } else if (score.compareTo(new BigDecimal("82")) >= 0) {
-            return new BigDecimal("3.3");
-        } else if (score.compareTo(new BigDecimal("78")) >= 0) {
-            return new BigDecimal("3.0");
-        } else if (score.compareTo(new BigDecimal("75")) >= 0) {
-            return new BigDecimal("2.7");
-        } else if (score.compareTo(new BigDecimal("72")) >= 0) {
-            return new BigDecimal("2.3");
-        } else if (score.compareTo(new BigDecimal("68")) >= 0) {
-            return new BigDecimal("2.0");
-        } else if (score.compareTo(new BigDecimal("64")) >= 0) {
-            return new BigDecimal("1.5");
-        } else if (score.compareTo(new BigDecimal("60")) >= 0) {
-            return new BigDecimal("1.0");
-        } else {
-            return BigDecimal.ZERO;
+        // 优先使用GradeLevel枚举的getAverageGPA方法
+        GradeLevel level = GradeLevel.getByScore(score);
+        if (level != null) {
+            return level.getAverageGPA();
         }
+
+        // 如果枚举方法不可用，则使用传统区间判断
+        return switch (score.intValue() / 10) {
+            case 10, 9 -> new BigDecimal("4.0"); // 90-100
+            case 8 -> score.compareTo(new BigDecimal("85")) >= 0 ?
+                     new BigDecimal("3.7") : new BigDecimal("3.3"); // 85-89 vs 80-84
+            case 7 -> score.compareTo(new BigDecimal("75")) >= 0 ?
+                     (score.compareTo(new BigDecimal("78")) >= 0 ? new BigDecimal("3.0") : new BigDecimal("2.7")) :
+                     (score.compareTo(new BigDecimal("72")) >= 0 ? new BigDecimal("2.3") : new BigDecimal("2.0"));
+            case 6 -> score.compareTo(new BigDecimal("60")) >= 0 ?
+                     (score.compareTo(new BigDecimal("64")) >= 0 ? new BigDecimal("1.5") : new BigDecimal("1.0")) :
+                     BigDecimal.ZERO;
+            default -> BigDecimal.ZERO; // 0-59
+        };
     }
 
     @Override
@@ -164,12 +160,10 @@ public class GradeCalculatorServiceImpl implements GradeCalculatorService {
                 .filter(s -> s != null && s.compareTo(score) < 0)
                 .count();
 
-        // 计算百分位排名
-        BigDecimal percentile = new BigDecimal(lowerCount)
+        // 计算百分位排名并直接返回
+        return new BigDecimal(lowerCount)
                 .multiply(new BigDecimal("100"))
                 .divide(new BigDecimal(allScores.size()), SCALE, ROUNDING_MODE);
-
-        return percentile;
     }
 
     @Override
@@ -191,7 +185,7 @@ public class GradeCalculatorServiceImpl implements GradeCalculatorService {
         // 计算及格率
         distribution.calculatePassRate();
 
-        log.info("成绩分布统计完成: 总人数={}, 及格率={}%", 
+        log.info("成绩分布统计完成: 总人数={}, 及格率={}%",
                 distribution.getTotalCount(), distribution.getPassRate());
 
         return distribution;

@@ -44,63 +44,22 @@ public class CacheConstants {
     }
 
     /**
-     * 缓存过期时间（秒）- 分级策略
+     * 缓存过期时间（秒）- 实际使用的常量
      */
     public static class ExpireTime {
-        // 热点数据（高频访问，变化较少）
-        /** 用户信息缓存过期时间：2小时 */
-        public static final int HOT_DATA_EXPIRE = 7200;
+        // 实际使用的过期时间
         /** 院系信息缓存过期时间：2小时 */
         public static final int DEPARTMENT_INFO_EXPIRE = 7200;
         /** 所有院系列表缓存过期时间：2小时 */
         public static final int ALL_DEPARTMENTS_EXPIRE = 7200;
-        
-        // 温数据（中频访问，偶尔变化）
-        /** 课题信息缓存过期时间：1小时 */
+        /** 温数据缓存过期时间：1小时 */
         public static final int WARM_DATA_EXPIRE = 3600;
-        /** 成绩信息缓存过期时间：1小时 */
-        public static final int GRADE_INFO_EXPIRE = 3600;
-        /** 通知信息缓存过期时间：1小时 */
-        public static final int NOTICE_INFO_EXPIRE = 3600;
-        
-        // 冷数据（低频访问，经常变化）
-        /** 选题信息缓存过期时间：30分钟 */
+        /** 冷数据缓存过期时间：30分钟 */
         public static final int COLD_DATA_EXPIRE = 1800;
-        /** 文档信息缓存过期时间：30分钟 */
-        public static final int DOCUMENT_INFO_EXPIRE = 1800;
-        /** 话题信息缓存过期时间：30分钟 */
-        public static final int TOPIC_INFO_EXPIRE = 1800;
-        /** 选题信息缓存过期时间：30分钟 */
-        public static final int SELECTION_INFO_EXPIRE = 1800;
-        
-        // 会话数据（用户会话相关）
-        /** 当前用户信息缓存过期时间：15分钟 */
-        public static final int SESSION_DATA_EXPIRE = 900;
         /** 用户信息缓存过期时间：15分钟 */
         public static final int USER_INFO_EXPIRE = 900;
         /** 当前用户信息缓存过期时间：15分钟 */
         public static final int CURRENT_USER_EXPIRE = 900;
     }
 
-    /**
-     * 缓存名称（用于@Cacheable注解的cacheNames）
-     */
-    public static class CacheNames {
-        /** 用户缓存 */
-        public static final String USER_CACHE = "userCache";
-        /** 院系缓存 */
-        public static final String DEPARTMENT_CACHE = "departmentCache";
-        /** 课题缓存 */
-        public static final String TOPIC_CACHE = "topicCache";
-        /** 选题缓存 */
-        public static final String SELECTION_CACHE = "selectionCache";
-        /** 成绩缓存 */
-        public static final String GRADE_CACHE = "gradeCache";
-        /** 通知缓存 */
-        public static final String NOTICE_CACHE = "noticeCache";
-        /** 文档缓存 */
-        public static final String DOCUMENT_CACHE = "documentCache";
-        /** 系统配置缓存 */
-        public static final String CONFIG_CACHE = "configCache";
-    }
 }

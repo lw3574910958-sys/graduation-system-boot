@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.department.SysDepartmentMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.department.SysDepartment">
         <id column="id" property="id" />
         <result column="code" property="code" />
@@ -16,5 +16,53 @@
     <sql id="Base_Column_List">
         id, code, name, created_at, updated_at, is_deleted
     </sql>
+    
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT 
+            d.id,
+            d.code,
+            d.name,
+            d.created_at,
+            d.updated_at,
+            COUNT(a.id) as admin_count,
+            COUNT(t.id) as teacher_count,
+            COUNT(s.id) as student_count
+        FROM sys_department d
+        LEFT JOIN biz_admin a ON d.id = a.department_id AND a.is_deleted = 0
+        LEFT JOIN biz_teacher t ON d.id = t.department_id AND t.is_deleted = 0
+        LEFT JOIN biz_student s ON d.id = s.department_id AND s.is_deleted = 0
+        WHERE d.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND d.is_deleted = 0
+        GROUP BY d.id, d.code, d.name, d.created_at, d.updated_at
+    </select>
+    
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List" />
+        FROM sys_department
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id, 
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+    
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT 
+            COUNT(*) as total_departments,
+            COUNT(CASE WHEN is_deleted = 0 THEN 1 END) as active_departments
+        FROM sys_department
+    </select>
 
 </mapper>

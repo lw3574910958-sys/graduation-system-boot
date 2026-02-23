@@ -50,7 +50,7 @@ public class BizTopic implements Serializable {
     private Long teacherId;
 
     /**
-     * 状态: 1-开放, 2-已选, 3-关闭
+     * 状态: 1-开放, 2-审核中, 3-已选, 4-关闭
      */
     @TableField("status")
     private Integer status;

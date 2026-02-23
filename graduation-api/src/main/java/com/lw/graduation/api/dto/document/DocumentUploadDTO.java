@@ -1,7 +1,6 @@
 package com.lw.graduation.api.dto.document;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,7 +32,7 @@ public class DocumentUploadDTO implements Serializable {
      * 文件类型
      */
     @NotNull(message = "文件类型不能为空")
-    @Schema(description = "文件类型: 0-开题报告, 1-中期报告, 2-毕业论文, 3-外文翻译, 4-其他文档", 
+    @Schema(description = "文件类型: 0-开题报告, 1-中期报告, 2-毕业论文, 3-外文翻译, 4-其他文档",
             requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer fileType;
 

@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.domain.enums.status.ReviewStatus;
 import lombok.Data;
 
 import java.io.Serial;
@@ -162,7 +163,8 @@ public class BizDocument implements Serializable {
      * @return 通过审核返回true
      */
     public boolean isApproved() {
-        return this.reviewStatus != null && this.reviewStatus == 1;
+        ReviewStatus status = ReviewStatus.getByValue(this.reviewStatus);
+        return status == ReviewStatus.APPROVED;
     }
 
     /**
@@ -171,7 +173,8 @@ public class BizDocument implements Serializable {
      * @return 被驳回返回true
      */
     public boolean isRejected() {
-        return this.reviewStatus != null && this.reviewStatus == 2;
+        ReviewStatus status = ReviewStatus.getByValue(this.reviewStatus);
+        return status == ReviewStatus.REJECTED;
     }
 
     /**
@@ -180,6 +183,7 @@ public class BizDocument implements Serializable {
      * @return 待审核返回true
      */
     public boolean isPendingReview() {
-        return this.reviewStatus == null || this.reviewStatus == 0;
+        ReviewStatus status = ReviewStatus.getByValue(this.reviewStatus);
+        return status == null || status == ReviewStatus.PENDING;
     }
 }

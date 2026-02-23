@@ -18,8 +18,8 @@ import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.domain.enums.FileType;
-import com.lw.graduation.domain.enums.ReviewStatus;
+import com.lw.graduation.common.enums.FileType;
+import com.lw.graduation.domain.enums.status.ReviewStatus;
 import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
@@ -30,13 +30,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 文档服务实现类
@@ -58,7 +58,8 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     @Override
     public IPage<DocumentVO> getDocumentPage(DocumentPageQueryDTO queryDTO) {
-        log.info("分页查询文档列表: {}", queryDTO);
+        log.info("分页查询文档列表，当前页: {}，每页大小: {}，用户ID: {}，题目ID: {}", 
+                queryDTO.getCurrent(), queryDTO.getSize(), queryDTO.getUserId(), queryDTO.getTopicId());
 
         // 1. 构建查询条件
         LambdaQueryWrapper<BizDocument> wrapper = new LambdaQueryWrapper<>();
@@ -108,10 +109,12 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DocumentVO uploadDocument(DocumentUploadDTO uploadDTO, Long userId) {
-        log.info("用户 {} 上传文档: {}, 类型: {}", userId, uploadDTO.getFile().getOriginalFilename(), uploadDTO.getFileType());
+        log.info("用户[{}] 上传文档，文件名: {}，类型: {}，题目ID: {}", 
+                userId, uploadDTO.getFile().getOriginalFilename(), uploadDTO.getFileType(), uploadDTO.getTopicId());
 
         // 1. 验证文件类型
-        FileType fileType = FileType.getByValue(uploadDTO.getFileType());
+        com.lw.graduation.domain.enums.document.FileType fileType = 
+            com.lw.graduation.domain.enums.document.FileType.getByValue(uploadDTO.getFileType());
         if (fileType == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "不支持的文件类型");
         }
@@ -208,8 +211,18 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的审核状态");
         }
 
-        if (reviewStatus.isFinalStatus() && document.isApproved()) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档已通过审核，无需重复审核");
+        // 3. 验证文档当前状态
+        if (document.isApproved()) {
+            if (reviewStatus.isFinalStatus()) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档已通过审核，无需重复审核");
+            }
+        } else if (document.isRejected()) {
+            if (reviewStatus.isFinalStatus()) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档已被驳回，不能再次审核");
+            }
+        } else if (document.isPendingReview()) {
+            // 待审核状态可以进行任何审核操作
+            log.debug("文档处于待审核状态，可以进行审核操作");
         }
 
         // 3. 更新审核信息
@@ -231,7 +244,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean deleteDocument(Long id, Long userId) {
+    public void deleteDocument(Long id, Long userId) {
         log.info("用户 {} 删除文档: {}", userId, id);
 
         // 1. 获取文档信息
@@ -243,6 +256,11 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         // 2. 验证删除权限
         if (!document.getUserId().equals(userId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权删除他人文档");
+        }
+
+        // 3. 验证文档状态（已通过审核的文档不能删除）
+        if (document.isApproved()) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已通过审核的文档不能删除");
         }
 
         // 3. 删除文件存储
@@ -262,7 +280,74 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         clearDocumentCache(id);
 
         log.info("文档删除成功，ID: {}", id);
-        return true;
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DocumentVO resubmitDocument(Long documentId, Long userId, MultipartFile newFile) {
+        log.info("用户 {} 重新提交文档: {}", userId, documentId);
+        
+        // 1. 获取文档信息
+        BizDocument document = getById(documentId);
+        if (document == null || document.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
+        }
+        
+        // 2. 验证权限和状态
+        if (!document.getUserId().equals(userId)) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权限重新提交此文档");
+        }
+        
+        ReviewStatus currentStatus = ReviewStatus.getByValue(document.getReviewStatus());
+        if (currentStatus == null || !currentStatus.canResubmit()) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档状态不允许重新提交");
+        }
+        
+        // 3. 验证新文件
+        if (newFile == null || newFile.isEmpty()) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "新文件不能为空");
+        }
+        
+        String originalFilename = newFile.getOriginalFilename();
+        String extension = getFileExtension(originalFilename);
+        
+        // 验证文件类型
+        FileType.ValidationResult result = FileType.validate(extension, newFile.getSize());
+        if (!result.isValid()) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), result.getMessage());
+        }
+        
+        // 4. 上传新文件
+        String category = "document/topic_" + document.getTopicId() + "/" + document.getFileType();
+        String newStoredPath;
+        try {
+            newStoredPath = fileStorageService.store(newFile, category);
+        } catch (Exception e) {
+            log.error("文件上传失败: {}", documentId, e);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件上传失败");
+        }
+        
+        // 5. 更新文档信息
+        document.setOriginalFilename(originalFilename);
+        document.setStoredPath(newStoredPath);
+        document.setFileSize(newFile.getSize());
+        document.setReviewStatus(ReviewStatus.PENDING.getValue()); // 重置为待审核状态
+        document.setReviewedAt(null);
+        document.setReviewerId(null);
+        document.setFeedback(null);
+        document.setUploadedAt(LocalDateTime.now());
+        document.setUpdatedAt(LocalDateTime.now());
+        
+        boolean updated = updateById(document);
+        if (!updated) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文档重新提交失败");
+        }
+        
+        // 6. 清除缓存
+        clearDocumentCache(documentId);
+        
+        // 7. 转换为VO并返回
+        return convertToDocumentVO(document);
     }
 
     /**
@@ -324,9 +409,9 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         vo.setFileExtension(document.getFileExtension());
 
         // 填充文件类型描述
-        FileType fileType = FileType.getByValue(document.getFileType());
-        if (fileType != null) {
-            vo.setFileTypeDesc(fileType.getDescription());
+        String fileTypeDesc = getFileTypeDescription(document.getFileType());
+        if (fileTypeDesc != null) {
+            vo.setFileTypeDesc(fileTypeDesc);
         }
 
         // 填充审核状态描述
@@ -374,14 +459,14 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         // 提取所有需要查询的ID
         List<Long> documentIds = documents.stream()
                 .map(BizDocument::getId)
-                .collect(Collectors.toList());
+                .toList();
 
         // 批量查询关联信息
-        List<Map<String, Object>> documentDetails = bizDocumentMapper.selectDocumentDetailsWithRelations(documentIds);
+        List<Map<String, Object>> documentDetails = bizDocumentMapper.selectDetailsWithRelations(documentIds);
 
         // 构建ID到详情的映射
         Map<Long, Map<String, Object>> detailsMap = documentDetails.stream()
-                .collect(Collectors.toMap(
+                .collect(java.util.stream.Collectors.toMap(
                         detail -> ((Number) detail.get("id")).longValue(),
                         detail -> detail,
                         (existing, replacement) -> existing
@@ -409,7 +494,8 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             vo.setFileExtension(document.getFileExtension());
 
             // 填充文件类型描述
-            FileType fileType = FileType.getByValue(document.getFileType());
+            com.lw.graduation.domain.enums.document.FileType fileType = 
+                com.lw.graduation.domain.enums.document.FileType.getByValue(document.getFileType());
             if (fileType != null) {
                 vo.setFileTypeDesc(fileType.getDescription());
             }
@@ -429,9 +515,42 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             }
 
             return vo;
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
+    /**
+     * 获取文件类型描述
+     */
+    private String getFileTypeDescription(Integer fileTypeValue) {
+        if (fileTypeValue == null) {
+            return null;
+        }
+        
+        return switch (fileTypeValue) {
+            case 0 -> "开题报告";
+            case 1 -> "中期报告";
+            case 2 -> "毕业论文";
+            case 3 -> "外文翻译";
+            case 4 -> "其他文档";
+            default -> "未知类型";
+        };
+    }
+    
+    /**
+     * 获取文件扩展名
+     */
+    private String getFileExtension(String filename) {
+        if (filename == null) {
+            return "";
+        }
+        
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex > 0 && lastDotIndex < filename.length() - 1) {
+            return filename.substring(lastDotIndex + 1).toLowerCase();
+        }
+        return "";
+    }
+    
     /**
      * 清除文档相关缓存
      */

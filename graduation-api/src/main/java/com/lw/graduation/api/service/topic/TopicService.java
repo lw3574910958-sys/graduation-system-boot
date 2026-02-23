@@ -6,6 +6,8 @@ import com.lw.graduation.api.dto.topic.TopicPageQueryDTO;
 import com.lw.graduation.api.dto.topic.TopicUpdateDTO;
 import com.lw.graduation.api.vo.topic.TopicVO;
 
+import java.util.List;
+
 /**
  * 课题服务接口
  * 定义课题管理模块的核心业务逻辑。
@@ -51,4 +53,13 @@ public interface TopicService {
      * @param id 课题ID
      */
     void deleteTopic(Long id);
+    
+    /**
+     * 获取可选的课题列表
+     * 只返回开放和审核中状态的题目
+     *
+     * @param departmentId 院系ID（可选）
+     * @return 可选课题列表
+     */
+    List<TopicVO> getSelectableTopics(Long departmentId);
 }

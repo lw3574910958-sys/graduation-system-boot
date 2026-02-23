@@ -74,45 +74,6 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     }
 
     /**
-     * 通过输入流存储文件
-     */
-    @Override
-    public String storeStream(InputStream inputStream, String category, String filename) throws IOException {
-        if (inputStream == null) {
-            throw new IllegalArgumentException("输入流不能为空");
-        }
-        if (category == null || category.trim().isEmpty()) {
-            throw new IllegalArgumentException("文件分类不能为空");
-        }
-        if (filename == null || filename.trim().isEmpty()) {
-            throw new IllegalArgumentException("文件名不能为空");
-        }
-        
-        // 验证文件扩展名
-        String extension = FileUtil.extName(filename);
-        if (extension == null || extension.isEmpty()) {
-            throw new IllegalArgumentException("文件名必须包含扩展名");
-        }
-        
-        FileType.ValidationResult result = FileType.validate(extension, 0); // 流大小未知，只验证类型
-        if (!result.isValid()) {
-            throw new IllegalArgumentException(result.getMessage());
-        }
-        
-        // 生成存储路径
-        String datePath = DateUtil.format(java.util.Date.from(java.time.Instant.now()), "yyyy/MM/dd");
-        String relativePath = Paths.get(category, datePath, filename).toString().replace("\\", "/");
-        Path fullPath = Paths.get(basePath, relativePath);
-        
-        // 创建目录并保存文件
-        Files.createDirectories(fullPath.getParent());
-        Files.copy(inputStream, fullPath);
-        
-        log.info("文件流上传成功: {}", relativePath);
-        return relativePath;
-    }
-
-    /**
      * 下载文件
      */
     @Override
@@ -169,25 +130,6 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             return null;
         }
         return urlPrefix + "/" + filePath;
-    }
-
-    /**
-     * 获取文件绝对路径
-     */
-    @Override
-    public String getAbsolutePath(String filePath) {
-        if (filePath == null || filePath.trim().isEmpty()) {
-            return null;
-        }
-        return Paths.get(basePath, filePath).toAbsolutePath().toString();
-    }
-
-    /**
-     * 获取存储类型标识
-     */
-    @Override
-    public String getStorageType() {
-        return "local";
     }
 
     /**

@@ -12,31 +12,7 @@ import lombok.Getter;
 @Getter
 public class DataAccessException extends BusinessException {
 
-    /**
-     * 数据库操作类型
-     */
-    private final String operation;
-
-    /**
-     * 表名或实体名
-     */
-    private final String tableOrEntity;
-
     public DataAccessException(String message) {
         super(ExceptionType.DATA_ACCESS.getCode(), message);
-        this.operation = null;
-        this.tableOrEntity = null;
-    }
-
-    public DataAccessException(String operation, String message) {
-        super(ExceptionType.DATA_ACCESS.getCode(), message);
-        this.operation = operation;
-        this.tableOrEntity = null;
-    }
-
-    public DataAccessException(String operation, String tableOrEntity, String message) {
-        super(ExceptionType.DATA_ACCESS.getCode(), message);
-        this.operation = operation;
-        this.tableOrEntity = tableOrEntity;
     }
 }

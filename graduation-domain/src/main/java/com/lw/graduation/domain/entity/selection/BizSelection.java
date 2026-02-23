@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.domain.enums.status.SelectionStatus;
 import lombok.Data;
 
 import java.io.Serial;
@@ -105,7 +106,8 @@ public class BizSelection implements Serializable {
      * @return 通过审核返回true
      */
     public boolean isApproved() {
-        return this.status != null && this.status == 1;
+        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        return status == SelectionStatus.APPROVED;
     }
 
     /**
@@ -114,7 +116,8 @@ public class BizSelection implements Serializable {
      * @return 被驳回返回true
      */
     public boolean isRejected() {
-        return this.status != null && this.status == 2;
+        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        return status == SelectionStatus.REJECTED;
     }
 
     /**
@@ -123,7 +126,8 @@ public class BizSelection implements Serializable {
      * @return 待审核返回true
      */
     public boolean isPendingReview() {
-        return this.status == null || this.status == 0;
+        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        return status == null || status == SelectionStatus.PENDING_REVIEW;
     }
 
     /**
@@ -132,6 +136,7 @@ public class BizSelection implements Serializable {
      * @return 已确认返回true
      */
     public boolean isConfirmed() {
-        return this.status != null && this.status == 3;
+        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        return status == SelectionStatus.CONFIRMED;
     }
 }

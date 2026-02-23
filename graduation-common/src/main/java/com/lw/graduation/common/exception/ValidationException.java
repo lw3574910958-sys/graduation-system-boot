@@ -12,31 +12,7 @@ import lombok.Getter;
 @Getter
 public class ValidationException extends BusinessException {
 
-    /**
-     * 字段名称
-     */
-    private final String fieldName;
-
-    /**
-     * 错误值
-     */
-    private final Object rejectedValue;
-
     public ValidationException(String message) {
         super(ExceptionType.VALIDATION.getCode(), message);
-        this.fieldName = null;
-        this.rejectedValue = null;
-    }
-
-    public ValidationException(String fieldName, String message) {
-        super(ExceptionType.VALIDATION.getCode(), message);
-        this.fieldName = fieldName;
-        this.rejectedValue = null;
-    }
-
-    public ValidationException(String fieldName, Object rejectedValue, String message) {
-        super(ExceptionType.VALIDATION.getCode(), message);
-        this.fieldName = fieldName;
-        this.rejectedValue = rejectedValue;
     }
 }

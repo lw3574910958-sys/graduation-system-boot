@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.selection.BizSelection">
         <id column="id" property="id" />
         <result column="student_id" property="studentId" />
@@ -18,5 +18,61 @@
     <sql id="Base_Column_List">
         id, student_id, topic_id, topic_title, status, created_at, updated_at, is_deleted
     </sql>
+    
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT 
+            s.id,
+            s.student_id,
+            s.topic_id,
+            s.topic_title,
+            s.status,
+            s.created_at,
+            s.updated_at,
+            st.student_id as student_number,
+            u.real_name as student_name,
+            t.title as actual_topic_title,
+            usr.real_name as reviewer_name
+        FROM biz_selection s
+        LEFT JOIN biz_student st ON s.student_id = st.id
+        LEFT JOIN sys_user u ON st.user_id = u.id
+        LEFT JOIN biz_topic t ON s.topic_id = t.id
+        LEFT JOIN sys_user usr ON s.reviewer_id = usr.id
+        WHERE s.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND s.is_deleted = 0
+    </select>
+    
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List" />
+        FROM biz_selection
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id, 
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+    
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT 
+            status,
+            COUNT(*) as count
+        FROM biz_selection
+        WHERE is_deleted = 0
+        <if test="condition.status != null">
+            AND status = #{condition.status}
+        </if>
+        GROUP BY status
+    </select>
 
 </mapper>

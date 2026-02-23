@@ -33,16 +33,6 @@ public interface FileStorageService {
     String store(MultipartFile file, String category, String filename) throws IOException;
 
     /**
-     * 通过输入流保存文件
-     * @param inputStream 文件输入流
-     * @param category 文件分类
-     * @param filename 文件名（包含扩展名）
-     * @return 文件存储路径
-     * @throws IOException IO异常
-     */
-    String storeStream(InputStream inputStream, String category, String filename) throws IOException;
-
-    /**
      * 下载文件
      * @param filePath 文件存储路径
      * @return 文件输入流
@@ -71,17 +61,4 @@ public interface FileStorageService {
      * @return 完整访问URL
      */
     String getUrl(String filePath);
-
-    /**
-     * 获取文件绝对路径
-     * @param filePath 相对存储路径
-     * @return 文件系统绝对路径
-     */
-    String getAbsolutePath(String filePath);
-
-    /**
-     * 获取存储类型标识
-     * @return 存储类型（local、minio、oss等）
-     */
-    String getStorageType();
 }

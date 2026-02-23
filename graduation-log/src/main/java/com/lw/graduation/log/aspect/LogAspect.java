@@ -35,12 +35,12 @@ public class LogAspect {
     private final SysUserMapper sysUserMapper;
 
     @Before("@annotation(logOperation)")
-    public void beforeLog(JoinPoint joinPoint, LogOperation logOperation) {
+    public void beforeLog(LogOperation logOperation) {
         log.debug("准备执行操作: {}", logOperation.value());
     }
 
-    @AfterReturning("@annotation(logOperation)")
-    public void afterLogSuccess(JoinPoint joinPoint, LogOperation logOperation) {
+    @AfterReturning(value = "@annotation(logOperation)", returning = "result")
+    public void afterLogSuccess(JoinPoint joinPoint, LogOperation logOperation, Object result) {
         try {
             // 获取当前用户信息
             Long userId = null;
@@ -59,6 +59,11 @@ public class LogAspect {
 
             // 构造操作描述
             String operation = buildOperationDescription(joinPoint, logOperation);
+            
+            // 如果启用了结果记录且未忽略结果，则在操作描述中添加结果信息
+            if (!logOperation.ignoreResult() && result != null) {
+                operation += buildResultDescription(result);
+            }
 
             // 记录日志
             sysLogService.logOperation(userId, userType, operation, ipAddress);
@@ -105,6 +110,27 @@ public class LogAspect {
     }
 
     /**
+     * 构造返回结果描述
+     * @param result 方法返回结果
+     * @return 结果描述字符串
+     */
+    private String buildResultDescription(Object result) {
+        if (result == null) {
+            return " 结果: null";
+        }
+        
+        // 只记录简单类型的结果，避免记录复杂对象
+        if (isSimpleType(result.getClass())) {
+            return " 结果: " + result;
+        } else if (result instanceof Boolean) {
+            return " 结果: " + result;
+        } else {
+            // 对于复杂对象，只记录类型信息
+            return " 结果类型: " + result.getClass().getSimpleName();
+        }
+    }
+
+    /**
      * 判断是否为简单类型
      */
     private boolean isSimpleType(Class<?> clazz) {
@@ -127,7 +153,7 @@ public class LogAspect {
                 HttpServletRequest request = attributes.getRequest();
                 
                 String ip = request.getHeader("X-Forwarded-For");
-                if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip)) {
+                if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
                     if (ip.contains(",")) {
                         ip = ip.split(",")[0];
                     }
@@ -135,11 +161,11 @@ public class LogAspect {
                     ip = request.getHeader("Proxy-Client-IP");
                 }
                 
-                if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
                     ip = request.getHeader("WL-Proxy-Client-IP");
                 }
                 
-                if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+                if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
                     ip = request.getRemoteAddr();
                 }
                 

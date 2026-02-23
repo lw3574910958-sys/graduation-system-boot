@@ -26,15 +26,4 @@ public class CaptchaVO {
      */
     public CaptchaVO() {
     }
-
-    /**
-     * 构造函数
-     *
-     * @param captchaImg 验证码图片的base64编码
-     * @param captchaId  验证码唯一标识
-     */
-    public CaptchaVO(String captchaImg, String captchaId) {
-        this.captchaImg = captchaImg;
-        this.captchaId = captchaId;
-    }
 }

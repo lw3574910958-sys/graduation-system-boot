@@ -88,8 +88,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<?> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        String typeName = e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown";
         String message = String.format("参数 '%s' 类型不匹配，期望类型: %s", 
-                e.getName(), e.getRequiredType().getSimpleName());
+                e.getName(), typeName);
         log.warn("参数类型不匹配: {}", message);
         return Result.error(400, message);
     }
@@ -100,8 +101,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<?> handleValidationException(ValidationException e) {
-        log.warn("自定义验证异常: field={}, value={}, message={}", 
-                e.getFieldName(), e.getRejectedValue(), e.getMessage());
+        log.warn("自定义验证异常: {}", e.getMessage());
         return Result.error(e.getCode(), e.getMessage());
     }
 
@@ -111,8 +111,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthorizationException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public Result<?> handleAuthorizationException(AuthorizationException e) {
-        log.warn("权限异常: permission={}, resource={}, message={}", 
-                e.getPermission(), e.getResource(), e.getMessage());
+        log.warn("权限异常: {}", e.getMessage());
         return Result.error(e.getCode(), e.getMessage());
     }
 
@@ -122,8 +121,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataAccessException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<?> handleDataAccessException(DataAccessException e) {
-        log.error("数据访问异常: operation={}, table/entity={}, message={}", 
-                e.getOperation(), e.getTableOrEntity(), e.getMessage(), e);
+        log.error("数据访问异常: {}", e.getMessage(), e);
         return Result.error(e.getCode(), "数据操作失败: " + e.getMessage());
     }
 

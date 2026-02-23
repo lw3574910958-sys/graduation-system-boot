@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper">
 
-    <!-- 通用查询映射结果 -->
+    <!-- 继承通用Mapper的基础配置 -->
     <resultMap id="BaseResultMap" type="com.lw.graduation.domain.entity.topic.BizTopic">
         <id column="id" property="id" />
         <result column="title" property="title" />
@@ -18,5 +18,61 @@
     <sql id="Base_Column_List">
         id, title, description, teacher_id, status, created_at, updated_at, is_deleted
     </sql>
+    
+    <!-- 实现通用批量查询详情及关联信息 -->
+    <select id="selectDetailsWithRelations" resultType="map">
+        SELECT 
+            t.id,
+            t.title,
+            t.description,
+            t.teacher_id,
+            t.status,
+            t.created_at,
+            t.updated_at,
+            u.real_name as teacher_name,
+            d.name as department_name
+        FROM biz_topic t
+        LEFT JOIN sys_user u ON t.teacher_id = u.id
+        LEFT JOIN sys_department d ON t.department_id = d.id
+        WHERE t.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND t.is_deleted = 0
+    </select>
+    
+    <!-- 实现增强版批量查询 -->
+    <select id="selectBatchWithOrder" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List" />
+        FROM biz_topic
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+        ORDER BY FIELD(id, 
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </select>
+    
+    <!-- 实现通用统计方法 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT 
+            status,
+            COUNT(*) as count,
+            AVG(difficulty) as avg_difficulty
+        FROM biz_topic
+        WHERE is_deleted = 0
+        <if test="condition.status != null">
+            AND status = #{condition.status}
+        </if>
+        <if test="condition.teacherId != null">
+            AND teacher_id = #{condition.teacherId}
+        </if>
+        GROUP BY status
+    </select>
 
 </mapper>

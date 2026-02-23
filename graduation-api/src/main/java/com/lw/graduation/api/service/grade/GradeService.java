@@ -80,7 +80,6 @@ public interface GradeService {
      *
      * @param id 成绩ID
      * @param graderId 教师ID
-     * @return 删除成功返回true
      */
-    boolean deleteGrade(Long id, Long graderId);
+    void deleteGrade(Long id, Long graderId);
 }

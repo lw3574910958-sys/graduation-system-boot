@@ -47,36 +47,32 @@ public interface NoticeService {
      * @param id        通知ID
      * @param updateDTO 更新通知 DTO
      * @param updaterId 更新者ID
-     * @return 更新后的通知VO
      */
-    NoticeVO updateNotice(Long id, NoticeUpdateDTO updateDTO, Long updaterId);
+    void updateNotice(Long id, NoticeUpdateDTO updateDTO, Long updaterId);
 
     /**
      * 发布通知
      *
      * @param id 通知ID
      * @param publisherId 发布者ID
-     * @return 发布结果
      */
-    NoticeVO publishNotice(Long id, Long publisherId);
+    void publishNotice(Long id, Long publisherId);
 
     /**
      * 撤回通知
      *
      * @param id 通知ID
      * @param publisherId 发布者ID
-     * @return 撤回结果
      */
-    NoticeVO withdrawNotice(Long id, Long publisherId);
+    void withdrawNotice(Long id, Long publisherId);
 
     /**
      * 删除通知
      *
      * @param id 通知ID
      * @param userId 用户ID
-     * @return 删除结果
      */
-    boolean deleteNotice(Long id, Long userId);
+    void deleteNotice(Long id, Long userId);
 
     /**
      * 获取置顶通知列表

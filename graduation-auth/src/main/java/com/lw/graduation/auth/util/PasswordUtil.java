@@ -41,7 +41,15 @@ public class PasswordUtil {
         if (rawPassword == null || encodedPassword == null) {
             return false;
         }
-        return passwordEncoder.matches(rawPassword, encodedPassword);
+        
+        // 检查是否为BCrypt格式
+        if (isEncodedWithBCrypt(encodedPassword)) {
+            // BCrypt格式，使用PasswordEncoder验证
+            return passwordEncoder.matches(rawPassword, encodedPassword);
+        } else {
+            // 非BCrypt格式，可能是旧的明文密码，直接比较
+            return rawPassword.equals(encodedPassword);
+        }
     }
 
     /**

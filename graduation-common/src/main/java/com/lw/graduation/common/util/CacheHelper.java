@@ -91,23 +91,7 @@ public class CacheHelper {
             redisTemplate.delete(key);
             log.debug("缓存已清除: {}", key);
         } catch (Exception e) {
-            log.error("清除缓存失败: key={}, error={}", key, e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 批量清除缓存
-     *
-     * @param keys 缓存键数组
-     */
-    public void evictCaches(String... keys) {
-        try {
-            for (String key : keys) {
-                redisTemplate.delete(key);
-                log.debug("缓存已清除: {}", key);
-            }
-        } catch (Exception e) {
-            log.error("批量清除缓存失败: error={}", e.getMessage(), e);
+            log.error("清除缓存失败: {}, error: {}", key, e.getMessage(), e);
         }
     }
 
@@ -168,9 +152,9 @@ public class CacheHelper {
      */
     public boolean hasKey(String key) {
         try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+            return redisTemplate.hasKey(key);
         } catch (Exception e) {
-            log.error("检查缓存键失败: key={}, error={}", key, e.getMessage(), e);
+            log.error("检查缓存键失败: {}, error: {}", key, e.getMessage(), e);
             return false;
         }
     }
@@ -183,10 +167,9 @@ public class CacheHelper {
      */
     public long getExpire(String key) {
         try {
-            Long expire = redisTemplate.getExpire(key);
-            return expire != null ? expire : -2;
+            return redisTemplate.getExpire(key);
         } catch (Exception e) {
-            log.error("获取缓存过期时间失败: key={}, error={}", key, e.getMessage(), e);
+            log.error("获取缓存过期时间失败: {}, error: {}", key, e.getMessage(), e);
             return -2;
         }
     }

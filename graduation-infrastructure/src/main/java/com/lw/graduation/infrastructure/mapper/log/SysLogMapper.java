@@ -17,15 +17,6 @@ import org.apache.ibatis.annotations.Param;
 public interface SysLogMapper extends MyBaseMapper<SysLog> {
     
     /**
-     * 批量插入日志记录
-     * 利用MyBatis-Plus的批量操作优化性能
-     * 
-     * @param logs 日志列表
-     * @return 插入记录数
-     */
-    int insertBatchSomeColumn(@Param("logs") java.util.List<SysLog> logs);
-    
-    /**
      * 清理过期日志
      * 根据保留天数删除历史日志
      * 

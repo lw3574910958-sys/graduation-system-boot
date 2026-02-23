@@ -1,6 +1,7 @@
 package com.lw.graduation.api.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.lw.graduation.common.config.FileStorageProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -14,16 +15,16 @@ import java.nio.file.Paths;
  * @author lw
  */
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${file.dir:${UPLOAD_DIR:D:/Project/myapps/graduation-system/data/uploadFiles}}")
-    private String uploadDir;
+    private final FileStorageProperties fileStorageProperties;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 配置上传文件的访问路径映射
-        String fileSystemPath = Paths.get(uploadDir).toAbsolutePath().toString();
-        registry.addResourceHandler("/files/**")
+        String fileSystemPath = Paths.get(fileStorageProperties.getBasePath()).toAbsolutePath().toString();
+        registry.addResourceHandler(fileStorageProperties.getUrlPrefix() + "/**")
                 .addResourceLocations("file:" + fileSystemPath + "/");
     }
 }

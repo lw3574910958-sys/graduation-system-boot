@@ -17,7 +17,8 @@ import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 
 import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.domain.enums.UserType;
+import com.lw.graduation.domain.enums.user.AccountStatus;
+import com.lw.graduation.domain.enums.user.UserType;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -121,7 +122,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         user.setPassword(passwordUtil.encryptPassword(defaultPassword));
 
         user.setUserType(createDTO.getUserType());
-        user.setStatus(createDTO.getStatus() != null ? createDTO.getStatus() : 1); // 默认启用
+        user.setStatus(createDTO.getStatus() != null ? 
+            createDTO.getStatus() : AccountStatus.ENABLED.getValue()); // 默认启用
         user.setLoginFailCount(0);
         user.setLastLoginAt(null);
         user.setCreatedAt(LocalDateTime.now());
@@ -165,6 +167,10 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             updateUser.setUserType(updateDTO.getUserType());
         }
         if (updateDTO.getStatus() != null) {
+            // 验证状态值是否有效
+            if (!AccountStatus.isValid(updateDTO.getStatus())) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的账户状态值");
+            }
             updateUser.setStatus(updateDTO.getStatus());
         }
         updateUser.setUpdatedAt(LocalDateTime.now());
@@ -195,6 +201,54 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 3. 清除缓存
         clearUserCache(id);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void enableUser(Long id) {
+        updateUserStatus(id, AccountStatus.ENABLED);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void disableUser(Long id) {
+        updateUserStatus(id, AccountStatus.DISABLED);
+    }
+    
+    /**
+     * 更新用户状态的私有方法
+     * 
+     * @param id 用户ID
+     * @param status 目标状态
+     */
+    private void updateUserStatus(Long id, AccountStatus status) {
+        // 1. 检查用户是否存在
+        SysUser user = sysUserMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+        
+        // 2. 检查当前状态是否与目标状态相同
+        AccountStatus currentStatus = AccountStatus.getByValue(user.getStatus());
+        if (currentStatus == status) {
+            String action = status.isEnabled() ? "启用" : "禁用";
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
+                String.format("账户已经是%s状态", action));
+        }
+        
+        // 3. 更新状态
+        SysUser updateUser = new SysUser();
+        updateUser.setId(id);
+        updateUser.setStatus(status.getValue());
+        updateUser.setUpdatedAt(LocalDateTime.now());
+        
+        sysUserMapper.updateById(updateUser);
+        
+        // 4. 清除缓存
+        clearUserCache(id);
+        
+        String action = status.isEnabled() ? "启用" : "禁用";
+        log.info("用户 {} 账户{}成功，ID: {}", user.getUsername(), action, id);
     }
 
     /**
@@ -237,13 +291,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 用户视图对象
      */
     private UserListInfoVO convertToUserListInfoVO(SysUser user) {
-        // 使用 BeanMapperUtil 简化基础字段拷贝
-        UserListInfoVO vo = BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
-        
-        // 手动设置需要特殊处理的字段（如果有）
-        // vo.setXxx(xxx);
-        
-        return vo;
+        // 直接返回转换结果，避免冗余的局部变量
+        return BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
     }
 
     /**

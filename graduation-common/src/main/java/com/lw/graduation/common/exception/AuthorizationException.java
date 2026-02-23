@@ -12,31 +12,7 @@ import lombok.Getter;
 @Getter
 public class AuthorizationException extends BusinessException {
 
-    /**
-     * 权限标识
-     */
-    private final String permission;
-
-    /**
-     * 资源标识
-     */
-    private final String resource;
-
     public AuthorizationException(String message) {
         super(ExceptionType.AUTHORIZATION.getCode(), message);
-        this.permission = null;
-        this.resource = null;
-    }
-
-    public AuthorizationException(String permission, String message) {
-        super(ExceptionType.AUTHORIZATION.getCode(), message);
-        this.permission = permission;
-        this.resource = null;
-    }
-
-    public AuthorizationException(String permission, String resource, String message) {
-        super(ExceptionType.AUTHORIZATION.getCode(), message);
-        this.permission = permission;
-        this.resource = resource;
     }
 }

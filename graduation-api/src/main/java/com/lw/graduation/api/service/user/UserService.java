@@ -51,6 +51,20 @@ public interface UserService{
      * @param id 用户ID
      */
     void deleteUser(Long id);
+    
+    /**
+     * 启用用户账户
+     *
+     * @param id 用户ID
+     */
+    void enableUser(Long id);
+    
+    /**
+     * 禁用用户账户
+     *
+     * @param id 用户ID
+     */
+    void disableUser(Long id);
 
     /**
      * 重置用户密码

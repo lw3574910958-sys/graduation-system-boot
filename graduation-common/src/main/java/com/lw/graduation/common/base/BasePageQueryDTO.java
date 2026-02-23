@@ -36,22 +36,4 @@ public class BasePageQueryDTO implements Serializable {
     @Max(value = CommonConstants.Numbers.MAX_SIZE, message = "每页数量不能超过100")
     //@Schema(description = "每页大小", defaultValue = "10")
     private Integer size = CommonConstants.Numbers.DEFAULT_SIZE;
-
-    /**
-     * 获取偏移量
-     *
-     * @return 偏移量
-     */
-    public long getOffset() {
-        return (long) (current - 1) * size;
-    }
-
-    /**
-     * 获取限制数量
-     *
-     * @return 限制数量
-     */
-    public long getLimit() {
-        return size;
-    }
 }

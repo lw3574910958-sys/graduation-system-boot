@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.lw.graduation.domain.enums.GradeLevel;
+import com.lw.graduation.domain.enums.grade.GradeLevel;
 import lombok.Data;
 
 import java.io.Serial;

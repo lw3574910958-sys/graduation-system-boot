@@ -5,6 +5,7 @@ import com.lw.graduation.api.dto.document.DocumentPageQueryDTO;
 import com.lw.graduation.api.dto.document.DocumentReviewDTO;
 import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.vo.document.DocumentVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 
@@ -63,7 +64,16 @@ public interface DocumentService {
      *
      * @param id 文档ID
      * @param userId 用户ID
-     * @return 删除成功返回true
      */
-    boolean deleteDocument(Long id, Long userId);
+    void deleteDocument(Long id, Long userId);
+    
+    /**
+     * 重新提交被驳回的文档
+     *
+     * @param documentId 文档ID
+     * @param userId 用户ID
+     * @param newFile 新文件
+     * @return 更新后的文档VO
+     */
+    DocumentVO resubmitDocument(Long documentId, Long userId, MultipartFile newFile);
 }

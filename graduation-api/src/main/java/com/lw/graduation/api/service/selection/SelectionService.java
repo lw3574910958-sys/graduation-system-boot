@@ -80,16 +80,24 @@ public interface SelectionService {
      *
      * @param selectionId 选题ID
      * @param studentId 学生ID
-     * @return 撤销结果
      */
-    boolean cancelSelection(Long selectionId, Long studentId);
+    void cancelSelection(Long selectionId, Long studentId);
 
     /**
      * 删除选题记录
      *
      * @param id 选题ID
      * @param userId 用户ID
-     * @return 删除结果
      */
-    boolean deleteSelection(Long id, Long userId);
+    void deleteSelection(Long id, Long userId);
+    
+    /**
+     * 重新申请被驳回的选题
+     *
+     * @param selectionId 选题ID
+     * @param studentId 学生ID
+     * @param applyReason 重新申请理由
+     * @return 申请结果
+     */
+    SelectionVO resubmitSelection(Long selectionId, Long studentId, String applyReason);
 }

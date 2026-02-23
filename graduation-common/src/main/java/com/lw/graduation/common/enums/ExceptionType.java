@@ -57,19 +57,4 @@ public enum ExceptionType {
      * 异常类型描述
      */
     private final String description;
-
-    /**
-     * 根据编码获取异常类型
-     *
-     * @param code 编码
-     * @return 异常类型，未找到返回null
-     */
-    public static ExceptionType getByCode(Integer code) {
-        for (ExceptionType type : values()) {
-            if (type.code.equals(code)) {
-                return type;
-            }
-        }
-        return null;
-    }
 }

@@ -2,6 +2,7 @@ package com.lw.graduation.domain.entity.notice;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.domain.enums.notice.NoticeStatus;
 import lombok.Data;
 
 import java.io.Serial;
@@ -127,30 +128,53 @@ public class BizNotice implements Serializable {
     private Integer isDeleted;
 
     /**
-     * 检查通知是否已发布
+     * 检查通知是否可以编辑
      *
-     * @return 已发布返回true
+     * @return 可以编辑返回true
      */
-    public boolean isPublished() {
-        return this.status != null && this.status == 1;
+    public boolean isEditable() {
+        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        return status != null && status.canEdit();
     }
 
     /**
-     * 检查通知是否为草稿
+     * 检查通知是否为最终状态（已发布或已撤回）
      *
-     * @return 草稿返回true
+     * @return 最终状态返回true
      */
-    public boolean isDraft() {
-        return this.status == null || this.status == 0;
+    public boolean isFinalStatus() {
+        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        return status != null && status.isFinalStatus();
     }
-
+    
+    /**
+     * 检查通知是否可以发布
+     *
+     * @return 可以发布返回true
+     */
+    public boolean canPublish() {
+        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        return status != null && status.canPublish();
+    }
+    
+    /**
+     * 检查通知是否可以撤回
+     *
+     * @return 可以撤回返回true
+     */
+    public boolean canWithdraw() {
+        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        return status != null && status.canWithdraw();
+    }
+    
     /**
      * 检查通知是否已撤回
      *
      * @return 已撤回返回true
      */
     public boolean isWithdrawn() {
-        return this.status != null && this.status == 2;
+        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        return status == NoticeStatus.WITHDRAWN;
     }
 
     /**
@@ -169,12 +193,7 @@ public class BizNotice implements Serializable {
      */
     public boolean isEffective() {
         LocalDateTime now = LocalDateTime.now();
-        if (this.startTime != null && now.isBefore(this.startTime)) {
-            return false;
-        }
-        if (this.endTime != null && now.isAfter(this.endTime)) {
-            return false;
-        }
-        return true;
+        return (this.startTime == null || !now.isBefore(this.startTime)) &&
+               (this.endTime == null || !now.isAfter(this.endTime));
     }
 }

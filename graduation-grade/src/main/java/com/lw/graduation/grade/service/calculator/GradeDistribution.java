@@ -1,8 +1,10 @@
 package com.lw.graduation.grade.service.calculator;
 
+import com.lw.graduation.domain.enums.grade.GradeLevel;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * 成绩分布统计
@@ -75,15 +77,16 @@ public class GradeDistribution {
         
         totalCount++;
         
-        if (score.compareTo(new BigDecimal("90")) >= 0) {
+        // 使用GradeLevel枚举的containsScore方法进行等级判断
+        if (GradeLevel.EXCELLENT.containsScore(score)) {
             excellentCount++;
-        } else if (score.compareTo(new BigDecimal("80")) >= 0) {
+        } else if (GradeLevel.GOOD.containsScore(score)) {
             goodCount++;
-        } else if (score.compareTo(new BigDecimal("70")) >= 0) {
+        } else if (GradeLevel.FAIR.containsScore(score)) {
             fairCount++;
-        } else if (score.compareTo(new BigDecimal("60")) >= 0) {
+        } else if (GradeLevel.PASS.containsScore(score)) {
             passCount++;
-        } else {
+        } else if (GradeLevel.FAIL.containsScore(score)) {
             failCount++;
         }
         
@@ -108,7 +111,7 @@ public class GradeDistribution {
         if (totalCount > 0) {
             BigDecimal passingCount = new BigDecimal(excellentCount + goodCount + fairCount + passCount);
             passRate = passingCount.multiply(new BigDecimal("100"))
-                                  .divide(new BigDecimal(totalCount), 2, java.math.RoundingMode.HALF_UP);
+                                  .divide(new BigDecimal(totalCount), 2, RoundingMode.HALF_UP);
         }
     }
 
@@ -123,26 +126,16 @@ public class GradeDistribution {
             return BigDecimal.ZERO;
         }
         
-        int count = 0;
-        switch (level.toLowerCase()) {
-            case "excellent":
-                count = excellentCount;
-                break;
-            case "good":
-                count = goodCount;
-                break;
-            case "fair":
-                count = fairCount;
-                break;
-            case "pass":
-                count = passCount;
-                break;
-            case "fail":
-                count = failCount;
-                break;
-        }
+        int count = switch (level.toLowerCase()) {
+            case "excellent" -> excellentCount;
+            case "good" -> goodCount;
+            case "fair" -> fairCount;
+            case "pass" -> passCount;
+            case "fail" -> failCount;
+            default -> 0;
+        };
         
         return new BigDecimal(count).multiply(new BigDecimal("100"))
-                                   .divide(new BigDecimal(totalCount), 2, java.math.RoundingMode.HALF_UP);
+                                   .divide(new BigDecimal(totalCount), 2, RoundingMode.HALF_UP);
     }
 }

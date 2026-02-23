@@ -4,7 +4,6 @@ import com.lw.graduation.common.enums.ResponseCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
-import java.util.Collections;
 
 /**
  * 统一响应结果

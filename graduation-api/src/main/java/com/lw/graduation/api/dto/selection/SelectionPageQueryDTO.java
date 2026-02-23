@@ -28,7 +28,7 @@ public class SelectionPageQueryDTO extends BasePageQueryDTO {
     private Long topicId;
 
     /**
-     * 状态 (0-待确认, 1-已确认)
+     * 状态 (0-待审核, 1-审核通过, 2-审核驳回, 3-已确认)
      */
     @Schema(description = "状态")
     private Integer status;

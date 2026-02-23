@@ -12,7 +12,7 @@ logging:
   level:
     root: info
     com.lw.graduation: debug
-    com.baomidou.mybatisplus: warn
+    com.baomidou.mybatis-plus: warn
   file:
     path: D:\Project\myapps\graduation-system\data\logs\graduation-system-boot
   logback:
@@ -112,11 +112,11 @@ spring:
           max-wait: 2000ms
           time-between-eviction-runs: 30000ms
 
-  # 上传文件配置
+  # 上传文件配置（使用FileStorageProperties统一管理）
   servlet:
     multipart:
-      max-file-size: 50MB    # 单个文件最大 50MB（论文、报告）
-      max-request-size: 100MB # 单次请求最大 100MB
+      max-file-size: ${file.storage.max-file-size}B  # 从FileStorageProperties获取
+      max-request-size: ${file.storage.max-request-size:104857600}B # 默认100MB
 
   # thymeleaf 配置
   thymeleaf:
@@ -179,7 +179,31 @@ knife4j:
   production: false
 
 
-# 上传文件配置
+# 文件存储配置
 file:
-  dir: ${UPLOAD_DIR:D:/Project/myapps/graduation-system/data/uploadFiles}
-  path: upload
+  # 统一文件存储配置（推荐使用）
+  storage:
+    # 必须配置项
+    base-path: ${UPLOAD_DIR:D:/Project/myapps/graduation-system/data/uploadFiles}
+    url-prefix: /files
+    max-file-size: 52428800  # 50MB
+    max-request-size: 104857600  # 100MB
+
+    # 可选配置项
+    enable-cleanup: true
+    temp-file-retention-days: 7
+    type: local
+
+    # 云存储配置
+    minio:
+      endpoint: http://localhost:9000
+      access-key: minioadmin
+      secret-key: minioadmin
+      bucket-name: graduation-system
+      region: us-east-1
+    oss:
+      endpoint: oss-cn-hangzhou.aliyuncs.com
+      access-key-id:
+      access-key-secret:
+      bucket-name:
+      region: cn-hangzhou

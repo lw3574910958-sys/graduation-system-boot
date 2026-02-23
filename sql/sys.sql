@@ -146,7 +146,7 @@ CREATE TABLE `biz_topic` (
   `workload` TINYINT NULL DEFAULT NULL COMMENT '预计工作量(1-5)',
   `max_selections` INT NOT NULL DEFAULT 1 COMMENT '选题人数限制',
   `selected_count` INT NOT NULL DEFAULT 0 COMMENT '已选人数',
-  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 1-开放, 2-已选, 3-关闭',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1-开放, 2-审核中, 3-已选, 4-关闭',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -154,6 +154,11 @@ CREATE TABLE `biz_topic` (
   KEY `idx_teacher` (`teacher_id`),
   KEY `idx_department` (`department_id`),
   KEY `idx_status` (`status`),
+  -- 添加复合索引优化查询性能
+  KEY `idx_department_status` (`department_id`, `status`),
+  KEY `idx_teacher_status` (`teacher_id`, `status`),
+  -- 确保题目选题人数不超过限制
+  CONSTRAINT `chk_topic_selection_limit` CHECK (`selected_count` <= `max_selections`),
   CONSTRAINT `fk_topic_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `biz_teacher` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_topic_department` FOREIGN KEY (`department_id`) REFERENCES `sys_department` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='题目表';
@@ -168,17 +173,27 @@ CREATE TABLE `biz_selection` (
   `student_id` BIGINT NOT NULL COMMENT '学生ID(biz_student.id)',
   `topic_id` BIGINT NOT NULL COMMENT '题目ID(biz_topic.id)',
   `topic_title` VARCHAR(200) NOT NULL COMMENT '选题时的题目标题快照',
-  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0-待确认, 1-已确认',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0-待审核, 1-审核通过, 2-审核驳回, 3-已确认',
+  `reviewer_id` BIGINT NULL DEFAULT NULL COMMENT '审核教师ID(sys_user.id)',
+  `reviewed_at` DATETIME(3) NULL DEFAULT NULL COMMENT '审核时间',
+  `review_comment` VARCHAR(500) NULL DEFAULT NULL COMMENT '审核意见',
+  `confirmed_at` DATETIME(3) NULL DEFAULT NULL COMMENT '学生确认时间',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_student` (`student_id`),
   KEY `idx_topic` (`topic_id`),
+  KEY `idx_reviewer` (`reviewer_id`),
+  KEY `idx_status` (`status`),
+  -- 添加复合索引优化查询性能
+  KEY `idx_student_status` (`student_id`, `status`),
+  KEY `idx_topic_status` (`topic_id`, `status`),
   -- ⚠️ MySQL 8.0+ 函数索引：确保一个学生只能有一个已确认的选题
-  UNIQUE KEY `uk_student_confirmed_topic` ((IF(`status` = 1, `student_id`, NULL))),
+  UNIQUE KEY `uk_student_confirmed_topic` ((IF(`status` = 3, `student_id`, NULL))),
   CONSTRAINT `fk_selection_student` FOREIGN KEY (`student_id`) REFERENCES `biz_student` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_selection_topic` FOREIGN KEY (`topic_id`) REFERENCES `biz_topic` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_selection_topic` FOREIGN KEY (`topic_id`) REFERENCES `biz_topic` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_selection_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `sys_user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='选题记录表';
 
 -- ----------------------------

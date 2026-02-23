@@ -6,6 +6,8 @@ import com.lw.graduation.api.dto.department.DepartmentPageQueryDTO;
 import com.lw.graduation.api.dto.department.DepartmentUpdateDTO;
 import com.lw.graduation.api.vo.department.DepartmentVO;
 
+import java.util.List;
+
 /**
  * 院系服务接口
  *
@@ -56,5 +58,5 @@ public interface DepartmentService {
      *
      * @return 院系列表
      */
-    java.util.List<DepartmentVO> getAllDepartments();
+    List<DepartmentVO> getAllDepartments();
 }
