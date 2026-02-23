@@ -11,7 +11,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum FileType {
+public enum FileFormatType {
     
     // 图片类型
     JPG("jpg", "JPEG图片", Category.IMAGE, true, 10 * 1024 * 1024L), // 10MB
@@ -84,7 +84,7 @@ public enum FileType {
      * @param extension 文件扩展名
      * @return 文件类型枚举，未找到返回null
      */
-    public static FileType getByExtension(String extension) {
+    public static FileFormatType getByExtension(String extension) {
         if (extension == null || extension.isEmpty()) {
             return null;
         }
@@ -94,7 +94,7 @@ public enum FileType {
             lowerExt = lowerExt.substring(1);
         }
         
-        for (FileType type : values()) {
+        for (FileFormatType type : values()) {
             if (type.extension.equalsIgnoreCase(lowerExt)) {
                 return type;
             }
@@ -110,7 +110,7 @@ public enum FileType {
      * @return 验证结果
      */
     public static ValidationResult validate(String extension, long fileSize) {
-        FileType type = getByExtension(extension);
+        FileFormatType type = getByExtension(extension);
         
         if (type == null) {
             return ValidationResult.invalid("不支持的文件类型: " + extension);

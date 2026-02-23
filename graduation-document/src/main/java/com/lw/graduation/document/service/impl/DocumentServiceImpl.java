@@ -18,7 +18,7 @@ import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.common.enums.FileType;
+import com.lw.graduation.common.enums.FileFormatType;
 import com.lw.graduation.domain.enums.status.ReviewStatus;
 import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
@@ -113,8 +113,8 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 userId, uploadDTO.getFile().getOriginalFilename(), uploadDTO.getFileType(), uploadDTO.getTopicId());
 
         // 1. 验证文件类型
-        com.lw.graduation.domain.enums.document.FileType fileType = 
-            com.lw.graduation.domain.enums.document.FileType.getByValue(uploadDTO.getFileType());
+        com.lw.graduation.domain.enums.document.DocumentFileType fileType =
+            com.lw.graduation.domain.enums.document.DocumentFileType.getByValue(uploadDTO.getFileType());
         if (fileType == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "不支持的文件类型");
         }
@@ -312,7 +312,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         String extension = getFileExtension(originalFilename);
         
         // 验证文件类型
-        FileType.ValidationResult result = FileType.validate(extension, newFile.getSize());
+        FileFormatType.ValidationResult result = FileFormatType.validate(extension, newFile.getSize());
         if (!result.isValid()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), result.getMessage());
         }
@@ -494,8 +494,8 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             vo.setFileExtension(document.getFileExtension());
 
             // 填充文件类型描述
-            com.lw.graduation.domain.enums.document.FileType fileType = 
-                com.lw.graduation.domain.enums.document.FileType.getByValue(document.getFileType());
+            com.lw.graduation.domain.enums.document.DocumentFileType fileType =
+                com.lw.graduation.domain.enums.document.DocumentFileType.getByValue(document.getFileType());
             if (fileType != null) {
                 vo.setFileTypeDesc(fileType.getDescription());
             }

@@ -3,7 +3,7 @@ package com.lw.graduation.infrastructure.storage.impl;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
-import com.lw.graduation.common.enums.FileType;
+import com.lw.graduation.common.enums.FileFormatType;
 import com.lw.graduation.infrastructure.storage.FileStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +52,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         String extension = FileUtil.extName(originalFilename);
         
         // 验证文件类型
-        FileType.ValidationResult result = FileType.validate(extension, file.getSize());
+        FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
         if (!result.isValid()) {
             throw new IllegalArgumentException(result.getMessage());
         }

@@ -3,7 +3,7 @@ package com.lw.graduation.api.service.file.impl;
 import cn.hutool.core.date.DateUtil;
 import com.lw.graduation.api.service.file.UnifiedFileUploadService;
 import com.lw.graduation.api.vo.file.FileUploadResultVO;
-import com.lw.graduation.common.enums.FileType;
+import com.lw.graduation.common.enums.FileFormatType;
 import com.lw.graduation.infrastructure.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         String extension = getFileExtension(originalFilename);
         
         // 验证文件类型
-        FileType.ValidationResult result = FileType.validate(extension, file.getSize());
+        FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
         if (!result.isValid()) {
             throw new IllegalArgumentException(result.getMessage());
         }
@@ -57,8 +57,8 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         String extension = getFileExtension(originalFilename);
         
         // 验证是否为图片类型
-        FileType fileType = FileType.getByExtension(extension);
-        if (fileType == null || fileType.getCategory() != FileType.Category.IMAGE) {
+        FileFormatType fileType = FileFormatType.getByExtension(extension);
+        if (fileType == null || fileType.getCategory() != FileFormatType.Category.IMAGE) {
             throw new IllegalArgumentException("仅支持图片格式文件");
         }
 
@@ -85,17 +85,17 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         String extension = getFileExtension(originalFilename);
         
         // 验证文件类型
-        FileType.ValidationResult result = FileType.validate(extension, file.getSize());
+        FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
         if (!result.isValid()) {
             throw new IllegalArgumentException(result.getMessage());
         }
 
         // 验证文档类型是否为允许的文档格式
-        FileType docFileType = FileType.getByExtension(extension);
+        FileFormatType docFileType = FileFormatType.getByExtension(extension);
         if (docFileType == null || 
-            (docFileType.getCategory() != FileType.Category.DOCUMENT && 
-             docFileType.getCategory() != FileType.Category.SPREADSHEET &&
-             docFileType.getCategory() != FileType.Category.PRESENTATION)) {
+            (docFileType.getCategory() != FileFormatType.Category.DOCUMENT && 
+             docFileType.getCategory() != FileFormatType.Category.SPREADSHEET &&
+             docFileType.getCategory() != FileFormatType.Category.PRESENTATION)) {
             throw new IllegalArgumentException("仅支持文档、表格、演示文稿格式文件");
         }
 

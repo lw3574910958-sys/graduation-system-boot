@@ -11,7 +11,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum FileType {
+public enum DocumentFileType {
 
     /**
      * 开题报告
@@ -53,12 +53,12 @@ public enum FileType {
      * @param value 文件类型值
      * @return 对应的枚举，未找到返回null
      */
-    public static FileType getByValue(Integer value) {
+    public static DocumentFileType getByValue(Integer value) {
         if (value == null) {
             return null;
         }
         
-        for (FileType type : values()) {
+        for (DocumentFileType type : values()) {
             if (type.value.equals(value)) {
                 return type;
             }
