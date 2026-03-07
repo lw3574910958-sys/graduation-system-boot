@@ -139,6 +139,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         user.setStatus(status != null ? status : AccountStatus.ENABLED.getValue());
         user.setLoginFailCount(0);
         user.setLastLoginAt(null);
+        user.setAvatar(createDTO.getAvatar());
         //使用MyMetaObjectHandler自动填充时间
         user.setIsDeleted(0);
 
