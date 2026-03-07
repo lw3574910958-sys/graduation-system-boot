@@ -68,4 +68,14 @@ public class PasswordUtil {
                encodedPassword.startsWith("$2y$");
     }
 
+    /**
+     * 检查密码是否符合要求
+     * 密码长度至少6位，包含字母和数字
+     * @param password 密码
+     * @return 是否符合要求
+     */
+    public boolean isValidPassword(String password) {
+        return password != null && password.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$");
+    }
+
 }

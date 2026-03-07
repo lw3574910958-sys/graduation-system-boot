@@ -8,22 +8,25 @@ import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
 import com.lw.graduation.api.vo.user.LoginUserInfoVO;
+import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.auth.util.CaptchaUtil;
 import com.lw.graduation.auth.util.PasswordUtil;
+import com.lw.graduation.common.config.SaTokenProperties;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.common.util.BeanMapperUtil;
+import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 认证服务实现类
@@ -40,7 +43,8 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     private final SysUserMapper sysUserMapper; // 注入用户数据访问层
     private final CaptchaUtil captchaUtil;     // 注入验证码工具类
     private final PasswordUtil passwordUtil;   // 注入密码工具类
-    private final RedisTemplate<String, Object> redisTemplate; // 注入Redis模板
+    private  final CacheHelper cacheHelper;
+    private final SaTokenProperties saTokenProperties;
 
 
     /**
@@ -55,19 +59,6 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         sysUserMapper.updateById(updateEntity); // 执行数据库更新
     }
 
-    /**
-     * 验证验证码的私有辅助方法。
-     * 从Redis中获取存储的验证码，并与用户输入的验证码进行比对。
-     *
-     * @param captchaKey   验证码的唯一标识Key
-     * @param captchaCode  用户输入的验证码
-     * @throws BusinessException 如果验证码不存在或不匹配
-     */
-    private void validateCaptcha(String captchaKey, String captchaCode) {
-        if (!captchaUtil.validate(captchaKey, captchaCode)) { // 调用 CaptchaUtil 的验证方法
-            throw new BusinessException(ResponseCode.CAPTCHA_ERROR); // 验证失败则抛出业务异常
-        }
-    }
 
     /**
      * 用户登录方法。
@@ -78,9 +69,12 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @throws BusinessException 如果验证码错误、用户不存在、账户被禁用、密码错误等
      */
     @Override
+    @Transactional
     public String login(LoginDTO dto) {
         // 1. 验证验证码
-        validateCaptcha(dto.getCaptchaKey(), dto.getCaptchaCode());
+        if (!captchaUtil.validate(dto.getCaptchaKey(), dto.getCaptchaCode())) { // 调用 CaptchaUtil 的验证方法
+            throw new BusinessException(ResponseCode.CAPTCHA_ERROR); // 验证失败则抛出业务异常
+        }
 
         // 2. 根据用户名查询用户信息
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
@@ -90,6 +84,18 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 3. 检查用户是否存在
         if (user == null) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+
+        // 4. 检查账户是否被临时锁定（如果设置了锁定时间且当前时间仍在锁定期内）
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ResponseCode.ACCOUNT_LOCKED);
+        }
+
+        // 6. 检查账户状态是否为启用
+        AccountStatus accountStatus = AccountStatus.getByValue(user.getStatus());
+        if (accountStatus == AccountStatus.DISABLED) {
+            // 即使密码正确，但账户被禁用，仍视为登录失败
+            throw new BusinessException(ResponseCode.ACCOUNT_DISABLED);
         }
 
         // 5. 验证密码是否正确
@@ -102,18 +108,6 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             throw new BusinessException(ResponseCode.PASSWORD_ERROR); // 抛出密码错误异常
         }
 
-        // 6. 检查账户状态是否为启用（在密码验证成功后再检查）
-        AccountStatus accountStatus = AccountStatus.getByValue(user.getStatus());
-        if (accountStatus == AccountStatus.DISABLED) {
-            // 即使密码正确，但账户被禁用，仍视为登录失败
-            throw new BusinessException(ResponseCode.ACCOUNT_DISABLED);
-        }
-
-        // 4. 检查账户是否被临时锁定（如果设置了锁定时间且当前时间仍在锁定期内）
-        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(ResponseCode.ACCOUNT_LOCKED);
-        }
-
         // 7. 密码验证成功，重置登录失败次数并更新最后登录时间
         SysUser updateEntity = new SysUser();
         updateEntity.setLastLoginAt(LocalDateTime.now());
@@ -121,12 +115,8 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         updateUser(user.getId(), updateEntity);
 
         // 8. 使用 Sa-Token 进行登录操作
+        // Sa-Token 会根据 sa-token.is-concurrent 配置决定是否踢掉旧会话
         StpUtil.login(user.getId()); // 登录，生成 Token
-
-        // 将用户信息存入 Session，便于后续访问
-        StpUtil.getTokenSession().set("username", user.getUsername());
-        StpUtil.getTokenSession().set("realName", user.getRealName());
-        StpUtil.getTokenSession().set("userType", user.getUserType());
 
         // 预热当前用户缓存
         warmUpCurrentUserCache(user.getId());
@@ -157,8 +147,23 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      */
     @Override
     public void logout() {
-        // 使用 Sa-Token 进行登出操作
+        Long userId = null;
+        try {
+            // 先获取当前登录用户ID（必须在 logout 前调用！）
+            if (StpUtil.isLogin()) {
+                userId = StpUtil.getLoginIdAsLong();
+            }
+        } catch (Exception e) {
+            log.warn("获取当前登录用户ID失败，跳过缓存清理", e);
+        }
+
+        // 执行 Sa-Token 登出（会清除 Token 和 Session）
         StpUtil.logout();
+
+        // 清除用户业务缓存
+        if (userId != null) {
+            clearCurrentUserCache(userId);
+        }
     }
 
     /**
@@ -183,18 +188,27 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      */
     @Override
     public String refreshToken() {
-        // 验证当前用户是否已登录
-        if (StpUtil.isLogin()) {
-            // 检查当前token是否即将过期，如果是则刷新它
-            // 在Sa-Token中，保持活跃状态可以通过重新获取token来实现
-            // 但更常见的是通过设置会话的最后活跃时间
-            StpUtil.checkLogin(); // 确保用户仍然处于登录状态
-            // 返回当前token
-            return StpUtil.getTokenValue();
+        if (!StpUtil.isLogin()) {
+            throw new BusinessException(ResponseCode.UNAUTHORIZED);
         }
 
-        // 如果用户未登录抛出异常
-        throw new BusinessException(ResponseCode.UNAUTHORIZED);
+        // 获取当前 Token 的剩余活跃时间（单位：秒）
+        long remainingActiveTime = StpUtil.getTokenActiveTimeout();
+
+        // 设定刷新阈值：5分钟（300秒）
+        int refreshThresholdSeconds = 300;
+
+        // 如果剩余活跃时间 <= 5分钟，则刷新
+        if (remainingActiveTime <= refreshThresholdSeconds) {
+            int activeTimeout = saTokenProperties.getActiveTimeout(); // 例如 1800 秒
+            StpUtil.renewTimeout(activeTimeout);
+            log.debug("Token 活跃时间不足（剩余 {}s），已刷新至 {}s", remainingActiveTime, activeTimeout);
+        } else {
+            log.debug("Token 活跃时间充足（剩余 {}s），无需刷新", remainingActiveTime);
+        }
+
+        return StpUtil.getTokenValue();
+
     }
 
     /**
@@ -208,42 +222,16 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         Long userId = StpUtil.getLoginIdAsLong();
 
         String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
-        
-        // 1. 查 Redis 缓存
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
-                log.debug("缓存命中空值标记，用户不存在: {}", userId);
-                throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+
+        return cacheHelper.getFromCache(cacheKey, LoginUserInfoVO.class, () -> {
+            // 从数据库查询用户信息
+            SysUser user = sysUserMapper.selectById(userId);
+            if (user == null) {
+                log.debug("用户不存在: {}", userId);
+                return null; // 返回 null，CacheHelper 会处理空值标记
             }
-            log.debug("缓存命中当前用户信息: {}", userId);
-            return (LoginUserInfoVO) cached;
-        }
-
-        // 2. 缓存未命中，查数据库
-        SysUser user = sysUserMapper.selectById(userId);
-        if (user == null) {
-            // 缓存空值防止穿透
-            redisTemplate.opsForValue().set(
-                cacheKey,
-                CacheConstants.CacheValue.NULL_MARKER,
-                CacheConstants.CacheValue.NULL_EXPIRE,
-                TimeUnit.SECONDS
-            );
-            log.debug("用户不存在，缓存空值标记: {}", cacheKey);
-            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
-        }
-
-        // 3. 转换并缓存结果
-        LoginUserInfoVO result = convertToLoginUserInfoVO(user);
-        redisTemplate.opsForValue().set(
-            cacheKey,
-            result,
-            CacheConstants.ExpireTime.CURRENT_USER_EXPIRE,
-            TimeUnit.SECONDS
-        );
-        log.debug("缓存当前用户信息: {}", cacheKey);
-        return result;
+            return convertToLoginUserInfoVO(user);
+        }, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
     }
 
     /**
@@ -253,8 +241,8 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     public void clearCurrentUserCache(Long userId) {
         if (userId != null) {
             String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
-            redisTemplate.delete(cacheKey);
-            log.debug("清除当前用户缓存: {}", cacheKey);
+            log.debug("用户{}登出，清除缓存: {}",userId, cacheKey);
+            cacheHelper.evictCache(cacheKey);
         }
     }
 
@@ -267,12 +255,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             if (user != null) {
                 String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
                 LoginUserInfoVO userInfo = convertToLoginUserInfoVO(user);
-                redisTemplate.opsForValue().set(
-                    cacheKey,
-                    userInfo,
-                    CacheConstants.ExpireTime.CURRENT_USER_EXPIRE,
-                    TimeUnit.SECONDS
-                );
+                cacheHelper.putToCache(cacheKey, userInfo, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
                 log.debug("预热当前用户缓存: {}", cacheKey);
             }
         }
@@ -285,13 +268,6 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 用户视图对象
      */
     private LoginUserInfoVO convertToLoginUserInfoVO(SysUser user) {
-        LoginUserInfoVO vo = new LoginUserInfoVO();
-        vo.setId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setRealName(user.getRealName());
-        vo.setUserType(user.getUserType());
-        vo.setCreatedAt(user.getCreatedAt());
-
-        return vo;
+        return BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
     }
 }

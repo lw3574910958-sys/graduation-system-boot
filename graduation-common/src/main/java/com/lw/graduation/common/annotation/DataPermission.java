@@ -1,47 +1,52 @@
 package com.lw.graduation.common.annotation;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * 数据权限注解
- * 用于标记需要进行数据权限控制的方法
+ * 用于控制用户对数据的访问权限
  *
  * @author lw
  */
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
+@Documented
 public @interface DataPermission {
-    
+
     /**
-     * 权限类型
+     * 数据权限类型枚举
      */
-    PermissionType value() default PermissionType.DEFAULT;
-    
-    /**
-     * 权限类型枚举
-     */
-    enum PermissionType {
+    enum Type {
         /**
-         * 默认权限 - 只能访问自己的数据
+         * 仅限本人数据
          */
-        DEFAULT,
+        SELF,
         
         /**
-         * 学生权限 - 只能访问自己的相关数据
+         * 教师查看指导学生数据
          */
-        STUDENT,
+        TEACHER_STUDENT,
         
         /**
-         * 教师权限 - 可以访问自己指导的学生数据
+         * 院系内数据
          */
-        TEACHER,
+        DEPARTMENT,
         
         /**
-         * 管理员权限 - 可以访问所有数据
+         * 全部数据（管理员权限）
          */
-        ADMIN
+        ALL
     }
+    
+    /**
+     * 数据权限类型
+     * @return 权限类型
+     */
+    Type value() default Type.ALL;
+    
+    /**
+     * 是否启用数据权限控制
+     * @return true表示启用，false表示禁用
+     */
+    boolean enabled() default true;
 }

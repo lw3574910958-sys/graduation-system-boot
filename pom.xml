@@ -74,6 +74,8 @@
         <module>graduation-log</module>
         <!-- 后续添加其他模块 -->
         <module>graduation-codegen</module>
+        <!-- 测试模块 -->
+<!--        <module>graduation-test</module>-->
     </modules>
 
     <!-- 项目属性 -->

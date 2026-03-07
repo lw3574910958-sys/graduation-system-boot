@@ -46,7 +46,7 @@ public class Result<T> {
      * 成功返回结果（无数据，使用默认成功码和消息）
      */
     public static <T> Result<T> success() {
-        return new Result<>(ResponseCode.SUCCESS.getCode());
+        return new Result<>(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getMessage());
     }
 
     /**

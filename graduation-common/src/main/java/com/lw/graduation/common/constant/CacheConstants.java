@@ -12,6 +12,7 @@ public class CacheConstants {
      * 缓存键前缀
      */
     public static class KeyPrefix {
+        public static final String CAPTCHA_PREFIX = "captcha:";
         /** 用户信息缓存前缀 */
         public static final String USER_INFO = "user:info:";
         /** 院系信息缓存前缀 */
@@ -24,7 +25,7 @@ public class CacheConstants {
         public static final String GRADE_INFO = "grade:info:";
         /** 通知信息缓存前缀 */
         public static final String NOTICE_INFO = "notice:info:";
-        
+
         /** 当前用户信息缓存前缀 */
         public static final String CURRENT_USER = "user:current:";
         /** 文档信息缓存前缀 */

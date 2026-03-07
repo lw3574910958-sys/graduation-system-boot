@@ -1,5 +1,6 @@
 package com.lw.graduation.api.controller.auth;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
@@ -45,7 +46,7 @@ public class AuthController {
     @Operation(summary = "用户登录")
     public Result<LoginVO> login(@Validated @RequestBody LoginDTO dto) {
         String token = authService.login(dto);
-        return Result.success(new LoginVO(token));
+        return Result.success("登陆成功",new LoginVO(token));
     }
 
     /**
@@ -54,6 +55,7 @@ public class AuthController {
      * @return 登出结果
      */
     @PostMapping("/logout")
+    @SaCheckLogin // 需要登录才能登出
     @Operation(summary = "用户登出")
     public Result<Void> logout() {
         authService.logout();
@@ -96,6 +98,7 @@ public class AuthController {
      * @return 新的token
      */
     @PostMapping("/refresh-token")
+    @SaCheckLogin // 需要登录才能刷新token
     @Operation(summary = "刷新token")
     public Result<LoginVO> refreshToken() {
         String refreshToken = authService.refreshToken();
@@ -108,6 +111,7 @@ public class AuthController {
      * @return 当前用户信息
      */
     @GetMapping("/me")
+    @SaCheckLogin // 需要登录才能获取用户信息
     @Operation(summary = "获取当前用户信息")
     public Result<LoginUserInfoVO> getCurrentUser() {
         LoginUserInfoVO userVO = authService.getCurrentUser();

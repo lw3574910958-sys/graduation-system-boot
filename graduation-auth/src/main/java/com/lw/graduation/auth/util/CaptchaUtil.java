@@ -3,8 +3,9 @@ package com.lw.graduation.auth.util;
 import cn.hutool.core.util.IdUtil;
 import com.google.code.kaptcha.Producer;
 import com.lw.graduation.api.vo.auth.CaptchaVO;
+import com.lw.graduation.common.util.CacheHelper;
+import com.lw.graduation.common.constant.CacheConstants;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
@@ -12,7 +13,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Base64;
-import java.util.concurrent.TimeUnit;
+
 
 /**
  * 验证码工具类
@@ -29,9 +30,9 @@ public class CaptchaUtil {
      */
     private final Producer kaptchaProducer;
     /**
-     * Redis 操作工具类
+     * 缓存工具类
      */
-    private final StringRedisTemplate redisTemplate;
+    private  final CacheHelper cacheHelper;
 
     /**
      * 验证验证码
@@ -41,7 +42,7 @@ public class CaptchaUtil {
      * @return 验证结果
      */
     public boolean validate(String captchaKey, String captchaCode) {
-        String storedCode = redisTemplate.opsForValue().get(captchaKey);
+        String storedCode = cacheHelper.getFromCache(captchaKey, String.class);
         if (storedCode == null) {
             return false; // 验证码不存在或已过期
         }
@@ -59,8 +60,8 @@ public class CaptchaUtil {
         String text = kaptchaProducer.createText();
         BufferedImage image = kaptchaProducer.createImage(text);
 
-        String captchaKey = "captcha:" + IdUtil.simpleUUID();
-        redisTemplate.opsForValue().set(captchaKey, text, 5, TimeUnit.MINUTES);
+        String captchaKey = CacheConstants.KeyPrefix.CAPTCHA_PREFIX + IdUtil.simpleUUID();
+        cacheHelper.putToCache(captchaKey, text, 30);
 
         // 将图片转换为base64编码
         ByteArrayOutputStream os = new ByteArrayOutputStream();

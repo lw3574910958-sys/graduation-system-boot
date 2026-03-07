@@ -1,12 +1,20 @@
 package com.lw.graduation.auth.config;
 
 import cn.dev33.satoken.stp.StpInterface;
-import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.lw.graduation.domain.entity.admin.BizAdmin;
+import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
+import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import static cn.hutool.core.convert.Convert.toLong;
 
 /**
  * 自定义Sa-Token权限验证配置
@@ -16,7 +24,11 @@ import java.util.List;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class CustomSaTokenConfig implements StpInterface {
+
+    private final SysUserMapper sysUserMapper;
+    private final BizAdminMapper bizAdminMapper;
 
     /**
      * 返回指定账号id所拥有的权限码集合
@@ -28,17 +40,29 @@ public class CustomSaTokenConfig implements StpInterface {
      */
     @Override
     public List<String> getPermissionList(Object loginId, String loginType) {
-        // 获取用户类型作为权限码
-        String userType = getUserTypeFromSession();
-        List<String> permissionList = new ArrayList<>();
-        
-        if (userType != null) {
-            permissionList.add(userType);
-            log.debug("用户 {} 的权限码: {}", loginId, userType);
-        }
-        
-        return permissionList;
+        // 权限暂等于角色（可后续扩展）
+        return getRoleList(loginId, loginType);
     }
+    /*@Override
+    public List<String> getPermissionList(Object loginId, String loginType) {
+        Long userId = toLong(loginId);
+        String userType = getUserTypeFromDB(userId);
+        if (userType == null) return Collections.emptyList();
+
+        List<String> perms = new ArrayList<>();
+        if ("admin".equals(userType)) {
+            perms.add("user:*");
+            perms.add("dept:*");
+            perms.add("log:view");
+        } else if ("teacher".equals(userType)) {
+            perms.add("course:manage");
+            perms.add("grade:edit");
+        } else if ("student".equals(userType)) {
+            perms.add("course:enroll");
+            perms.add("grade:view");
+        }
+        return perms;
+    }*/
 
     /**
      * 返回指定账号id所拥有的角色标识集合
@@ -50,32 +74,69 @@ public class CustomSaTokenConfig implements StpInterface {
      */
     @Override
     public List<String> getRoleList(Object loginId, String loginType) {
-        // 获取用户类型作为角色
-        String userType = getUserTypeFromSession();
+        Long userId = toLong(loginId);
+        if (userId == null) return Collections.emptyList();
+
+        String userType = getUserTypeFromDB(userId);
+        if (userType == null) return Collections.emptyList();
+
         List<String> roleList = new ArrayList<>();
-        
-        if (userType != null) {
-            roleList.add(userType);
-            log.debug("用户 {} 的角色: {}", loginId, userType);
+        switch (userType) {
+            case "admin" -> {
+                // 不再添加 "admin"，而是直接赋予明确角色
+                roleList.add("system_admin"); // 所有 admin 都是系统管理员
+
+                if (isDepartmentAdmin(userId)) {
+                    roleList.add("department_admin");
+                }
+            }
+            case "teacher" -> {
+                roleList.add("teacher");
+                if (isDepartmentAdmin(userId)) {
+                    roleList.add("department_admin");
+                }
+            }
+            case "student" -> roleList.add("student");
         }
-        
+
+        log.debug("用户 {} 的角色列表: {}", loginId, roleList);
         return roleList;
     }
 
     /**
-     * 从Sa-Token Session中获取用户类型
+     * 从数据库中获取用户类型
      *
+     * @param userId 用户ID
      * @return 用户类型字符串
      */
-    private String getUserTypeFromSession() {
+    private String getUserTypeFromDB(Long userId) {
         try {
-            Object userTypeObj = StpUtil.getTokenSession().get("userType");
-            if (userTypeObj != null) {
-                return userTypeObj.toString();
-            }
+            SysUser user = sysUserMapper.selectById(userId);
+            return (user != null && user.getUserType() != null) ? user.getUserType() : null;
         } catch (Exception e) {
-            log.warn("从Session获取用户类型失败: {}", e.getMessage());
+            log.warn("查询用户类型失败: userId={}", userId, e);
+            return null;
         }
-        return null;
+    }
+
+    /**
+     * 检查用户是否为院系管理员
+     *
+     * @param userId 用户ID
+     * @return true表示是院系管理员，false表示不是
+     */
+    private boolean isDepartmentAdmin(Long userId) {
+        try {
+            // 使用MyBatis-Plus的Lambda查询方式检查是否为院系管理员
+            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BizAdmin::getUserId, userId)
+                   .eq(BizAdmin::getRoleLevel, 1)  // role_level = 1 表示院系管理员
+                   .eq(BizAdmin::getIsDeleted, 0);
+
+            return bizAdminMapper.selectCount(wrapper) > 0;
+        } catch (Exception e) {
+            log.warn("检查院系管理员身份失败: userId={}", userId, e);
+        }
+        return false;
     }
 }

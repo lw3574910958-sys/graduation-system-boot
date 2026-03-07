@@ -33,7 +33,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
 
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
-        
+
         // 验证文件类型
         FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
         if (!result.isValid()) {
@@ -42,7 +42,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
 
         // 存储文件
         String storedPath = fileStorageService.store(file, category);
-        
+
         // 构建返回结果
         return buildResult(file, storedPath);
     }
@@ -53,9 +53,11 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
             throw new IllegalArgumentException("头像文件不能为空");
         }
 
+        // 获取文件名
         String originalFilename = file.getOriginalFilename();
+        // 获取文件扩展名
         String extension = getFileExtension(originalFilename);
-        
+
         // 验证是否为图片类型
         FileFormatType fileType = FileFormatType.getByExtension(extension);
         if (fileType == null || fileType.getCategory() != FileFormatType.Category.IMAGE) {
@@ -70,7 +72,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         // 存储头像文件
         String category = "avatar/" + userId;
         String storedPath = fileStorageService.store(file, category, "avatar");
-        
+
         // 构建返回结果
         return buildResult(file, storedPath);
     }
@@ -83,7 +85,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
 
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
-        
+
         // 验证文件类型
         FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
         if (!result.isValid()) {
@@ -92,8 +94,8 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
 
         // 验证文档类型是否为允许的文档格式
         FileFormatType docFileType = FileFormatType.getByExtension(extension);
-        if (docFileType == null || 
-            (docFileType.getCategory() != FileFormatType.Category.DOCUMENT && 
+        if (docFileType == null ||
+            (docFileType.getCategory() != FileFormatType.Category.DOCUMENT &&
              docFileType.getCategory() != FileFormatType.Category.SPREADSHEET &&
              docFileType.getCategory() != FileFormatType.Category.PRESENTATION)) {
             throw new IllegalArgumentException("仅支持文档、表格、演示文稿格式文件");
@@ -102,7 +104,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         // 存储文档文件
         String category = "document/topic_" + topicId + "/" + fileType;
         String storedPath = fileStorageService.store(file, category);
-        
+
         // 构建返回结果
         return buildResult(file, storedPath);
     }
@@ -112,7 +114,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         if (filePath == null || filePath.trim().isEmpty()) {
             return false;
         }
-        
+
         boolean deleted = fileStorageService.delete(filePath);
         if (deleted) {
             log.info("文件删除成功: {}", filePath);
@@ -137,7 +139,7 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
     private FileUploadResultVO buildResult(MultipartFile file, String storedPath) {
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
-        
+
         return FileUploadResultVO.of(
             originalFilename,
             file.getSize(),

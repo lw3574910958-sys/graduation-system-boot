@@ -41,6 +41,9 @@ public class UploadController {
     public Result<FileUploadResultVO> uploadFile(
             @Parameter(description = "上传的文件") @RequestParam("file") MultipartFile file,
             @Parameter(description = "文件分类") @RequestParam(required = false, defaultValue = "general") String category) {
+        // 需要进一步验证用户是否有权限上传该类型文件
+        Long userId = StpUtil.getLoginIdAsLong();
+    
         try {
             FileUploadResultVO result = unifiedFileUploadService.uploadFile(file, category);
             return Result.success(result);
@@ -61,8 +64,10 @@ public class UploadController {
     @Operation(summary = "上传头像")
     public Result<FileUploadResultVO> uploadAvatar(
             @Parameter(description = "上传的头像文件") @RequestParam("file") MultipartFile file) {
+        // 验证用户只能上传自己的头像
+        Long userId = StpUtil.getLoginIdAsLong();
+    
         try {
-            Long userId = StpUtil.getLoginIdAsLong();
             FileUploadResultVO result = unifiedFileUploadService.uploadAvatar(file, userId);
             return Result.success(result);
         } catch (Exception e) {

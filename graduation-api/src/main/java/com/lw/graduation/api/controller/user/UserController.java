@@ -1,6 +1,9 @@
 package com.lw.graduation.api.controller.user;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.stp.StpUtil;
+import com.lw.graduation.api.dto.user.UserChangePasswordDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
@@ -45,7 +48,7 @@ public class UserController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询用户列表")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"system_admin"})
     public Result<IPage<UserListInfoVO>> getUserPage(UserPageQueryDTO queryDTO) {
         return Result.success(userService.getUserPage(queryDTO));
     }
@@ -58,7 +61,7 @@ public class UserController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取用户详情")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"system_admin"})
     public Result<UserListInfoVO> getUserById(@PathVariable Long id) {
         return Result.success(userService.getUserById(id));
     }
@@ -71,7 +74,7 @@ public class UserController {
      */
     @PostMapping
     @Operation(summary = "创建新用户")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"system_admin"})
     public Result<Void> createUser(@Validated @RequestBody UserCreateDTO createDTO) {
         userService.createUser(createDTO);
         return Result.success();
@@ -86,7 +89,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新用户信息")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"system_admin"})
     public Result<Void> updateUser(@PathVariable Long id, @Validated @RequestBody UserUpdateDTO updateDTO) {
         userService.updateUser(id, updateDTO);
         return Result.success();
@@ -100,23 +103,24 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除用户")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole("system_admin")
     public Result<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return Result.success();
     }
 
     /**
-     * 重置用户密码
+     * 修改自己的密码
      *
-     * @param id 用户ID
-     * @return 重置结果
+     * @param dto 修改密码 DTO
+     * @return 修改结果
      */
-    @PostMapping("/{id}/reset-password")
-    @Operation(summary = "重置用户密码")
-    @SaCheckRole("admin") // 仅管理员可访问
-    public Result<Void> resetPassword(@PathVariable Long id) {
-        userService.resetPassword(id);
+    @PostMapping("/my/password")
+    @Operation(summary = "修改自己的密码")
+    @SaCheckLogin
+    public Result<Void> changeOwnPassword(@Validated @RequestBody UserChangePasswordDTO dto) {
+        Long currentUserId = StpUtil.getLoginIdAsLong();
+        userService.changeOwnPassword(currentUserId, dto);
         return Result.success();
     }
 

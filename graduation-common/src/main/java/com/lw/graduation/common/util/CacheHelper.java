@@ -1,5 +1,10 @@
 package com.lw.graduation.common.util;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.lw.graduation.common.constant.CacheConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +12,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
 
 /**
  * 通用缓存操作工具类
@@ -20,6 +27,16 @@ import java.util.concurrent.TimeUnit;
 public class CacheHelper {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // 初始化配置
+    {
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        objectMapper.activateDefaultTyping(objectMapper.getPolymorphicTypeValidator(),
+                ObjectMapper.DefaultTyping.NON_FINAL);
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    }
 
     /**
      * 从缓存中获取数据
@@ -31,19 +48,51 @@ public class CacheHelper {
      */
     public <T> T getFromCache(String key, Class<T> clazz) {
         try {
-            Object cached = redisTemplate.opsForValue().get(key);
-            if (cached != null) {
-                if (CacheConstants.CacheValue.NULL_MARKER.equals(cached)) {
-                    log.debug("缓存命中空值标记: {}", key);
-                    return null;
-                }
-                return clazz.cast(cached);
+            //Object cached = redisTemplate.opsForValue().get(key);
+            String json = (String) redisTemplate.opsForValue().get(key);
+            if (json == null) return null;
+
+            if (CacheConstants.CacheValue.NULL_MARKER.equals(json)) {
+                log.debug("缓存命中空值标记: {}", key);
+                return null;
             }
-            return null;
+            log.debug("从缓存获取数据成功: {}", key);
+            return objectMapper.readValue(json, clazz);
         } catch (Exception e) {
             log.error("从缓存获取数据失败: key={}, error={}", key, e.getMessage(), e);
             return null;
         }
+    }
+
+    /**
+     * 带缓存的数据获取方法（推荐使用）
+     * 自动处理缓存穿透和数据加载
+     *
+     * @param key 缓存键
+     * @param clazz 返回类型
+     * @param loader 数据加载函数
+     * @param expireSeconds 过期时间（秒）
+     * @param <T> 泛型类型
+     * @return 缓存或加载的数据
+     */
+    public <T> T getFromCache(String key, Class<T> clazz, Supplier<T> loader, int expireSeconds) {
+        // 1. 先从缓存获取
+        T cached = getFromCache(key, clazz);
+        if (cached != null) {
+            return cached;
+        }
+
+        // 2. 缓存未命中，加载数据
+        T data = loader.get();
+        if (data == null) {
+            // 3. 数据为空，缓存空值标记
+            putNullMarker(key);
+        } else {
+            // 4. 数据不为空，缓存数据
+            putToCache(key, data, expireSeconds);
+        }
+
+        return data;
     }
 
     /**
@@ -53,9 +102,15 @@ public class CacheHelper {
      * @param value 缓存值
      * @param expireSeconds 过期时间（秒）
      */
-    public void putToCache(String key, Object value, int expireSeconds) {
+    public <T> void putToCache(String key, T value, int expireSeconds) {
         try {
-            redisTemplate.opsForValue().set(key, value, expireSeconds, TimeUnit.SECONDS);
+            String json;
+            if (value == null) {
+                json = CacheConstants.CacheValue.NULL_MARKER;
+            } else {
+                json = objectMapper.writeValueAsString(value);
+            }
+            redisTemplate.opsForValue().set(key, json, expireSeconds, TimeUnit.SECONDS);
             log.debug("数据已缓存: key={}, expire={}s", key, expireSeconds);
         } catch (Exception e) {
             log.error("缓存数据失败: key={}, error={}", key, e.getMessage(), e);
@@ -70,10 +125,10 @@ public class CacheHelper {
     public void putNullMarker(String key) {
         try {
             redisTemplate.opsForValue().set(
-                key,
-                CacheConstants.CacheValue.NULL_MARKER,
-                CacheConstants.CacheValue.NULL_EXPIRE,
-                TimeUnit.SECONDS
+                    key,
+                    CacheConstants.CacheValue.NULL_MARKER,
+                    CacheConstants.CacheValue.NULL_EXPIRE,
+                    TimeUnit.SECONDS
             );
             log.debug("空值标记已缓存: {}", key);
         } catch (Exception e) {
@@ -93,37 +148,6 @@ public class CacheHelper {
         } catch (Exception e) {
             log.error("清除缓存失败: {}, error: {}", key, e.getMessage(), e);
         }
-    }
-
-    /**
-     * 带缓存的数据获取方法（推荐使用）
-     * 自动处理缓存穿透和数据加载
-     *
-     * @param key 缓存键
-     * @param clazz 返回类型
-     * @param loader 数据加载函数
-     * @param expireSeconds 过期时间（秒）
-     * @param <T> 泛型类型
-     * @return 缓存或加载的数据
-     */
-    public <T> T getFromCache(String key, Class<T> clazz, java.util.function.Supplier<T> loader, int expireSeconds) {
-        // 1. 先从缓存获取
-        T cached = getFromCache(key, clazz);
-        if (cached != null) {
-            return cached;
-        }
-        
-        // 2. 缓存未命中，加载数据
-        T data = loader.get();
-        if (data == null) {
-            // 3. 数据为空，缓存空值标记
-            putNullMarker(key);
-        } else {
-            // 4. 数据不为空，缓存数据
-            putToCache(key, data, expireSeconds);
-        }
-        
-        return data;
     }
 
     /**

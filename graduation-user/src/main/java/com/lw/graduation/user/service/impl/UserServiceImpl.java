@@ -2,8 +2,10 @@ package com.lw.graduation.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.lw.graduation.api.dto.user.UserChangePasswordDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
@@ -22,10 +24,10 @@ import com.lw.graduation.domain.enums.user.UserType;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 
 /**
  * 用户服务实现类
@@ -52,8 +54,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     public IPage<UserListInfoVO> getUserPage(UserPageQueryDTO queryDTO){
         // 1. 构建查询条件
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(queryDTO.getUsername() != null, SysUser::getUsername, queryDTO.getUsername())
-                .like(queryDTO.getRealName() != null, SysUser::getRealName, queryDTO.getRealName())
+        wrapper.like(StringUtils.isNotBlank(queryDTO.getUsername()), SysUser::getUsername, queryDTO.getUsername())
+                .like(StringUtils.isNotBlank(queryDTO.getRealName()), SysUser::getRealName, queryDTO.getRealName())
                 .eq(queryDTO.getUserType() != null, SysUser::getUserType, queryDTO.getUserType())
                 .eq(queryDTO.getStatus() != null, SysUser::getStatus, queryDTO.getStatus())
                 .orderByDesc(SysUser::getCreatedAt); // 按创建时间倒序
@@ -85,10 +87,14 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         String cacheKey = CacheConstants.KeyPrefix.USER_INFO + id;
-        
+
         return cacheHelper.getFromCache(cacheKey, UserListInfoVO.class, () -> {
             SysUser user = sysUserMapper.selectById(id);
-            return user != null ? convertToUserListInfoVO(user) : null;
+            if (user == null) {
+                log.debug("用户不存在: {}", id);
+                return null; // 返回 null，CacheHelper 会处理空值标记
+            }
+            return convertToUserListInfoVO(user);
         }, CacheConstants.ExpireTime.USER_INFO_EXPIRE);
     }
 
@@ -112,29 +118,37 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
 
-        // 3. 创建用户实体
+        // 3. 验证状态
+        Integer status = createDTO.getStatus();
+        if (status != null && !AccountStatus.isValid(status)) {
+            throw new BusinessException(ResponseCode.INVALID_STATUS);
+        }
+
+        // 4. 验证密码格式
+        String password = createDTO.getPassword();
+        if(!passwordUtil.isValidPassword(password)){
+            throw new BusinessException(ResponseCode.PASSWORD_FORMAT_ERROR);
+        }
+
+        // 5. 创建用户实体
         SysUser user = new SysUser();
         user.setUsername(createDTO.getUsername());
         user.setRealName(createDTO.getRealName());
-
-        // 设置默认密码（随机生成）
-        String defaultPassword = generateRandomPassword();
-        user.setPassword(passwordUtil.encryptPassword(defaultPassword));
-
+        user.setPassword(passwordUtil.encryptPassword(password));
         user.setUserType(createDTO.getUserType());
-        user.setStatus(createDTO.getStatus() != null ? 
-            createDTO.getStatus() : AccountStatus.ENABLED.getValue()); // 默认启用
+        user.setStatus(status != null ? status : AccountStatus.ENABLED.getValue());
         user.setLoginFailCount(0);
         user.setLastLoginAt(null);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+        //使用MyMetaObjectHandler自动填充时间
         user.setIsDeleted(0);
 
-        // 4. 插入数据库
-        sysUserMapper.insert(user);
-
-        // 5. 清除可能存在的空值缓存
-        clearUserCache(user.getId());
+        // 6. 插入数据库
+        try {
+            sysUserMapper.insert(user);
+        } catch (DuplicateKeyException e) {
+            log.warn("并发创建导致用户名重复: {}", createDTO.getUsername());
+            throw new BusinessException(ResponseCode.USERNAME_EXISTS);
+        }
     }
 
     /**
@@ -156,24 +170,27 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 注意：UserUpdateDTO中没有username字段，所以这里不需要检查用户名唯一性
         // 如果需要支持用户名修改，需要在DTO中添加username字段
 
+        // 验证用户类型
+        if (!UserType.isValid(updateDTO.getUserType())) {
+            throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
+        }
+
+        // 密码格式
+        if(!passwordUtil.isValidPassword(updateDTO.getPassword())){
+            throw new BusinessException(ResponseCode.PASSWORD_FORMAT_ERROR);
+        }
+
+        // 状态
+        if (!AccountStatus.isValid(updateDTO.getStatus())) {
+            throw new BusinessException(ResponseCode.INVALID_STATUS);
+        }
+
         // 3. 构建更新实体
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
-        // 注意：UserUpdateDTO中没有username字段，所以不更新用户名
-        if (updateDTO.getRealName() != null) {
-            updateUser.setRealName(updateDTO.getRealName());
-        }
-        if (updateDTO.getUserType() != null) {
-            updateUser.setUserType(updateDTO.getUserType());
-        }
-        if (updateDTO.getStatus() != null) {
-            // 验证状态值是否有效
-            if (!AccountStatus.isValid(updateDTO.getStatus())) {
-                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的账户状态值");
-            }
-            updateUser.setStatus(updateDTO.getStatus());
-        }
-        updateUser.setUpdatedAt(LocalDateTime.now());
+        updateUser.setUserType(updateDTO.getUserType());
+        updateUser.setPassword(passwordUtil.encryptPassword(updateDTO.getPassword()));
+        updateUser.setStatus(updateDTO.getStatus());
 
         // 4. 执行更新
         sysUserMapper.updateById(updateUser);
@@ -202,22 +219,61 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 3. 清除缓存
         clearUserCache(id);
     }
-    
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changeOwnPassword(Long currentUserId, UserChangePasswordDTO dto) {
+        // 1. 查询当前用户
+        SysUser user = sysUserMapper.selectById(currentUserId);
+        if (user == null || user.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+
+        // 2. 验证旧密码
+        if (!passwordUtil.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(ResponseCode.OLD_PASSWORD_ERROR);
+        }
+
+        // 3. 校验新密码强度
+        if (!passwordUtil.isValidPassword(dto.getNewPassword())) {
+            throw new BusinessException(ResponseCode.PASSWORD_FORMAT_ERROR);
+        }
+
+        // 4. 更新密码
+        SysUser updateUser = new SysUser();
+        updateUser.setId(currentUserId);
+        updateUser.setPassword(passwordUtil.encryptPassword(dto.getNewPassword()));
+        // 注意：不要手动 setUpdatedAt，由 MetaObjectHandler 处理
+
+        sysUserMapper.updateById(updateUser);
+        clearUserCache(currentUserId);
+    }
+
+    /**
+     * 启用用户
+     *
+     * @param id 用户ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void enableUser(Long id) {
         updateUserStatus(id, AccountStatus.ENABLED);
     }
-    
+
+    /**
+     * 禁用用户
+     *
+     * @param id 用户ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void disableUser(Long id) {
         updateUserStatus(id, AccountStatus.DISABLED);
     }
-    
+
     /**
      * 更新用户状态的私有方法
-     * 
+     *
      * @param id 用户ID
      * @param status 目标状态
      */
@@ -227,62 +283,29 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (user == null) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
-        
+
         // 2. 检查当前状态是否与目标状态相同
         AccountStatus currentStatus = AccountStatus.getByValue(user.getStatus());
         if (currentStatus == status) {
             String action = status.isEnabled() ? "启用" : "禁用";
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(),
                 String.format("账户已经是%s状态", action));
         }
-        
+
         // 3. 更新状态
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
         updateUser.setStatus(status.getValue());
-        updateUser.setUpdatedAt(LocalDateTime.now());
-        
+
         sysUserMapper.updateById(updateUser);
-        
+
         // 4. 清除缓存
         clearUserCache(id);
-        
+
         String action = status.isEnabled() ? "启用" : "禁用";
         log.info("用户 {} 账户{}成功，ID: {}", user.getUsername(), action, id);
     }
 
-    /**
-     * 重置用户密码
-     *
-     * @param id 用户ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void resetPassword(Long id) {
-        // 1. 查询用户是否存在
-        SysUser existingUser = sysUserMapper.selectById(id);
-        if (existingUser == null) {
-            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
-        }
-
-        // 2. 生成新密码
-        String newPassword = generateRandomPassword();
-        String encodedPassword = passwordUtil.encryptPassword(newPassword);
-
-        // 3. 更新密码
-        SysUser updateUser = new SysUser();
-        updateUser.setId(id);
-        updateUser.setPassword(encodedPassword);
-        updateUser.setUpdatedAt(LocalDateTime.now());
-
-        sysUserMapper.updateById(updateUser);
-
-        // 4. 清除缓存（密码变更）
-        clearUserCache(id);
-
-        // 安全日志记录 - 不输出明文密码
-        log.info("用户 {} 密码已重置成功，新密码已通过安全渠道发送", existingUser.getUsername());
-    }
 
     /**
      * 将 SysUser 实体转换为 UserListInfoVO 视图对象
@@ -304,19 +327,5 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             cacheHelper.evictCache(cacheKey);
             log.debug("清除用户缓存: {}", cacheKey);
         }
-    }
-
-    /**
-     * 生成随机密码
-     * @return 随机密码
-     */
-    private String generateRandomPassword() {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
-        StringBuilder sb = new StringBuilder();
-        java.util.Random random = new java.util.Random();
-        for (int i = 0; i < 8; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return sb.toString();
     }
 }

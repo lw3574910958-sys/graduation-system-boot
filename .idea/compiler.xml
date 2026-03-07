@@ -24,6 +24,9 @@
         <module name="graduation-document" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="graduation-test" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -41,6 +44,7 @@
       <module name="graduation-notice" options="-parameters" />
       <module name="graduation-selection" options="-parameters" />
       <module name="graduation-system" options="-parameters" />
+      <module name="graduation-test" options="-parameters" />
       <module name="graduation-topic" options="-parameters" />
       <module name="graduation-user" options="-parameters" />
     </option>

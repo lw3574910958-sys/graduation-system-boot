@@ -45,7 +45,7 @@ public class DepartmentController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询院系列表")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"system_admin"}) // 管理员和院系管理员可访问
     public Result<IPage<DepartmentVO>> getDepartmentPage(DepartmentPageQueryDTO queryDTO) {
         return Result.success(departmentService.getDepartmentPage(queryDTO));
     }
@@ -58,7 +58,7 @@ public class DepartmentController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取院系详情")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"admin", "department_admin", "teacher", "student"}) // 所有用户可查看院系详情
     public Result<DepartmentVO> getDepartmentById(@PathVariable Long id) {
         return Result.success(departmentService.getDepartmentById(id));
     }
@@ -71,6 +71,7 @@ public class DepartmentController {
     @GetMapping
     @Operation(summary = "获取所有院系列表")
     public Result<List<DepartmentVO>> getAllDepartments() {
+        // 公开接口，所有用户可访问
         return Result.success(departmentService.getAllDepartments());
     }
 
@@ -82,7 +83,7 @@ public class DepartmentController {
      */
     @PostMapping
     @Operation(summary = "创建院系")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole("admin") // 仅系统管理员可创建院系
     public Result<Void> createDepartment(@Validated @RequestBody DepartmentCreateDTO createDTO) {
         departmentService.createDepartment(createDTO);
         return Result.success();
@@ -97,7 +98,7 @@ public class DepartmentController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新院系")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole({"admin", "department_admin"}) // 管理员可完全更新，院系管理员可有限更新
     public Result<Void> updateDepartment(@PathVariable Long id, @Validated @RequestBody DepartmentUpdateDTO updateDTO) {
         departmentService.updateDepartment(id, updateDTO);
         return Result.success();
@@ -111,7 +112,7 @@ public class DepartmentController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除院系")
-    @SaCheckRole("admin") // 仅管理员可访问
+    @SaCheckRole("admin") // 仅系统管理员可删除院系
     public Result<Void> deleteDepartment(@PathVariable Long id) {
         departmentService.deleteDepartment(id);
         return Result.success();

@@ -1,6 +1,7 @@
 package com.lw.graduation.api.service.user;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.lw.graduation.api.dto.user.UserChangePasswordDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
@@ -51,14 +52,22 @@ public interface UserService{
      * @param id 用户ID
      */
     void deleteUser(Long id);
-    
+
+    /**
+     * 用户修改自己的密码
+     *
+     * @param currentUserId 当前登录用户ID
+     * @param dto           包含旧密码和新密码
+     */
+    void changeOwnPassword(Long currentUserId, UserChangePasswordDTO dto);
+
     /**
      * 启用用户账户
      *
      * @param id 用户ID
      */
     void enableUser(Long id);
-    
+
     /**
      * 禁用用户账户
      *
@@ -66,10 +75,4 @@ public interface UserService{
      */
     void disableUser(Long id);
 
-    /**
-     * 重置用户密码
-     *
-     * @param id 用户ID
-     */
-    void resetPassword(Long id);
 }

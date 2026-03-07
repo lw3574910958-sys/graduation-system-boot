@@ -12,27 +12,27 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum FileFormatType {
-    
+
     // 图片类型
     JPG("jpg", "JPEG图片", Category.IMAGE, true, 10 * 1024 * 1024L), // 10MB
     JPEG("jpeg", "JPEG图片", Category.IMAGE, true, 10 * 1024 * 1024L),
     PNG("png", "PNG图片", Category.IMAGE, true, 10 * 1024 * 1024L),
     GIF("gif", "GIF动图", Category.IMAGE, true, 10 * 1024 * 1024L),
-    
+
     // 文档类型
     DOC("doc", "Word文档", Category.DOCUMENT, true, 50 * 1024 * 1024L), // 50MB
     DOCX("docx", "Word文档", Category.DOCUMENT, true, 50 * 1024 * 1024L),
     PDF("pdf", "PDF文档", Category.DOCUMENT, true, 50 * 1024 * 1024L),
     TXT("txt", "文本文件", Category.DOCUMENT, true, 10 * 1024 * 1024L),
-    
+
     // 表格类型
     XLS("xls", "Excel表格", Category.SPREADSHEET, true, 50 * 1024 * 1024L),
     XLSX("xlsx", "Excel表格", Category.SPREADSHEET, true, 50 * 1024 * 1024L),
-    
+
     // 演示文稿类型
     PPT("ppt", "PowerPoint演示文稿", Category.PRESENTATION, true, 50 * 1024 * 1024L),
     PPTX("pptx", "PowerPoint演示文稿", Category.PRESENTATION, true, 50 * 1024 * 1024L),
-    
+
     // 其他类型
     ZIP("zip", "压缩文件", Category.ARCHIVE, false, 100 * 1024 * 1024L), // 100MB
     RAR("rar", "压缩文件", Category.ARCHIVE, false, 100 * 1024 * 1024L);
@@ -41,22 +41,22 @@ public enum FileFormatType {
      * 文件扩展名（不含点号）
      */
     private final String extension;
-    
+
     /**
      * 文件类型描述
      */
     private final String description;
-    
+
     /**
      * 文件类别
      */
     private final Category category;
-    
+
     /**
      * 是否允许上传
      */
     private final boolean allowed;
-    
+
     /**
      * 最大大小限制（字节）
      */
@@ -88,12 +88,12 @@ public enum FileFormatType {
         if (extension == null || extension.isEmpty()) {
             return null;
         }
-        
+
         String lowerExt = extension.toLowerCase();
         if (lowerExt.startsWith(".")) {
             lowerExt = lowerExt.substring(1);
         }
-        
+
         for (FileFormatType type : values()) {
             if (type.extension.equalsIgnoreCase(lowerExt)) {
                 return type;
@@ -111,21 +111,21 @@ public enum FileFormatType {
      */
     public static ValidationResult validate(String extension, long fileSize) {
         FileFormatType type = getByExtension(extension);
-        
+
         if (type == null) {
             return ValidationResult.invalid("不支持的文件类型: " + extension);
         }
-        
+
         if (!type.allowed) {
             return ValidationResult.invalid("文件类型不被允许上传: " + type.description);
         }
-        
+
         if (fileSize > type.maxSize) {
             return ValidationResult.invalid(
-                String.format("文件大小超出限制，最大支持%s，当前文件%s", 
+                String.format("文件大小超出限制，最大支持%s，当前文件%s",
                     formatFileSize(type.maxSize), formatFileSize(fileSize)));
         }
-        
+
         return ValidationResult.valid();
     }
 
@@ -150,13 +150,30 @@ public enum FileFormatType {
     @Getter
     @AllArgsConstructor
     public static class ValidationResult {
+        /**
+         * 是否有效
+         */
         private final boolean valid;
+        /**
+         * 失败信息
+         */
         private final String message;
 
+        /**
+         * 创建有效的验证结果
+         *
+         * @return 验证结果
+         */
         public static ValidationResult valid() {
             return new ValidationResult(true, null);
         }
 
+        /**
+         * 创建无效的验证结果
+         *
+         * @param message 失败信息
+         * @return 验证结果
+         */
         public static ValidationResult invalid(String message) {
             return new ValidationResult(false, message);
         }

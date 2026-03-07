@@ -27,7 +27,7 @@ import java.nio.file.Paths;
 @Slf4j
 public class LocalFileStorageServiceImpl implements FileStorageService {
 
-    @Value("${file.storage.base-path:${file.dir:${UPLOAD_DIR:D:/Project/myapps/graduation-system/data/uploadFiles}}}")
+    @Value("${file.storage.base-path:D:/Project/myapps/graduation-system/data/uploadFiles}")
     private String basePath;
 
     @Value("${file.storage.url-prefix:/files}")
@@ -47,29 +47,28 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     @Override
     public String store(MultipartFile file, String category, String filename) throws IOException {
         validateInput(file, category);
-        
+    
         String originalFilename = file.getOriginalFilename();
         String extension = FileUtil.extName(originalFilename);
-        
+    
         // 验证文件类型
         FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
         if (!result.isValid()) {
             throw new IllegalArgumentException(result.getMessage());
         }
-        
-        // 生成文件名
-        String finalFilename = generateFilename(filename, extension);
-        
-        // 生成存储路径
-        String datePath = DateUtil.format(java.util.Date.from(java.time.Instant.now()), "yyyy/MM/dd");
-        String relativePath = Paths.get(category, datePath, finalFilename).toString().replace("\\", "/");
+    
+        // 生成文件名（使用时间戳格式）
+        String finalFilename = generateFilenameWithTimestamp(filename, extension);
+    
+        // 生成存储路径（不再按日期分目录，直接放在 category 下）
+        String relativePath = Paths.get(category, finalFilename).toString().replace("\\", "/");
         Path fullPath = Paths.get(basePath, relativePath);
-        
+    
         // 创建目录并保存文件
         Files.createDirectories(fullPath.getParent());
         file.transferTo(fullPath);
-        
-        log.info("文件上传成功: {} -> {}", originalFilename, relativePath);
+    
+        log.info("文件上传成功：{} -> {}", originalFilename, relativePath);
         return relativePath;
     }
 
@@ -81,12 +80,12 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (filePath == null || filePath.trim().isEmpty()) {
             throw new IllegalArgumentException("文件路径不能为空");
         }
-        
+
         Path fullPath = Paths.get(basePath, filePath);
         if (!Files.exists(fullPath)) {
             throw new IOException("文件不存在: " + filePath);
         }
-        
+
         return Files.newInputStream(fullPath);
     }
 
@@ -98,7 +97,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (filePath == null || filePath.trim().isEmpty()) {
             return false;
         }
-        
+
         Path fullPath = Paths.get(basePath, filePath);
         if (Files.exists(fullPath)) {
             Files.delete(fullPath);
@@ -116,7 +115,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (filePath == null || filePath.trim().isEmpty()) {
             return false;
         }
-        
+
         Path fullPath = Paths.get(basePath, filePath);
         return Files.exists(fullPath);
     }
@@ -142,12 +141,12 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (category == null || category.trim().isEmpty()) {
             throw new IllegalArgumentException("文件分类不能为空");
         }
-        
+
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || originalFilename.isEmpty()) {
             throw new IllegalArgumentException("文件名不能为空");
         }
-        
+
         // 防止路径遍历攻击
         if (originalFilename.contains("../") || originalFilename.contains("..\\")) {
             throw new IllegalArgumentException("非法的文件名，可能包含路径遍历攻击");
@@ -162,5 +161,21 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             return customName + "." + extension.toLowerCase();
         }
         return IdUtil.fastSimpleUUID() + "." + extension.toLowerCase();
+    }
+
+    /**
+     * 生成文件名（使用时间戳格式）
+     * @param customName 自定义文件名（不含扩展名）
+     * @param extension 文件扩展名
+     * @return 文件名，格式：yyyyMMddHHmmssSSS.ext 或 customName.ext
+     */
+    private String generateFilenameWithTimestamp(String customName, String extension) {
+        if (customName != null && !customName.trim().isEmpty()) {
+            // 如果指定了自定义文件名，使用自定义名称
+            return customName + "." + extension.toLowerCase();
+        }
+        // 使用时间戳格式：yyyyMMddHHmmssSSS
+        String timestamp = DateUtil.format(new java.util.Date(), "yyyyMMddHHmmssSSS");
+        return timestamp + "." + extension.toLowerCase();
     }
 }

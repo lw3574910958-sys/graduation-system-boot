@@ -49,6 +49,7 @@ public class DocumentController {
     @GetMapping("/page")
     @Operation(summary = "分页查询文档列表")
     public Result<IPage<DocumentVO>> getDocumentPage(DocumentPageQueryDTO queryDTO) {
+        // 不同角色看到不同的文档数据
         return Result.success(documentService.getDocumentPage(queryDTO));
     }
 
@@ -61,6 +62,7 @@ public class DocumentController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取文档详情")
     public Result<DocumentVO> getDocumentById(@PathVariable Long id) {
+        // 需要验证用户是否有权限查看该文档
         return Result.success(documentService.getDocumentById(id));
     }
 
@@ -184,6 +186,7 @@ public class DocumentController {
      */
     @GetMapping("/user/{userId}")
     @Operation(summary = "获取用户文档列表")
+    @SaCheckRole({"admin", "department_admin", "teacher"}) // 管理员、院系管理员、教师可查看
     public Result<IPage<DocumentVO>> getDocumentsByUser(@PathVariable Long userId, DocumentPageQueryDTO queryDTO) {
         queryDTO.setUserId(userId);
         return Result.success(documentService.getDocumentPage(queryDTO));
@@ -199,6 +202,7 @@ public class DocumentController {
     @GetMapping("/topic/{topicId}")
     @Operation(summary = "获取题目文档列表")
     public Result<IPage<DocumentVO>> getDocumentsByTopic(@PathVariable Long topicId, DocumentPageQueryDTO queryDTO) {
+        // 需要验证用户是否有权限查看该题目的文档
         queryDTO.setTopicId(topicId);
         return Result.success(documentService.getDocumentPage(queryDTO));
     }

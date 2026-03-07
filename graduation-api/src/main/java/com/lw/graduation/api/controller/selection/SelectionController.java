@@ -42,6 +42,7 @@ public class SelectionController {
     @GetMapping("/page")
     @Operation(summary = "分页查询选题列表")
     public Result<IPage<SelectionVO>> getSelectionPage(SelectionPageQueryDTO queryDTO) {
+        // 不同角色看到不同的数据：学生只能看到自己的申请，教师看到指导学生的申请
         return Result.success(selectionService.getSelectionPage(queryDTO));
     }
 
@@ -54,6 +55,7 @@ public class SelectionController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取选题详情")
     public Result<SelectionVO> getSelectionById(@PathVariable Long id) {
+        // 需要验证用户是否有权限查看该选题详情
         return Result.success(selectionService.getSelectionById(id));
     }
 
@@ -125,6 +127,7 @@ public class SelectionController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除选题记录")
+    @SaCheckRole({"admin", "department_admin"}) // 管理员和院系管理员可删除选题记录
     public Result<Void> deleteSelection(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
         selectionService.deleteSelection(id, userId);
@@ -152,6 +155,7 @@ public class SelectionController {
      */
     @GetMapping("/student/{studentId}")
     @Operation(summary = "获取学生选题申请列表")
+    @SaCheckRole({"admin", "department_admin", "teacher"}) // 管理员、院系管理员、教师可查看
     public Result<List<SelectionVO>> getSelectionsByStudent(@PathVariable Long studentId) {
         return Result.success(selectionService.getSelectionsByStudent(studentId));
     }
@@ -177,6 +181,7 @@ public class SelectionController {
      */
     @GetMapping("/teacher/{teacherId}/for-review")
     @Operation(summary = "获取教师待审核选题列表")
+    @SaCheckRole({"admin", "department_admin"}) // 管理员和院系管理员可查看其他教师的审核列表
     public Result<List<SelectionVO>> getSelectionsForReview(@PathVariable Long teacherId) {
         return Result.success(selectionService.getSelectionsForReview(teacherId));
     }

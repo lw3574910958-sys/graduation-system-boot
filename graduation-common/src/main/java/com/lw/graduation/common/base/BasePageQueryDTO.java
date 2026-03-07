@@ -26,7 +26,6 @@ public class BasePageQueryDTO implements Serializable {
      * 当前页码
      */
     @Min(value = CommonConstants.Numbers.MIN_SIZE, message = "页码必须大于0")
-    //@Schema(description = "当前页码", defaultValue = "1")
     private Integer current = CommonConstants.Numbers.DEFAULT_PAGE;
 
     /**
@@ -34,6 +33,5 @@ public class BasePageQueryDTO implements Serializable {
      */
     @Min(value = CommonConstants.Numbers.MIN_SIZE, message = "每页数量必须大于0")
     @Max(value = CommonConstants.Numbers.MAX_SIZE, message = "每页数量不能超过100")
-    //@Schema(description = "每页大小", defaultValue = "10")
     private Integer size = CommonConstants.Numbers.DEFAULT_SIZE;
 }

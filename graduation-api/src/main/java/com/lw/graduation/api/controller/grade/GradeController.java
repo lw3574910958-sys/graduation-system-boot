@@ -43,6 +43,7 @@ public class GradeController {
     @GetMapping("/page")
     @Operation(summary = "分页查询成绩列表")
     public Result<IPage<GradeVO>> getGradePage(GradePageQueryDTO queryDTO) {
+        // 不同角色看到不同的成绩数据
         return Result.success(gradeService.getGradePage(queryDTO));
     }
 
@@ -55,6 +56,7 @@ public class GradeController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取成绩详情")
     public Result<GradeVO> getGradeById(@PathVariable Long id) {
+        // 需要验证用户是否有权限查看该成绩
         return Result.success(gradeService.getGradeById(id));
     }
 
@@ -128,6 +130,7 @@ public class GradeController {
      */
     @GetMapping("/student/{studentId}")
     @Operation(summary = "获取学生成绩列表")
+    @SaCheckRole({"admin", "department_admin", "teacher"}) // 管理员、院系管理员、教师可查看
     public Result<List<GradeVO>> getGradesByStudent(@PathVariable Long studentId) {
         return Result.success(gradeService.getGradesByStudent(studentId));
     }
@@ -153,6 +156,7 @@ public class GradeController {
      */
     @GetMapping("/teacher/{teacherId}")
     @Operation(summary = "获取教师指导学生成绩列表")
+    @SaCheckRole({"admin", "department_admin"}) // 管理员和院系管理员可查看其他教师成绩
     public Result<List<GradeVO>> getGradesByTeacher(@PathVariable Long teacherId) {
         return Result.success(gradeService.getGradesByTeacher(teacherId));
     }

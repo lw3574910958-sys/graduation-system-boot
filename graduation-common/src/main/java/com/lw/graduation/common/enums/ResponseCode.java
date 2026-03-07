@@ -87,16 +87,31 @@ public enum ResponseCode {
     /**
      * 密码和确认密码不一致
      */
-    PASSWORD_MISMATCH(1006, "密码和确认密码不一致！"),
+    PASSWORD_MISMATCH(1007, "密码和确认密码不一致！"),
     /**
      * 用户类型无效
      */
-    USER_TYPE_INVALID(1007, "用户类型无效！"),
-    
+    USER_TYPE_INVALID(1008, "用户类型无效！"),
+
+    /**
+     * 状态无效
+     */
+    INVALID_STATUS(1009, "状态无效！"),
+
     /**
      * 院系存在关联数据
      */
-    DEPARTMENT_HAS_ASSOCIATED_DATA(1008, "该院系存在关联的学生或教师数据，无法删除！");
+    DEPARTMENT_HAS_ASSOCIATED_DATA(1010, "该院系存在关联的学生或教师数据，无法删除！"),
+
+    /**
+     * 旧密码错误
+     */
+    OLD_PASSWORD_ERROR(1011, "旧密码错误！"),
+
+    /**
+     * 密码格式错误
+     */
+    PASSWORD_FORMAT_ERROR(1012, "密码格式错误！");
 
 
     /**

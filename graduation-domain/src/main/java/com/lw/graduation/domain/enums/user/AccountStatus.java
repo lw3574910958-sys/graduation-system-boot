@@ -3,6 +3,11 @@ package com.lw.graduation.domain.enums.user;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 /**
  * 账户状态枚举
  *
@@ -27,22 +32,22 @@ public enum AccountStatus {
     private final String description;
 
     /**
+     * 值到枚举的映射缓存，提升查找性能
+     */
+    private static final Map<Integer, AccountStatus> VALUE_MAP = Arrays.stream(values())
+            .collect(Collectors.toMap(AccountStatus::getValue, Function.identity()));
+
+    /**
      * 根据值获取账户状态枚举
      *
      * @param value 状态值
-     * @return 对应的枚举，未找到返回null
+     * @return 对应的枚举，未找到或 value 为 null 时返回 null
      */
     public static AccountStatus getByValue(Integer value) {
         if (value == null) {
             return null;
         }
-        
-        for (AccountStatus status : values()) {
-            if (status.value.equals(value)) {
-                return status;
-            }
-        }
-        return null;
+        return VALUE_MAP.get(value);
     }
 
     /**

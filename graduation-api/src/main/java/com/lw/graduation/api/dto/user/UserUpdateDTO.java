@@ -2,6 +2,7 @@ package com.lw.graduation.api.dto.user;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 /**
@@ -23,8 +24,17 @@ public class UserUpdateDTO {
     /**
      * 用户类型
      */
+    @NotBlank(message = "用户类型不能为空")
     @Schema(description = "用户类型 (student-学生, teacher-教师, admin-管理员)")
     private String userType;
+
+    /**
+     * 密码
+     */
+    @NotBlank(message = "密码不能为空")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$", message = "密码必须至少包含一个字母和一个数字，长度至少为6位")
+    @Schema(description = "密码")
+    private String password;
 
     /**
      * 状态

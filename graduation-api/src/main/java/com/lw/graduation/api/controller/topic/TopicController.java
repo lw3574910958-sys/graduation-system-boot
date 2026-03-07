@@ -44,6 +44,7 @@ public class TopicController {
     @GetMapping("/page")
     @Operation(summary = "分页查询课题列表")
     public Result<IPage<TopicVO>> getTopicPage(TopicPageQueryDTO queryDTO) {
+        // 学生只能看到已发布的课题，教师可以看到自己创建的课题
         return Result.success(topicService.getTopicPage(queryDTO));
     }
 
@@ -56,6 +57,7 @@ public class TopicController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取课题详情")
     public Result<TopicVO> getTopicById(@PathVariable Long id) {
+        // 需要验证用户是否有权限查看该课题
         return Result.success(topicService.getTopicById(id));
     }
 

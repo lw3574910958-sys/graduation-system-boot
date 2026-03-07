@@ -40,6 +40,10 @@
             <groupId>com.lw.graduation</groupId>
             <artifactId>graduation-grade</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-notice</artifactId>
+        </dependency>
 
         <!-- 基础设施 -->
         <dependency>
