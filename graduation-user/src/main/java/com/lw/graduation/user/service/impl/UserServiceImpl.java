@@ -188,9 +188,11 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 3. 构建更新实体
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
+        updateUser.setRealName(updateDTO.getRealName());
         updateUser.setUserType(updateDTO.getUserType());
         updateUser.setPassword(passwordUtil.encryptPassword(updateDTO.getPassword()));
         updateUser.setStatus(updateDTO.getStatus());
+        updateUser.setAvatar(updateDTO.getAvatar()); // 设置头像
 
         // 4. 执行更新
         sysUserMapper.updateById(updateUser);
