@@ -52,27 +52,27 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("头像文件不能为空");
         }
-
+    
         // 获取文件名
         String originalFilename = file.getOriginalFilename();
         // 获取文件扩展名
         String extension = getFileExtension(originalFilename);
-
+    
         // 验证是否为图片类型
         FileFormatType fileType = FileFormatType.getByExtension(extension);
         if (fileType == null || fileType.getCategory() != FileFormatType.Category.IMAGE) {
             throw new IllegalArgumentException("仅支持图片格式文件");
         }
-
-        // 验证文件大小（头像限制为2MB）
+    
+        // 验证文件大小（头像限制为 2MB）
         if (file.getSize() > 2 * 1024 * 1024) {
-            throw new IllegalArgumentException("头像文件大小不能超过2MB");
+            throw new IllegalArgumentException("头像文件大小不能超过 2MB");
         }
-
-        // 存储头像文件
+    
+        // 存储头像文件（使用时间戳生成文件名，不使用自定义名称）
         String category = "avatar/" + userId;
-        String storedPath = fileStorageService.store(file, category, "avatar");
-
+        String storedPath = fileStorageService.store(file, category);  // ✅ 不传第三个参数，使用时间戳格式
+    
         // 构建返回结果
         return buildResult(file, storedPath);
     }
