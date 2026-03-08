@@ -58,7 +58,7 @@ public class NoticeController {
 
     @PostMapping
     @Operation(summary = "创建通知")
-    @SaCheckRole("admin")
+    @SaCheckRole("system_admin")
     public Result<NoticeVO> createNotice(@Valid @RequestBody NoticeCreateDTO createDTO) {
         Long publisherId = StpUtil.getLoginIdAsLong();
         NoticeVO noticeVO = noticeService.createNotice(createDTO, publisherId);
@@ -68,7 +68,7 @@ public class NoticeController {
     @PutMapping("/{id}")
     @Operation(summary = "更新通知")
     @Parameter(name = "id", description = "通知ID", required = true)
-    @SaCheckRole("admin")
+    @SaCheckRole("system_admin")
     public Result<Void> updateNotice(@PathVariable Long id, @Valid @RequestBody NoticeUpdateDTO updateDTO) {
         Long updaterId = StpUtil.getLoginIdAsLong();
         noticeService.updateNotice(id, updateDTO, updaterId);
@@ -78,7 +78,7 @@ public class NoticeController {
     @PostMapping("/{id}/publish")
     @Operation(summary = "发布通知")
     @Parameter(name = "id", description = "通知ID", required = true)
-    @SaCheckRole("admin")
+    @SaCheckRole("system_admin")
     public Result<Void> publishNotice(@PathVariable Long id) {
         Long publisherId = StpUtil.getLoginIdAsLong();
         noticeService.publishNotice(id, publisherId);
@@ -88,7 +88,7 @@ public class NoticeController {
     @PostMapping("/{id}/withdraw")
     @Operation(summary = "撤回通知")
     @Parameter(name = "id", description = "通知ID", required = true)
-    @SaCheckRole("admin")
+    @SaCheckRole("system_admin")
     public Result<Void> withdrawNotice(@PathVariable Long id) {
         Long publisherId = StpUtil.getLoginIdAsLong();
         noticeService.withdrawNotice(id, publisherId);
@@ -98,7 +98,7 @@ public class NoticeController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除通知")
     @Parameter(name = "id", description = "通知ID", required = true)
-    @SaCheckRole("admin")
+    @SaCheckRole("system_admin")
     public Result<Void> deleteNotice(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
         noticeService.deleteNotice(id, userId);

@@ -31,7 +31,7 @@ public class CommonConstants {
         /** 默认页面大小 */
         public static final int DEFAULT_SIZE = 10;
         /** 最大页面大小 */
-        public static final int MAX_SIZE = 200;
+        public static final int MAX_SIZE = 500;
         /** 最小页面大小 */
         public static final int MIN_SIZE = 1;
     }

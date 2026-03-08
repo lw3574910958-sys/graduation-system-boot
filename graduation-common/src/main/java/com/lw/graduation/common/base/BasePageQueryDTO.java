@@ -31,7 +31,7 @@ public class BasePageQueryDTO implements Serializable {
     /**
      * 每页大小
      */
-    @Min(value = CommonConstants.Numbers.MIN_SIZE, message = "每页数量必须大于0")
-    @Max(value = CommonConstants.Numbers.MAX_SIZE, message = "每页数量不能超过100")
+    @Min(value = CommonConstants.Numbers.MIN_SIZE, message = "每页数量必须大于 0")
+    @Max(value = CommonConstants.Numbers.MAX_SIZE, message = "每页数量不能超过" + CommonConstants.Numbers.MAX_SIZE)
     private Integer size = CommonConstants.Numbers.DEFAULT_SIZE;
 }

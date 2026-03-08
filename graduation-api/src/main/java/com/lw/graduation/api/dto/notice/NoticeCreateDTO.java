@@ -1,5 +1,6 @@
 package com.lw.graduation.api.dto.notice;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -53,12 +54,14 @@ public class NoticeCreateDTO implements Serializable {
      * 生效开始时间
      */
     @Schema(description = "生效开始时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
 
     /**
      * 生效结束时间
      */
     @Schema(description = "生效结束时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
 
     /**
