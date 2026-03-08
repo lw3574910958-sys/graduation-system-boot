@@ -129,24 +129,24 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (sysUserMapper.selectCount(wrapper) > 0) {
             throw new BusinessException(ResponseCode.USERNAME_EXISTS);
         }
-    
+
         // 2. 验证用户类型是否有效
         if (!UserType.isValid(createDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
-    
+
         // 3. 验证状态
         Integer status = createDTO.getStatus();
         if (status != null && !AccountStatus.isValid(status)) {
             throw new BusinessException(ResponseCode.INVALID_STATUS);
         }
-    
+
         // 4. 验证密码格式
         String password = createDTO.getPassword();
         if(!passwordUtil.isValidPassword(password)){
             throw new BusinessException(ResponseCode.PASSWORD_FORMAT_ERROR);
         }
-    
+
         // 5. 创建用户实体
         SysUser user = new SysUser();
         user.setUsername(createDTO.getUsername());
@@ -159,7 +159,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         user.setAvatar(createDTO.getAvatar());
         //使用MyMetaObjectHandler自动填充时间
         user.setIsDeleted(0);
-    
+
         // 6. 插入数据库
         try {
             sysUserMapper.insert(user);
@@ -167,7 +167,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             log.warn("并发创建导致用户名重复：{}", createDTO.getUsername());
             throw new BusinessException(ResponseCode.USERNAME_EXISTS);
         }
-    
+
         // 7. 创建对应的业务表数据
         try {
             createBusinessUserData(user, createDTO);
@@ -176,7 +176,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "创建业务数据失败：" + e.getMessage());
         }
     }
-    
+
     /**
      * 创建业务表数据（学生/教师/管理员）
      *
@@ -185,55 +185,70 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      */
     private void createBusinessUserData(SysUser user, UserCreateDTO createDTO) {
         String userType = user.getUserType();
-            
+
         if (UserType.STUDENT.getCode().equals(userType)) {
             // 创建学生数据
-            BizStudent student = new BizStudent();
-            student.setUserId(user.getId());
-            // 学号：优先使用前端传递的 studentId，否则使用用户名
-            student.setStudentId(createDTO.getStudentId() != null ? createDTO.getStudentId() : user.getUsername());
-            // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
-            student.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
-            // 性别：使用前端传递的 gender
-            student.setGender(createDTO.getGender());
-            // 专业：使用前端传递的 major
-            student.setMajor(createDTO.getMajor());
-            // 班级：使用前端传递的 className 字段
-            student.setClassName(createDTO.getClassName());
-            student.setPhone(createDTO.getPhone());
-            student.setEmail(createDTO.getEmail());
+            BizStudent student = getBizStudent(user, createDTO);
             bizStudentMapper.insert(student);
         } else if (UserType.TEACHER.getCode().equals(userType)) {
             // 创建教师数据
-            BizTeacher teacher = new BizTeacher();
-            teacher.setUserId(user.getId());
-            // 工号：优先使用前端传递的 teacherId，否则使用用户名
-            teacher.setTeacherId(createDTO.getTeacherId() != null ? createDTO.getTeacherId() : user.getUsername());
-            // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
-            teacher.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
-            // 性别：使用前端传递的 gender
-            teacher.setGender(createDTO.getGender());
-            // 职称：使用前端传递的 title 字段
-            teacher.setTitle(createDTO.getTitle());
-            teacher.setPhone(createDTO.getPhone());
-            teacher.setEmail(createDTO.getEmail());
+            BizTeacher teacher = getBizTeacher(user, createDTO);
             bizTeacherMapper.insert(teacher);
         } else if (UserType.ADMIN.getCode().equals(userType)) {
             // 创建管理员数据
-            BizAdmin admin = new BizAdmin();
-            admin.setUserId(user.getId());
-            // 管理员编号：优先使用前端传递的 adminId，否则使用用户名
-            admin.setAdminId(createDTO.getAdminId() != null ? createDTO.getAdminId() : user.getUsername());
-            // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
-            admin.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
-            // 角色级别：根据院系 ID 是否为空判断（null 表示系统管理员，有院系表示院系管理员）
-            admin.setRoleLevel(admin.getDepartmentId() != null ? 1 : 0);
-            admin.setPhone(createDTO.getPhone());
-            admin.setEmail(createDTO.getEmail());
+            BizAdmin admin = getBizAdmin(user, createDTO);
             bizAdminMapper.insert(admin);
         } else {
             log.warn("不支持的用户类型：{}", userType);
         }
+    }
+
+    private static BizTeacher getBizTeacher(SysUser user, UserCreateDTO createDTO) {
+        BizTeacher teacher = new BizTeacher();
+        teacher.setUserId(user.getId());
+        // 工号：优先使用前端传递的 teacherId，否则使用用户名
+        teacher.setTeacherId(createDTO.getTeacherId() != null ? createDTO.getTeacherId() : user.getUsername());
+        // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
+        teacher.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
+        // 性别：使用前端传递的 gender
+        teacher.setGender(createDTO.getGender());
+        // 职称：使用前端传递的 title 字段
+        teacher.setTitle(createDTO.getTitle());
+        teacher.setPhone(createDTO.getPhone());
+        teacher.setEmail(createDTO.getEmail());
+        return teacher;
+    }
+
+    private static BizStudent getBizStudent(SysUser user, UserCreateDTO createDTO) {
+        BizStudent student = new BizStudent();
+        student.setUserId(user.getId());
+        // 学号：优先使用前端传递的 studentId，否则使用用户名
+        student.setStudentId(createDTO.getStudentId() != null ? createDTO.getStudentId() : user.getUsername());
+        // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
+        student.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
+        // 性别：使用前端传递的 gender
+        student.setGender(createDTO.getGender());
+        // 专业：使用前端传递的 major
+        student.setMajor(createDTO.getMajor());
+        // 班级：使用前端传递的 className 字段
+        student.setClassName(createDTO.getClassName());
+        student.setPhone(createDTO.getPhone());
+        student.setEmail(createDTO.getEmail());
+        return student;
+    }
+
+    private static BizAdmin getBizAdmin(SysUser user, UserCreateDTO createDTO) {
+        BizAdmin admin = new BizAdmin();
+        admin.setUserId(user.getId());
+        // 管理员编号：优先使用前端传递的 adminId，否则使用用户名
+        admin.setAdminId(createDTO.getAdminId() != null ? createDTO.getAdminId() : user.getUsername());
+        // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
+        admin.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
+        // 角色级别：根据院系 ID 是否为空判断（null 表示系统管理员，有院系表示院系管理员）
+        admin.setRoleLevel(admin.getDepartmentId() != null ? 1 : 0);
+        admin.setPhone(createDTO.getPhone());
+        admin.setEmail(createDTO.getEmail());
+        return admin;
     }
 
     /**
@@ -333,28 +348,28 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (existingUser == null) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
-    
+
         // 2. 检查用户名是否已存在（排除自己）
         // 注意：UserUpdateDTO 中没有 username 字段，所以这里不需要检查用户名唯一性
         // 如果需要支持用户名修改，需要在 DTO 中添加 username 字段
-    
+
         // 验证用户类型
         if (!UserType.isValid(updateDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
-    
+
         // 密码格式验证（只有当提供了新密码时才验证）
         if (updateDTO.getPassword() != null && !updateDTO.getPassword().trim().isEmpty()) {
             if(!passwordUtil.isValidPassword(updateDTO.getPassword())){
                 throw new BusinessException(ResponseCode.PASSWORD_FORMAT_ERROR);
             }
         }
-    
+
         // 状态
         if (!AccountStatus.isValid(updateDTO.getStatus())) {
             throw new BusinessException(ResponseCode.INVALID_STATUS);
         }
-    
+
         // 3. 构建更新实体
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
@@ -366,10 +381,10 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
         updateUser.setStatus(updateDTO.getStatus());
         updateUser.setAvatar(updateDTO.getAvatar()); // 设置头像
-    
+
         // 4. 执行更新
         sysUserMapper.updateById(updateUser);
-    
+
         // 5. 更新对应的业务表数据
         try {
             updateBusinessUserData(id, existingUser.getUserType(), updateDTO);
@@ -377,7 +392,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             log.error("更新业务表数据失败：{}", e.getMessage());
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "更新业务数据失败：" + e.getMessage());
         }
-    
+
         // 6. 清除缓存
         clearUserCache(id);
     }
@@ -499,7 +514,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     private UserListInfoVO convertToUserListInfoVO(SysUser user) {
         // 1. 复制基本属性
         UserListInfoVO vo = BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
-        
+
         // 2. 根据用户类型，从对应的业务表中获取额外字段
         String userType = user.getUserType();
         if (UserType.STUDENT.getCode().equals(userType)) {
@@ -515,7 +530,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 vo.setDepartmentId(student.getDepartmentId());
                 vo.setPhone(student.getPhone());
                 vo.setEmail(student.getEmail());
-                
+
                 // 填充院系名称
                 if (student.getDepartmentId() != null) {
                     SysDepartment dept = sysDepartmentMapper.selectById(student.getDepartmentId());
@@ -536,7 +551,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 vo.setDepartmentId(teacher.getDepartmentId());
                 vo.setPhone(teacher.getPhone());
                 vo.setEmail(teacher.getEmail());
-                
+
                 // 填充院系名称
                 if (teacher.getDepartmentId() != null) {
                     SysDepartment dept = sysDepartmentMapper.selectById(teacher.getDepartmentId());
@@ -556,7 +571,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 vo.setPhone(admin.getPhone());
                 vo.setEmail(admin.getEmail());
                 vo.setRoleLevel(admin.getRoleLevel());
-                
+
                 // 填充院系名称
                 if (admin.getDepartmentId() != null) {
                     SysDepartment dept = sysDepartmentMapper.selectById(admin.getDepartmentId());
@@ -566,7 +581,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 }
             }
         }
-        
+
         return vo;
     }
 

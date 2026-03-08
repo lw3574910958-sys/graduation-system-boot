@@ -8,7 +8,6 @@ import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
 import com.lw.graduation.api.vo.user.LoginUserInfoVO;
-import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.auth.util.CaptchaUtil;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.config.SaTokenProperties;
