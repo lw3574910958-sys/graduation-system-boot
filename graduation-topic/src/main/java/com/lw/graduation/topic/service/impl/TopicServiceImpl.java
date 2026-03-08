@@ -87,13 +87,13 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void createTopic(TopicCreateDTO createDTO) {
-        log.info("创建新题目: {}", createDTO.getTitle());
-
+        log.info("创建新题目：{}", createDTO.getTitle());
+    
         // 1. 构造题目实体
         BizTopic topic = new BizTopic();
         topic.setTitle(createDTO.getTitle());
         topic.setDescription(createDTO.getDescription());
-        // 注意：教师ID需要从上下文获取，这里暂时设置为0，实际应该从认证信息中获取
+        // 注意：教师 ID 需要从上下文获取，这里暂时设置为 0，实际应该从认证信息中获取
         topic.setTeacherId(0L);
         topic.setDepartmentId(createDTO.getDepartmentId());
         topic.setSource(createDTO.getSource());
@@ -104,16 +104,16 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         topic.setMaxSelections(createDTO.getMaxSelections() != null ? createDTO.getMaxSelections() : 1);
         topic.setSelectedCount(0);
         topic.setStatus(TopicStatus.OPEN.getValue()); // 默认开放状态
-
+    
         // 2. 保存到数据库
         boolean saved = save(topic);
         if (!saved) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "题目创建失败");
         }
-
+    
         // 3. 清除相关缓存
         clearTopicCache(topic.getId());
-
+    
         log.info("题目创建成功，ID: {}", topic.getId());
     }
 

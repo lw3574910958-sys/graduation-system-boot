@@ -12,6 +12,7 @@ import com.lw.graduation.api.vo.notice.NoticeVO;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.domain.entity.notice.BizNotice;
 import com.lw.graduation.domain.entity.user.SysUser;
@@ -296,35 +297,20 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     }
 
     private NoticeVO convertToNoticeVO(BizNotice notice) {
-        NoticeVO vo = new NoticeVO();
-        vo.setId(notice.getId());
-        vo.setTitle(notice.getTitle());
-        vo.setContent(notice.getContent());
-        vo.setType(notice.getType());
-        vo.setPriority(notice.getPriority());
-        vo.setPublisherId(notice.getPublisherId());
-        vo.setPublishedAt(notice.getPublishedAt());
-        vo.setStartTime(notice.getStartTime());
-        vo.setEndTime(notice.getEndTime());
-        vo.setStatus(notice.getStatus());
-        vo.setIsSticky(notice.getIsSticky()); // 使用实体类的isSticky()方法对应的字段
-        vo.setReadCount(notice.getReadCount());
-        vo.setTargetScope(notice.getTargetScope());
-        vo.setAttachmentUrl(notice.getAttachmentUrl());
-        vo.setCreatedAt(notice.getCreatedAt());
-        vo.setUpdatedAt(notice.getUpdatedAt());
-
+        // 使用 BeanMapperUtil 简化对象转换
+        NoticeVO vo = BeanMapperUtil.copyProperties(notice, NoticeVO.class);
+    
         // 填充描述信息
         NoticeType type = NoticeType.getByValue(notice.getType());
         if (type != null) {
             vo.setTypeDesc(type.getDescription());
         }
-
+    
         NoticeStatus status = NoticeStatus.getByValue(notice.getStatus());
         if (status != null) {
             vo.setStatusDesc(status.getDescription());
         }
-
+    
         // 填充发布者信息
         if (notice.getPublisherId() != null) {
             SysUser publisher = sysUserMapper.selectById(notice.getPublisherId());
@@ -332,12 +318,12 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
                 vo.setPublisherName(publisher.getRealName());
             }
         }
-
+    
         // 添加置顶状态的额外信息
         if (notice.isSticky()) {
             log.debug("通知 {} 为置顶通知", notice.getId());
         }
-
+    
         return vo;
     }
 

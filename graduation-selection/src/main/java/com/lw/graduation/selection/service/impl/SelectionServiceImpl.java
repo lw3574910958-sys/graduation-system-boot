@@ -433,7 +433,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     }
 
     /**
-     * 转换选题实体为VO
+     * 转换选题实体为 VO
      */
     private SelectionVO convertToSelectionVO(BizSelection selection) {
         SelectionVO vo = BeanMapperUtil.copyProperties(selection, SelectionVO.class);
@@ -462,7 +462,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     }
 
     /**
-     * 根据用户ID获取用户名
+     * 根据用户 ID 获取用户名
      */
     private String getUserNameById(Long userId) {
         SysUser user = sysUserMapper.selectById(userId);

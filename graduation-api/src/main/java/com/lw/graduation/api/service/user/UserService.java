@@ -5,6 +5,9 @@ import com.lw.graduation.api.dto.user.UserChangePasswordDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
+import com.lw.graduation.api.vo.admin.AdminVO;
+import com.lw.graduation.api.vo.student.StudentVO;
+import com.lw.graduation.api.vo.teacher.TeacherVO;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
 
 /**
@@ -71,8 +74,32 @@ public interface UserService{
     /**
      * 禁用用户账户
      *
-     * @param id 用户ID
+     * @param id 用户 ID
      */
     void disableUser(Long id);
+
+    /**
+     * 根据用户 ID 获取学生详情
+     *
+     * @param userId 用户 ID
+     * @return 学生详情 VO
+     */
+    StudentVO getStudentByUserId(Long userId);
+
+    /**
+     * 根据用户 ID 获取教师详情
+     *
+     * @param userId 用户 ID
+     * @return 教师详情 VO
+     */
+    TeacherVO getTeacherByUserId(Long userId);
+
+    /**
+     * 根据用户 ID 获取管理员详情
+     *
+     * @param userId 用户 ID
+     * @return 管理员详情 VO
+     */
+    AdminVO getAdminByUserId(Long userId);
 
 }

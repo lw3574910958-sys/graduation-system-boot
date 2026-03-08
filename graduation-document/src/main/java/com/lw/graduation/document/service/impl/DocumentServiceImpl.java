@@ -352,12 +352,16 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     }
 
     /**
-     * 删除存储的文件（需要扩展FileStorageService接口）
+     * 删除存储的文件
      */
     private void deleteStoredFile(String filePath) {
-        // TODO: 需要在FileStorageService接口中添加delete方法
-        // 或者创建一个专门的文件管理服务
-        log.warn("文件删除功能待实现，路径: {}", filePath);
+        try {
+            fileStorageService.delete(filePath);
+            log.debug("文件删除成功：{}", filePath);
+        } catch (Exception e) {
+            log.error("文件删除失败：{}", filePath, e);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件删除失败");
+        }
     }
 
     /**

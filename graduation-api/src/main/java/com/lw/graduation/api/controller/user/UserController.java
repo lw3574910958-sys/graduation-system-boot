@@ -8,6 +8,9 @@ import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
+import com.lw.graduation.api.vo.admin.AdminVO;
+import com.lw.graduation.api.vo.student.StudentVO;
+import com.lw.graduation.api.vo.teacher.TeacherVO;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.common.response.Result;
@@ -122,6 +125,39 @@ public class UserController {
         Long currentUserId = StpUtil.getLoginIdAsLong();
         userService.changeOwnPassword(currentUserId, dto);
         return Result.success();
+    }
+
+    /**
+     * 根据用户 ID 获取学生详情
+     *
+     * @param userId 用户 ID
+     * @return 学生详情 VO
+     */
+    @GetMapping("/student/{userId}")
+    @Operation(summary = "根据用户 ID 获取学生详情")
+    @SaCheckRole({"system_admin"})
+    public Result<StudentVO> getStudentByUserId(@PathVariable Long userId) {
+        return Result.success(userService.getStudentByUserId(userId));
+    }
+
+    /**
+     * 根据用户 ID 获取教师详情
+     *
+     * @param userId 用户 ID
+     * @return 教师详情 VO
+     */
+    @GetMapping("/teacher/{userId}")
+    @Operation(summary = "根据用户 ID 获取教师详情")
+    @SaCheckRole({"system_admin"})
+    public Result<TeacherVO> getTeacherByUserId(@PathVariable Long userId) {
+        return Result.success(userService.getTeacherByUserId(userId));
+    }
+
+    @GetMapping("/admin/{userId}")
+    @Operation(summary = "根据用户 ID 获取管理员详情")
+    @SaCheckRole({"system_admin"})
+    public Result<AdminVO> getAdminByUserId(@PathVariable Long userId) {
+        return Result.success(userService.getAdminByUserId(userId));
     }
 
 }

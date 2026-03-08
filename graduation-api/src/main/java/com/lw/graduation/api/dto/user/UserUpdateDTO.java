@@ -31,20 +31,79 @@ public class UserUpdateDTO {
     /**
      * 密码
      */
-    @NotBlank(message = "密码不能为空")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$", message = "密码必须至少包含一个字母和一个数字，长度至少为6位")
-    @Schema(description = "密码")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$", message = "密码必须至少包含一个字母和一个数字，长度至少为 6 位")
+    @Schema(description = "密码（可选，不传则不修改密码）")
     private String password;
 
     /**
      * 状态
      */
-    @Schema(description = "状态 (1-启用, 0-禁用)")
+    @Schema(description = "状态 (1-启用，0-禁用)")
     private Integer status;
-
+    
     /**
-     * 头像URL或存储路径
+     * 手机号
      */
-    @Schema(description = "头像URL或存储路径")
+    @Schema(description = "手机号")
+    private String phone;
+    
+    /**
+     * 邮箱
+     */
+    @Schema(description = "邮箱")
+    private String email;
+    
+    /**
+     * 所属院系 ID（学生/教师/管理员必填）
+     */
+    @Schema(description = "所属院系 ID")
+    private Long departmentId;
+    
+    /**
+     * 头像 URL 或存储路径
+     */
+    @Schema(description = "头像 URL 或存储路径")
     private String avatar;
+    
+    /**
+     * 班级（仅学生需要）
+     */
+    @Schema(description = "班级（仅学生需要）")
+    private String className;
+    
+    /**
+     * 职称（仅教师需要）
+     */
+    @Schema(description = "职称（仅教师需要）")
+    private String title;
+    
+    /**
+     * 学号（仅学生需要）
+     */
+    @Schema(description = "学号（仅学生需要）")
+    private String studentId;
+    
+    /**
+     * 工号（仅教师需要）
+     */
+    @Schema(description = "工号（仅教师需要）")
+    private String teacherId;
+    
+    /**
+     * 管理员编号（仅管理员需要）
+     */
+    @Schema(description = "管理员编号（仅管理员需要）")
+    private String adminId;
+    
+    /**
+     * 性别（学生/教师需要）：0-女，1-男
+     */
+    @Schema(description = "性别（学生/教师需要）：0-女，1-男")
+    private Integer gender;
+    
+    /**
+     * 专业（仅学生需要）
+     */
+    @Schema(description = "专业（仅学生需要）")
+    private String major;
 }
