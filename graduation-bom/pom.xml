@@ -31,6 +31,7 @@
 		<knife4j.version>4.5.0</knife4j.version>
 		<hutool.version>5.8.42</hutool.version>
 		<swagger.version>2.2.41</swagger.version>
+		<websocket.version>6.1.0</websocket.version>
 
 	</properties>
 
@@ -264,6 +265,13 @@
 				<groupId>cn.hutool</groupId>
 				<artifactId>hutool-all</artifactId>
 				<version>${hutool.version}</version>
+			</dependency>
+
+			<!-- WebSocket 支持 -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter-websocket</artifactId>
+				<version>${spring-boot.version}</version>
 			</dependency>
 
 			<!-- 测试依赖 -->

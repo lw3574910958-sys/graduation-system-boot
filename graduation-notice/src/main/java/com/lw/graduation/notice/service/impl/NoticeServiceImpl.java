@@ -12,6 +12,7 @@ import com.lw.graduation.api.vo.notice.NoticeVO;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
+import com.lw.graduation.common.service.WebSocketMessageService;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.domain.entity.notice.BizNotice;
@@ -43,6 +44,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     private final BizNoticeMapper bizNoticeMapper;
     private final SysUserMapper sysUserMapper;
     private final CacheHelper cacheHelper;
+    private final WebSocketMessageService webSocketMessageService;
 
     @Override
     public IPage<NoticeVO> getNoticePage(NoticePageQueryDTO queryDTO) {
@@ -135,6 +137,12 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         }
 
         clearNoticeCache(notice.getId());
+        
+        // 如果立即发布，发送 WebSocket 通知
+        if (Boolean.TRUE.equals(createDTO.getPublishNow())) {
+            sendNoticeWebSocket(notice, publisherId);
+        }
+        
         return convertToNoticeVO(notice);
     }
 
@@ -198,6 +206,9 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         }
 
         clearNoticeCache(id);
+        
+        // 发送 WebSocket 通知
+        sendNoticeWebSocket(notice, publisherId);
     }
 
     @Override
@@ -330,5 +341,28 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     private void clearNoticeCache(Long noticeId) {
         String cacheKey = CacheConstants.KeyPrefix.NOTICE_INFO + noticeId;
         cacheHelper.evictCache(cacheKey);
+    }
+
+    /**
+     * 发送 WebSocket 通知
+     */
+    private void sendNoticeWebSocket(BizNotice notice, Long publisherId) {
+        try {
+            // 获取发布者信息
+            SysUser publisher = sysUserMapper.selectById(publisherId);
+            String publisherName = publisher != null ? publisher.getRealName() : "未知用户";
+            
+            // 发送 WebSocket 通知
+            webSocketMessageService.sendNoticeNotification(
+                notice.getId(),
+                notice.getTitle(),
+                notice.getType(),
+                notice.getTargetScope(),
+                publisherName
+            );
+        } catch (Exception e) {
+            log.error("发送 WebSocket 通知失败：{}", e.getMessage(), e);
+            // WebSocket 发送失败不影响主业务流程
+        }
     }
 }
