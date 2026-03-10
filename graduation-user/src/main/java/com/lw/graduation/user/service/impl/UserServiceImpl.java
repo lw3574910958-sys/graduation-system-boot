@@ -203,6 +203,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
     }
 
+    /**
+     * 获取教师业务数据
+     *
+     * @param user 用户实体
+     * @param createDTO 创建参数
+     * @return 教师业务数据
+     */
     private static BizTeacher getBizTeacher(SysUser user, UserCreateDTO createDTO) {
         BizTeacher teacher = new BizTeacher();
         teacher.setUserId(user.getId());
@@ -219,6 +226,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         return teacher;
     }
 
+    /**
+     * 获取学生业务数据
+     *
+     * @param user 用户实体
+     * @param createDTO 创建参数
+     * @return 学生业务数据
+     */
     private static BizStudent getBizStudent(SysUser user, UserCreateDTO createDTO) {
         BizStudent student = new BizStudent();
         student.setUserId(user.getId());
@@ -237,6 +251,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         return student;
     }
 
+    /**
+     * 获取管理员业务数据
+     *
+     * @param user 用户实体
+     * @param createDTO 创建参数
+     * @return 管理员业务数据
+     */
     private static BizAdmin getBizAdmin(SysUser user, UserCreateDTO createDTO) {
         BizAdmin admin = new BizAdmin();
         admin.setUserId(user.getId());
@@ -418,6 +439,12 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         clearUserCache(id);
     }
 
+   /**
+     * 修改自身密码
+     *
+     * @param currentUserId 当前用户ID
+     * @param dto           修改密码 DTO
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changeOwnPassword(Long currentUserId, UserChangePasswordDTO dto) {

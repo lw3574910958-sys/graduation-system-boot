@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -158,6 +159,34 @@ public class UserController {
     @SaCheckRole({"system_admin"})
     public Result<AdminVO> getAdminByUserId(@PathVariable Long userId) {
         return Result.success(userService.getAdminByUserId(userId));
+    }
+
+    /**
+     * 启用用户
+     *
+     * @param id 用户 ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/enable")
+    @Operation(summary = "启用用户")
+    @SaCheckRole("system_admin")
+    public Result<Void> enableUser(@PathVariable Long id) {
+        userService.enableUser(id);
+        return Result.success();
+    }
+
+    /**
+     * 禁用用户
+     *
+     * @param id 用户 ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/disable")
+    @Operation(summary = "禁用用户")
+    @SaCheckRole("system_admin")
+    public Result<Void> disableUser(@PathVariable Long id) {
+        userService.disableUser(id);
+        return Result.success();
     }
 
 }

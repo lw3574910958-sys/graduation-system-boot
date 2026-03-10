@@ -98,7 +98,7 @@ public class DepartmentController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新院系")
-    @SaCheckRole({"system_admin", "department_admin"}) // 管理员可完全更新，院系管理员可有限更新
+    @SaCheckRole({"system_admin"}) // 管理员可完全更新，院系管理员可有限更新
     public Result<Void> updateDepartment(@PathVariable Long id, @Validated @RequestBody DepartmentUpdateDTO updateDTO) {
         departmentService.updateDepartment(id, updateDTO);
         return Result.success();
