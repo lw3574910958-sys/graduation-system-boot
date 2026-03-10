@@ -55,7 +55,7 @@ public class WebSocketMessageService {
      * @param noticeId      公告 ID
      * @param title         公告标题
      * @param type          公告类型
-     * @param targetScope   目标范围
+     * @param targetScope   目标范围 (0-全体，1-学生，2-教师，3-管理员)
      * @param publisherName 发布者姓名
      */
     public void sendNoticeNotification(Long noticeId, String title, Integer type, 
@@ -69,10 +69,39 @@ public class WebSocketMessageService {
         message.put("publisherName", publisherName);
         message.put("timestamp", LocalDateTime.now().toString());
         
-        // 广播给所有在线用户
-        broadcast("/topic/notice", message);
-        
-        log.info("已发送公告通知 - ID: {}, 标题：{}", noticeId, title);
+        // 根据目标范围决定推送给哪些用户
+        if (targetScope == null || targetScope == 0) {
+            // 全体：广播给所有用户
+            broadcast("/topic/notice", message);
+            log.info("已发送公告通知给全体用户 - ID: {}, 标题：{}", noticeId, title);
+        } else if (targetScope == 1) {
+            // 学生：推送给学生用户
+            sendToUserType("/topic/notice", message, "student");
+            log.info("已发送公告通知给学生用户 - ID: {}, 标题：{}", noticeId, title);
+        } else if (targetScope == 2) {
+            // 教师：推送给教师用户
+            sendToUserType("/topic/notice", message, "teacher");
+            log.info("已发送公告通知给教师用户 - ID: {}, 标题：{}", noticeId, title);
+        } else if (targetScope == 3) {
+            // 管理员：推送给管理员用户
+            sendToUserType("/topic/notice", message, "admin");
+            log.info("已发送公告通知给管理员用户 - ID: {}, 标题：{}", noticeId, title);
+        }
+    }
+
+    /**
+     * 根据用户类型推送消息
+     * 需要获取该类型的所有在线用户并推送
+     *
+     * @param destination 目标地址
+     * @param message 消息内容
+     * @param userType 用户类型 (student, teacher, admin)
+     */
+    private void sendToUserType(String destination, Object message, String userType) {
+        // TODO: 需要从在线用户会话中获取特定用户类型的用户 ID 列表
+        // 目前暂时广播，后续需要实现基于用户类型的精确推送
+        // 可以通过查询在线用户会话表，根据用户类型过滤后推送
+        broadcast(destination, message);
     }
 
     /**

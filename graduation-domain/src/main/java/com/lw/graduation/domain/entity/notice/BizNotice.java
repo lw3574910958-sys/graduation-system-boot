@@ -188,12 +188,33 @@ public class BizNotice implements Serializable {
 
     /**
      * 检查通知是否在有效期内
+     * 规则：
+     * 1. 如果 startTime 和 endTime 都为 null，则认为始终有效
+     * 2. 如果只有 startTime，则当前时间 >= startTime 时有效
+     * 3. 如果只有 endTime，则当前时间 <= endTime 时有效
+     * 4. 如果两者都有，则需要在 [startTime, endTime] 范围内才有效
      *
-     * @return 有效返回true
+     * @return 有效返回 true
      */
     public boolean isEffective() {
         LocalDateTime now = LocalDateTime.now();
-        return (this.startTime == null || !now.isBefore(this.startTime)) &&
-               (this.endTime == null || !now.isAfter(this.endTime));
+            
+        // 如果都没有设置，认为始终有效
+        if (this.startTime == null && this.endTime == null) {
+            return true;
+        }
+            
+        // 如果只有开始时间，当前时间必须 >= startTime
+        if (this.startTime != null && this.endTime == null) {
+            return !now.isBefore(this.startTime);
+        }
+            
+        // 如果只有结束时间，当前时间必须 <= endTime
+        if (this.startTime == null && this.endTime != null) {
+            return !now.isAfter(this.endTime);
+        }
+            
+        // 两者都有，需要在范围内
+        return !now.isBefore(this.startTime) && !now.isAfter(this.endTime);
     }
 }

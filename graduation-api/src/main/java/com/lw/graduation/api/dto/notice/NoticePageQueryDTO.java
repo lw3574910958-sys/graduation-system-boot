@@ -58,8 +58,22 @@ public class NoticePageQueryDTO extends BasePageQueryDTO {
     private Integer targetScope;
 
     /**
-     * 发布者ID
+     * 发布者 ID
      */
-    @Schema(description = "发布者ID")
+    @Schema(description = "发布者 ID")
     private Long publisherId;
+
+    /**
+     * 当前用户类型（用于过滤目标范围）
+     * 0-学生，1-教师，2-管理员
+     */
+    @Schema(description = "当前用户类型（用于过滤目标范围）")
+    private Integer currentUserType;
+
+    /**
+     * 生效状态过滤
+     * effective-生效中，pending-待生效，expired-已过期
+     */
+    @Schema(description = "生效状态过滤")
+    private String effectiveStatus;
 }

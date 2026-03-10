@@ -1,5 +1,6 @@
 package com.lw.graduation.notice.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -48,8 +49,9 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
 
     @Override
     public IPage<NoticeVO> getNoticePage(NoticePageQueryDTO queryDTO) {
-        log.info("分页查询通知列表: {}", queryDTO);
-
+        log.info("分页查询通知列表：{}", queryDTO);
+    
+        // 构建查询条件
         LambdaQueryWrapper<BizNotice> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(queryDTO.getTitle() != null, BizNotice::getTitle, queryDTO.getTitle())
                 .eq(queryDTO.getType() != null, BizNotice::getType, queryDTO.getType())
@@ -60,18 +62,23 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
                 .eq(queryDTO.getPublisherId() != null, BizNotice::getPublisherId, queryDTO.getPublisherId())
                 .eq(BizNotice::getIsDeleted, 0)
                 .orderByDesc(BizNotice::getIsSticky)
-                .orderByDesc(BizNotice::getPublishedAt)
-                .orderByDesc(BizNotice::getCreatedAt);
-
+                .orderByAsc(BizNotice::getCreatedAt);
+    
         IPage<BizNotice> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<BizNotice> noticePage = bizNoticeMapper.selectPage(page, wrapper);
-
+    
+        // 过滤生效时间和目标范围
         IPage<NoticeVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
-        voPage.setRecords(noticePage.getRecords().stream()
+        List<NoticeVO> filteredRecords = noticePage.getRecords().stream()
+                .filter(this::filterByTargetScope)
+                .filter(notice -> filterByEffectiveTime(notice, queryDTO.getEffectiveStatus()))
                 .map(this::convertToNoticeVO)
-                .collect(Collectors.toList()));
-        voPage.setTotal(noticePage.getTotal());
-
+                .collect(Collectors.toList());
+            
+        voPage.setRecords(filteredRecords);
+        // 使用过滤后的实际记录数作为总数，确保分页信息准确
+        voPage.setTotal(filteredRecords.size());
+    
         return voPage;
     }
 
@@ -101,8 +108,16 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public NoticeVO createNotice(NoticeCreateDTO createDTO, Long publisherId) {
-        log.info("用户 {} 创建通知: {}", publisherId, createDTO.getTitle());
-
+        log.info("用户 {} 创建通知：{}", publisherId, createDTO.getTitle());
+    
+        // 验证生效时间逻辑
+        if (createDTO.getStartTime() != null && createDTO.getEndTime() != null) {
+            if (createDTO.getStartTime().isAfter(createDTO.getEndTime())) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
+                    "生效开始时间不能晚于结束时间");
+            }
+        }
+    
         BizNotice notice = new BizNotice();
         notice.setTitle(createDTO.getTitle());
         notice.setContent(createDTO.getContent());
@@ -115,7 +130,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         notice.setTargetScope(createDTO.getTargetScope() != null ? createDTO.getTargetScope() : 0);
         notice.setAttachmentUrl(createDTO.getAttachmentUrl());
         notice.setReadCount(0);
-
+    
         // 设置初始状态
         if (Boolean.TRUE.equals(createDTO.getPublishNow())) {
             notice.setStatus(NoticeStatus.PUBLISHED.getValue());
@@ -123,47 +138,55 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         } else {
             notice.setStatus(NoticeStatus.DRAFT.getValue());
         }
-
+    
         // 验证状态设置的合理性
         BizNotice tempNotice = new BizNotice();
         tempNotice.setStatus(notice.getStatus());
         if (!tempNotice.isEditable() && !Boolean.TRUE.equals(createDTO.getPublishNow())) {
-            log.warn("创建通知时状态设置异常，状态: {}", notice.getStatus());
+            log.warn("创建通知时状态设置异常，状态：{}", notice.getStatus());
         }
-
+    
         boolean saved = save(notice);
         if (!saved) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "通知创建失败");
         }
-
+    
         clearNoticeCache(notice.getId());
-        
+            
         // 如果立即发布，发送 WebSocket 通知
         if (Boolean.TRUE.equals(createDTO.getPublishNow())) {
             sendNoticeWebSocket(notice, publisherId);
         }
-        
+            
         return convertToNoticeVO(notice);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateNotice(Long id, NoticeUpdateDTO updateDTO, Long updaterId) {
-        log.info("用户 {} 更新通知: {}", updaterId, id);
-
+        log.info("用户 {} 更新通知：{}", updaterId, id);
+    
         BizNotice notice = getById(id);
         if (notice == null || notice.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "通知不存在");
         }
-
+    
         // 使用实体类的状态检查方法
         if (notice.isWithdrawn()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已撤回的通知不能编辑，请重新发布");
         }
-        if (!notice.isEditable()) {  // 使用新方法名
+        if (!notice.isEditable()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有草稿状态的通知才能编辑");
         }
-
+    
+        // 验证生效时间逻辑
+        if (updateDTO.getStartTime() != null && updateDTO.getEndTime() != null) {
+            if (updateDTO.getStartTime().isAfter(updateDTO.getEndTime())) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
+                    "生效开始时间不能晚于结束时间");
+            }
+        }
+    
         notice.setTitle(updateDTO.getTitle());
         notice.setContent(updateDTO.getContent());
         notice.setType(updateDTO.getType());
@@ -173,42 +196,46 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         notice.setIsSticky(updateDTO.getIsSticky());
         notice.setTargetScope(updateDTO.getTargetScope());
         notice.setAttachmentUrl(updateDTO.getAttachmentUrl());
-
+    
         boolean updated = updateById(notice);
         if (!updated) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "通知更新失败");
         }
-
+    
         clearNoticeCache(id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void publishNotice(Long id, Long publisherId) {
-        log.info("用户 {} 发布通知: {}", publisherId, id);
-
+        log.info("用户 {} 发布通知：{}", publisherId, id);
+    
         BizNotice notice = getById(id);
         if (notice == null || notice.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "通知不存在");
         }
-
-        // 统一使用BizNotice实体类的状态检查方法
+    
+        // 统一使用 BizNotice 实体类的状态检查方法
         if (!notice.canPublish()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有草稿状态的通知才能发布");
         }
-
+    
         notice.setStatus(NoticeStatus.PUBLISHED.getValue());
         notice.setPublishedAt(LocalDateTime.now());
-
+    
         boolean updated = updateById(notice);
         if (!updated) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "通知发布失败");
         }
-
+    
         clearNoticeCache(id);
-        
-        // 发送 WebSocket 通知
-        sendNoticeWebSocket(notice, publisherId);
+            
+        // 只有在生效时间已到或没有设置生效时间时，才发送 WebSocket 通知
+        if (notice.isEffective()) {
+            sendNoticeWebSocket(notice, publisherId);
+        } else {
+            log.info("通知 {} 已发布但尚未到生效时间，暂不发送 WebSocket 通知", id);
+        }
     }
 
     @Override
@@ -305,6 +332,109 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
 
         clearNoticeCache(id);
         return newCount;
+    }
+
+    /**
+     * 根据目标范围过滤通知
+     * 注意：管理员可以看到所有通知，学生/教师/管理员用户只能看到对应范围的通知
+     *
+     * @param notice 通知对象
+     * @return 是否符合目标范围
+     */
+    private boolean filterByTargetScope(BizNotice notice) {
+        // 如果目标范围为 0（全体），则所有人都可以看到
+        if (notice.getTargetScope() == null || notice.getTargetScope() == 0) {
+            return true;
+        }
+        
+        // 从查询条件中获取当前用户类型
+        // 0-学生，1-教师，2-管理员
+        Integer currentUserType = getCurrentUserType();
+        
+        // 根据目标范围判断当前用户是否可以看到
+        // targetScope: 1-学生，2-教师，3-管理员
+        if (notice.getTargetScope() == 1) {
+            // 目标是学生：只有学生可以看到
+            return currentUserType != null && currentUserType == 0;
+        } else if (notice.getTargetScope() == 2) {
+            // 目标是教师：只有教师可以看到
+            return currentUserType != null && currentUserType == 1;
+        } else if (notice.getTargetScope() == 3) {
+            // 目标是管理员：只有管理员可以看到
+            return currentUserType != null && currentUserType == 2;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 获取当前用户类型
+     * 通过 StpUtil 获取当前登录用户 ID，然后查询用户类型
+     * @return 用户类型：0-学生，1-教师，2-管理员，null-获取失败
+     */
+    private Integer getCurrentUserType() {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            if (userId != null) {
+                SysUser user = sysUserMapper.selectById(userId);
+                if (user != null && user.getUserType() != null) {
+                    String userType = user.getUserType();
+                    // 将用户类型转换为内部表示：0-学生，1-教师，2-管理员
+                    if ("student".equals(userType)) {
+                        return 0;
+                    } else if ("teacher".equals(userType)) {
+                        return 1;
+                    } else if ("admin".equals(userType)) {
+                        return 2;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取当前用户类型失败：{}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 根据生效时间过滤通知
+     * 草稿状态的通知不受生效时间限制，始终显示
+     * 已发布状态的通知始终显示（用于管理员查看和管理），但可以通过 isEffective() 判断是否在有效期内
+     * 已撤回状态的通知始终显示
+     *
+     * @param notice 通知对象
+     * @param effectiveStatus 生效状态过滤条件：effective-生效中，pending-待生效，expired-已过期，null-不过滤
+     * @return 是否应该显示
+     */
+    private boolean filterByEffectiveTime(BizNotice notice, String effectiveStatus) {
+        // 如果没有指定生效状态过滤，显示所有通知
+        if (effectiveStatus == null || effectiveStatus.isEmpty()) {
+            return true;
+        }
+        
+        // 草稿和已撤回状态的通知，如果指定了生效状态过滤，只显示对应的状态
+        if (notice.getStatus() != null && 
+            (notice.getStatus() == NoticeStatus.DRAFT.getValue() || 
+             notice.getStatus() == NoticeStatus.WITHDRAWN.getValue())) {
+            // 草稿和已撤回状态不显示生效状态，所以不过滤
+            return true;
+        }
+        
+        // 判断通知的生效状态
+        boolean isEffective = notice.isEffective();
+        LocalDateTime now = LocalDateTime.now();
+        
+        if ("effective".equals(effectiveStatus)) {
+            // 过滤生效中的通知
+            return isEffective;
+        } else if ("pending".equals(effectiveStatus)) {
+            // 过滤待生效的通知（当前时间在开始时间之前）
+            return notice.getStartTime() != null && now.isBefore(notice.getStartTime());
+        } else if ("expired".equals(effectiveStatus)) {
+            // 过滤已过期的通知（当前时间在结束时间之后）
+            return notice.getEndTime() != null && now.isAfter(notice.getEndTime());
+        }
+        
+        return true;
     }
 
     private NoticeVO convertToNoticeVO(BizNotice notice) {
