@@ -53,5 +53,5 @@ public interface AuthService {
      *
      * @return 当前用户信息
      */
-    LoginUserInfoVO getCurrentUser();
+    LoginUserInfoVO getCurrentUserSimpleInfo();
 }

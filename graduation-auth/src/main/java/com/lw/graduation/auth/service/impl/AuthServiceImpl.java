@@ -16,8 +16,13 @@ import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
+import com.lw.graduation.common.util.EnumUtils;
+import com.lw.graduation.domain.entity.admin.BizAdmin;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.enums.common.IsDepartment;
 import com.lw.graduation.domain.enums.user.AccountStatus;
+import com.lw.graduation.domain.enums.user.UserType;
+import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +45,7 @@ import java.time.LocalDateTime;
 public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements AuthService {
 
     private final SysUserMapper sysUserMapper; // 注入用户数据访问层
+    private final BizAdminMapper bizAdminMapper;
     private final CaptchaUtil captchaUtil;     // 注入验证码工具类
     private final PasswordUtil passwordUtil;   // 注入密码工具类
     private  final CacheHelper cacheHelper;
@@ -91,7 +97,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         // 6. 检查账户状态是否为启用
-        AccountStatus accountStatus = AccountStatus.getByValue(user.getStatus());
+        AccountStatus accountStatus = EnumUtils.fromCode(AccountStatus.class, user.getStatus());
         if (accountStatus == AccountStatus.DISABLED) {
             // 即使密码正确，但账户被禁用，仍视为登录失败
             throw new BusinessException(ResponseCode.ACCOUNT_DISABLED);
@@ -216,7 +222,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 当前登录用户信息
      */
     @Override
-    public LoginUserInfoVO getCurrentUser() {
+    public LoginUserInfoVO getCurrentUserSimpleInfo() {
         // 从 Sa-Token 中获取当前登录用户ID
         Long userId = StpUtil.getLoginIdAsLong();
 
@@ -228,6 +234,11 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             if (user == null) {
                 log.debug("用户不存在: {}", userId);
                 return null; // 返回 null，CacheHelper 会处理空值标记
+            }
+            if (isDepartmentAdmin(user.getId())){
+                user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
+            } else {
+                user.setUserType(UserType.SYSTEM_ADMIN.getCode());
             }
             return convertToLoginUserInfoVO(user);
         }, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
@@ -268,5 +279,25 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      */
     private LoginUserInfoVO convertToLoginUserInfoVO(SysUser user) {
         return BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
+    }
+
+    /**
+     * 检查用户是否为院系管理员
+     *
+     * @param userId 用户ID
+     * @return true表示是院系管理员，false表示不是
+     */
+    private boolean isDepartmentAdmin(Long userId) {
+        try {
+            // 使用MyBatis-Plus的Lambda查询方式检查是否为院系管理员
+            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BizAdmin::getUserId, userId)
+                    .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode()); // role_level = 1 表示院系管理员
+
+            return bizAdminMapper.selectCount(wrapper) > 0;
+        } catch (Exception e) {
+            log.warn("检查院系管理员身份失败: userId={}", userId, e);
+        }
+        return false;
     }
 }

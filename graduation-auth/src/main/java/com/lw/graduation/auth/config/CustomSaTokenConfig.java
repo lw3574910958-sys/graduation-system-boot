@@ -4,6 +4,8 @@ import cn.dev33.satoken.stp.StpInterface;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lw.graduation.domain.entity.admin.BizAdmin;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.enums.common.IsDelete;
+import com.lw.graduation.domain.enums.common.IsDepartment;
 import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -43,26 +45,6 @@ public class CustomSaTokenConfig implements StpInterface {
         // 权限暂等于角色（可后续扩展）
         return getRoleList(loginId, loginType);
     }
-    /*@Override
-    public List<String> getPermissionList(Object loginId, String loginType) {
-        Long userId = toLong(loginId);
-        String userType = getUserTypeFromDB(userId);
-        if (userType == null) return Collections.emptyList();
-
-        List<String> perms = new ArrayList<>();
-        if ("admin".equals(userType)) {
-            perms.add("user:*");
-            perms.add("dept:*");
-            perms.add("log:view");
-        } else if ("teacher".equals(userType)) {
-            perms.add("course:manage");
-            perms.add("grade:edit");
-        } else if ("student".equals(userType)) {
-            perms.add("course:enroll");
-            perms.add("grade:view");
-        }
-        return perms;
-    }*/
 
     /**
      * 返回指定账号id所拥有的角色标识集合
@@ -130,8 +112,8 @@ public class CustomSaTokenConfig implements StpInterface {
             // 使用MyBatis-Plus的Lambda查询方式检查是否为院系管理员
             LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(BizAdmin::getUserId, userId)
-                   .eq(BizAdmin::getRoleLevel, 1)  // role_level = 1 表示院系管理员
-                   .eq(BizAdmin::getIsDeleted, 0);
+                   .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode())  // role_level = 1 表示院系管理员
+                   .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
             return bizAdminMapper.selectCount(wrapper) > 0;
         } catch (Exception e) {

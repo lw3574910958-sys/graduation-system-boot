@@ -30,7 +30,7 @@ public class UserPageQueryDTO extends BasePageQueryDTO {
     /**
      * 用户类型
      */
-    @Schema(description = "用户类型 (student-学生, teacher-教师, admin-管理员)")
+    @Schema(description = "用户类型 (student-学生, teacher-教师, system_admin-系统管理员, department_admin-院系管理员)")
     private String userType; // 对应 UserType 枚举
 
     /**

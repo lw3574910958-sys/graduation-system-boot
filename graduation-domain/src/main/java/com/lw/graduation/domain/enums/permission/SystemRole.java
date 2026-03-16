@@ -13,22 +13,22 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum SystemRole {
-    
+
     /**
      * 系统管理员 - 拥有最高权限，可管理所有用户和系统配置
      */
-    SYSTEM_ADMIN("system_admin", "系统管理员", UserType.ADMIN),
-    
+    SYSTEM_ADMIN("system_admin", "系统管理员", UserType.SYSTEM_ADMIN),
+
     /**
      * 院系管理员 - 管理特定院系的师生信息和毕业设计流程
      */
-    DEPARTMENT_ADMIN("department_admin", "院系管理员", UserType.ADMIN),
-    
+    DEPARTMENT_ADMIN("department_admin", "院系管理员", UserType.DEPARTMENT_ADMIN),
+
     /**
      * 教师角色 - 指导学生毕业设计，发布和审核题目
      */
     TEACHER("teacher", "教师", UserType.TEACHER),
-    
+
     /**
      * 学生角色 - 参与毕业设计，选题、提交文档等
      */
@@ -38,12 +38,12 @@ public enum SystemRole {
      * 角色编码
      */
     private final String code;
-    
+
     /**
      * 角色名称
      */
     private final String name;
-    
+
     /**
      * 对应的用户类型
      */
@@ -85,7 +85,7 @@ public enum SystemRole {
                 .filter(role -> role.userType == userType)
                 .toArray(SystemRole[]::new);
     }
-    
+
     /**
      * 判断是否为管理员角色
      *
@@ -94,7 +94,7 @@ public enum SystemRole {
     public boolean isAdmin() {
         return this == SYSTEM_ADMIN || this == DEPARTMENT_ADMIN;
     }
-    
+
     /**
      * 判断是否为系统管理员
      *
@@ -103,7 +103,7 @@ public enum SystemRole {
     public boolean isSystemAdmin() {
         return this == SYSTEM_ADMIN;
     }
-    
+
     /**
      * 判断是否为院系管理员
      *

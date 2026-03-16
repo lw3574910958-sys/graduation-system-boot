@@ -106,15 +106,15 @@ public class AuthController {
     }
 
     /**
-     * 获取当前登录用户信息
+     * 获取当前登录用户简易信息
      *
-     * @return 当前用户信息
+     * @return 当前用户简易信息
      */
     @GetMapping("/me")
     @SaCheckLogin // 需要登录才能获取用户信息
     @Operation(summary = "获取当前用户信息")
-    public Result<LoginUserInfoVO> getCurrentUser() {
-        LoginUserInfoVO userVO = authService.getCurrentUser();
+    public Result<LoginUserInfoVO> getCurrentUserSimpleInfo() {
+        LoginUserInfoVO userVO = authService.getCurrentUserSimpleInfo();
         return Result.success(userVO);
     }
 }

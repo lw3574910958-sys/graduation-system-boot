@@ -1,7 +1,6 @@
 package com.lw.graduation.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -22,11 +21,14 @@ import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 
+import com.lw.graduation.common.util.EnumUtils;
 import com.lw.graduation.domain.entity.admin.BizAdmin;
 import com.lw.graduation.domain.entity.department.SysDepartment;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.enums.common.IsDelete;
+import com.lw.graduation.domain.enums.common.IsDepartment;
 import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.domain.enums.user.UserType;
 import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
@@ -74,7 +76,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 .like(StringUtils.isNotBlank(queryDTO.getRealName()), SysUser::getRealName, queryDTO.getRealName())
                 .eq(queryDTO.getUserType() != null, SysUser::getUserType, queryDTO.getUserType())
                 .eq(queryDTO.getStatus() != null, SysUser::getStatus, queryDTO.getStatus())
-                .eq(SysUser::getIsDeleted, 0) // 只查询未删除的用户
+                .eq(SysUser::getIsDeleted, IsDelete.NOT_DELETED.getCode()) // 只查询未删除的用户
                 .orderByDesc(SysUser::getCreatedAt); // 按创建时间倒序
 
         // 2. 执行分页查询
@@ -131,13 +133,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         // 2. 验证用户类型是否有效
-        if (!UserType.isValid(createDTO.getUserType())) {
+        if (!EnumUtils.isValidCode(UserType.class, createDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
 
         // 3. 验证状态
         Integer status = createDTO.getStatus();
-        if (status != null && !AccountStatus.isValid(status)) {
+        if (status != null && !EnumUtils.isValidCode(AccountStatus.class, status)) {
             throw new BusinessException(ResponseCode.INVALID_STATUS);
         }
 
@@ -153,12 +155,12 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         user.setRealName(createDTO.getRealName());
         user.setPassword(passwordUtil.encryptPassword(password));
         user.setUserType(createDTO.getUserType());
-        user.setStatus(status != null ? status : AccountStatus.ENABLED.getValue());
+        user.setStatus(status != null ? status : AccountStatus.ENABLED.getCode());
         user.setLoginFailCount(0);
         user.setLastLoginAt(null);
         user.setAvatar(createDTO.getAvatar());
         //使用MyMetaObjectHandler自动填充时间
-        user.setIsDeleted(0);
+        user.setIsDeleted(IsDelete.NOT_DELETED.getCode());
 
         // 6. 插入数据库
         try {
@@ -194,7 +196,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             // 创建教师数据
             BizTeacher teacher = getBizTeacher(user, createDTO);
             bizTeacherMapper.insert(teacher);
-        } else if (UserType.ADMIN.getCode().equals(userType)) {
+        } else if (UserType.SYSTEM_ADMIN.getCode().equals(userType) || UserType.DEPARTMENT_ADMIN.getCode().equals(userType)) {
             // 创建管理员数据
             BizAdmin admin = getBizAdmin(user, createDTO);
             bizAdminMapper.insert(admin);
@@ -266,7 +268,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
         admin.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
         // 角色级别：根据院系 ID 是否为空判断（null 表示系统管理员，有院系表示院系管理员）
-        admin.setRoleLevel(admin.getDepartmentId() != null ? 1 : 0);
+        admin.setRoleLevel(admin.getDepartmentId() != null ? IsDepartment.DEPARTMENT.getCode() : IsDepartment.NOT_DEPARTMENT.getCode());
         admin.setPhone(createDTO.getPhone());
         admin.setEmail(createDTO.getEmail());
         return admin;
@@ -332,7 +334,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 teacher.setEmail(updateDTO.getEmail());
                 bizTeacherMapper.updateById(teacher);
             }
-        } else if (UserType.ADMIN.getCode().equals(userType)) {
+        } else if (UserType.SYSTEM_ADMIN.getCode().equals(userType) || UserType.DEPARTMENT_ADMIN.getCode().equals(userType)) {
             // 更新管理员数据
             LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(BizAdmin::getUserId, userId);
@@ -345,7 +347,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                     admin.setAdminId(updateDTO.getAdminId());
                 }
                 // 角色级别：根据院系 ID 是否为空判断（null 表示系统管理员，有院系表示院系管理员）
-                admin.setRoleLevel(admin.getDepartmentId() != null ? 1 : 0);
+                admin.setRoleLevel(admin.getDepartmentId() != null ? IsDepartment.DEPARTMENT.getCode() : IsDepartment.NOT_DEPARTMENT.getCode());
                 admin.setPhone(updateDTO.getPhone());
                 admin.setEmail(updateDTO.getEmail());
                 bizAdminMapper.updateById(admin);
@@ -375,7 +377,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 如果需要支持用户名修改，需要在 DTO 中添加 username 字段
 
         // 验证用户类型
-        if (!UserType.isValid(updateDTO.getUserType())) {
+        if (!EnumUtils.isValidCode(UserType.class, updateDTO.getUserType())) {
             throw new BusinessException(ResponseCode.USER_TYPE_INVALID);
         }
 
@@ -387,7 +389,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         // 状态
-        if (!AccountStatus.isValid(updateDTO.getStatus())) {
+        if (!EnumUtils.isValidCode(AccountStatus.class, updateDTO.getStatus())) {
             throw new BusinessException(ResponseCode.INVALID_STATUS);
         }
 
@@ -510,7 +512,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
 
         // 2. 检查当前状态是否与目标状态相同
-        AccountStatus currentStatus = AccountStatus.getByValue(user.getStatus());
+        AccountStatus currentStatus = EnumUtils.fromCode(AccountStatus.class, user.getStatus());
         if (currentStatus == status) {
             String action = status.isEnabled() ? "启用" : "禁用";
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(),
@@ -520,7 +522,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 3. 更新状态
         SysUser updateUser = new SysUser();
         updateUser.setId(id);
-        updateUser.setStatus(status.getValue());
+        updateUser.setStatus(status.getCode());
 
         sysUserMapper.updateById(updateUser);
 
@@ -543,8 +545,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         UserListInfoVO vo = BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
 
         // 2. 根据用户类型，从对应的业务表中获取额外字段
-        String userType = user.getUserType();
-        if (UserType.STUDENT.getCode().equals(userType)) {
+        if (UserType.STUDENT.getCode().equals(user.getUserType())) {
             // 学生：从 biz_student 表获取
             BizStudent student = bizStudentMapper.selectOne(
                 new LambdaQueryWrapper<BizStudent>().eq(BizStudent::getUserId, user.getId())
@@ -566,7 +567,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                     }
                 }
             }
-        } else if (UserType.TEACHER.getCode().equals(userType)) {
+        } else if (UserType.TEACHER.getCode().equals(user.getUserType())) {
             // 教师：从 biz_teacher 表获取
             BizTeacher teacher = bizTeacherMapper.selectOne(
                 new LambdaQueryWrapper<BizTeacher>().eq(BizTeacher::getUserId, user.getId())
@@ -587,7 +588,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                     }
                 }
             }
-        } else if (UserType.ADMIN.getCode().equals(userType)) {
+        } else if (UserType.SYSTEM_ADMIN.getCode().equals(user.getUserType()) || UserType.DEPARTMENT_ADMIN.getCode().equals(user.getUserType())) {
             // 管理员：从 biz_admin 表获取
             BizAdmin admin = bizAdminMapper.selectOne(
                 new LambdaQueryWrapper<BizAdmin>().eq(BizAdmin::getUserId, user.getId())
@@ -600,7 +601,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 vo.setRoleLevel(admin.getRoleLevel());
 
                 // 填充院系名称
-                if (admin.getDepartmentId() != null) {
+                if (admin.getRoleLevel().equals(IsDepartment.DEPARTMENT.getCode())) {
                     SysDepartment dept = sysDepartmentMapper.selectById(admin.getDepartmentId());
                     if (dept != null) {
                         vo.setDepartmentName(dept.getName());
@@ -630,15 +631,14 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 学生详情 VO
      */
     @Override
-    public com.lw.graduation.api.vo.student.StudentVO getStudentByUserId(Long userId) {
+    public StudentVO getStudentByUserId(Long userId) {
         if (userId == null) {
             return null;
         }
 
         // 1. 查询学生信息
         BizStudent student = bizStudentMapper.selectOne(
-            new QueryWrapper<BizStudent>()
-                .eq("user_id", userId)
+                new LambdaQueryWrapper<BizStudent>().eq(BizStudent::getUserId, userId)
         );
 
         if (student == null) {
@@ -666,15 +666,14 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 教师详情 VO
      */
     @Override
-    public com.lw.graduation.api.vo.teacher.TeacherVO getTeacherByUserId(Long userId) {
+    public TeacherVO getTeacherByUserId(Long userId) {
         if (userId == null) {
             return null;
         }
 
         // 1. 查询教师信息
         BizTeacher teacher = bizTeacherMapper.selectOne(
-            new QueryWrapper<BizTeacher>()
-                .eq("user_id", userId)
+                new LambdaQueryWrapper<BizTeacher>().eq(BizTeacher::getUserId, userId)
         );
 
         if (teacher == null) {
@@ -709,8 +708,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 1. 查询管理员信息
         BizAdmin admin = bizAdminMapper.selectOne(
-            new QueryWrapper<BizAdmin>()
-                .eq("user_id", userId)
+                new LambdaQueryWrapper<BizAdmin>().eq(BizAdmin::getUserId, userId)
         );
 
         if (admin == null) {
@@ -721,17 +719,15 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         AdminVO vo = BeanMapperUtil.copyProperties(admin, AdminVO.class);
 
         // 3. 填充院系名称（如果是院系管理员）
-        if (admin.getDepartmentId() != null) {
+        if (admin.getRoleLevel().equals(IsDepartment.DEPARTMENT.getCode())) {
             SysDepartment dept = sysDepartmentMapper.selectById(admin.getDepartmentId());
             if (dept != null) {
                 vo.setDepartmentName(dept.getName());
             }
+            vo.setRoleLevelDesc(UserType.DEPARTMENT_ADMIN.getDescription());
         }
 
-        // 4. 设置角色级别描述
-        if (admin.getRoleLevel() != null) {
-            vo.setRoleLevelDesc(admin.getRoleLevel() == 0 ? "系统管理员" : "院系管理员");
-        }
+        vo.setRoleLevelDesc(UserType.SYSTEM_ADMIN.getDescription());
 
         return vo;
     }

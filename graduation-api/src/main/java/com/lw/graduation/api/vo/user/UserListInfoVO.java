@@ -36,9 +36,9 @@ public class UserListInfoVO {
     private String realName;
 
     /**
-     * 用户类型 (student-学生, teacher-教师, admin-管理员)
+     * 用户类型 (student-学生, teacher-教师, system_admin-系统管理员, department_admin-院系管理员)
      */
-    @Schema(description = "用户类型 (student-学生, teacher-教师, admin-管理员)")
+    @Schema(description = "用户类型 (student-学生, teacher-教师, system_admin-系统管理员, department_admin-院系管理员)")
     private String userType;
 
     /**

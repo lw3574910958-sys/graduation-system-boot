@@ -1,55 +1,33 @@
-# =============== Maven ===============
+# =============== Build Artifacts ===============
 target/
-.mvn/wrapper/maven-wrapper.jar
-.mvn/wrapper/maven-wrapper.properties
-
-# =============== Gradle ===============
-.gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar  # 保留 wrapper jar（官方推荐提交）
-!gradle/wrapper/gradle-wrapper.properties
+out/
+dist/
 
-# =============== IntelliJ IDEA ===============
-# 完全忽略用户专属配置（避免污染仓库）
+# =============== Maven Wrapper ===============
+.mvn/wrapper/maven-wrapper.jar
+
+# =============== IDE ===============
 .idea/
-
-# 但显式保留团队共享的运行配置（按需取消注释）
-# !.idea/runConfigurations/
-# !.idea/codeStyles/
-
-# =============== 其他 IDE ===============
 .vscode/
-*.swp
-*.swo
 
-# =============== 通用忽略 ===============
-# 日志与临时文件
+# =============== Logs & Temp ===============
 *.log
 *.tmp
-*.temp
 *.bak
-*.orig
-*.rej
 *~
+Thumbs.db
+.DS_Store
 
-# 环境与密钥
+# =============== Secrets & Env ===============
 .env
-*.env
 *.jks
 *.keystore
 secrets/
 credentials/
 
-# 构建产物
-out/
-dist/
+# =============== Node (if any) ===============
 node_modules/
-
-# 系统文件
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# 编辑器备份
-*#
-.#*
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
