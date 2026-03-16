@@ -6,35 +6,50 @@ target/
 # =============== Gradle ===============
 .gradle/
 build/
+!gradle/wrapper/gradle-wrapper.jar  # 保留 wrapper jar（官方推荐提交）
+!gradle/wrapper/gradle-wrapper.properties
 
 # =============== IntelliJ IDEA ===============
-# 忽略用户特定配置
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/usage.statistics.xml
-.idea/dictionaries/
-.idea/shelf/
-.idea/aws.xml
-.idea/runConfigurations/
-.idea/uiDesigner.xml
-# 可选忽略（若团队未统一）
-.idea/encodings.xml
-.idea/vcs.xml
+# 完全忽略用户专属配置（避免污染仓库）
+.idea/
 
-# 忽略可再生内容
-.idea/libraries/
-.idea/artifacts/
-out/
+# 但显式保留团队共享的运行配置（按需取消注释）
+# !.idea/runConfigurations/
+# !.idea/codeStyles/
 
-# 忽略临时文件
-*.iws
-
-# =============== 其他通用忽略 ===============
+# =============== 其他 IDE ===============
 .vscode/
+*.swp
+*.swo
+
+# =============== 通用忽略 ===============
+# 日志与临时文件
 *.log
 *.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*~
+
+# 环境与密钥
 .env
+*.env
 *.jks
+*.keystore
+secrets/
+credentials/
+
+# 构建产物
+out/
+dist/
 node_modules/
+
+# 系统文件
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# 编辑器备份
+*#
+.#*
