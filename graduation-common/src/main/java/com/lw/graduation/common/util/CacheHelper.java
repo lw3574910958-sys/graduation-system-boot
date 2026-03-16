@@ -144,9 +144,23 @@ public class CacheHelper {
     public void evictCache(String key) {
         try {
             redisTemplate.delete(key);
-            log.debug("缓存已清除: {}", key);
+            log.debug("缓存已清除：{}", key);
         } catch (Exception e) {
-            log.error("清除缓存失败: {}, error: {}", key, e.getMessage(), e);
+            log.error("清除缓存失败：{}, error: {}", key, e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 按模式清除缓存（支持通配符）
+     *
+     * @param pattern 缓存键模式，例如 "user:*"
+     */
+    public void evictPattern(String pattern) {
+        try {
+            redisTemplate.delete(redisTemplate.keys(pattern));
+            log.debug("按模式清除缓存成功：pattern={}", pattern);
+        } catch (Exception e) {
+            log.error("按模式清除缓存失败：pattern={}, error: {}", pattern, e.getMessage(), e);
         }
     }
 

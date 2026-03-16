@@ -223,7 +223,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      */
     @Override
     public LoginUserInfoVO getCurrentUserSimpleInfo() {
-        // 从 Sa-Token 中获取当前登录用户ID
+        // 从 Sa-Token 中获取当前登录用户 ID
         Long userId = StpUtil.getLoginIdAsLong();
 
         String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
@@ -232,14 +232,22 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             // 从数据库查询用户信息
             SysUser user = sysUserMapper.selectById(userId);
             if (user == null) {
-                log.debug("用户不存在: {}", userId);
+                log.debug("用户不存在：{}", userId);
                 return null; // 返回 null，CacheHelper 会处理空值标记
             }
-            if (isDepartmentAdmin(user.getId())){
+
+            // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
+            if (UserType.ADMIN.getCode().equals(user.getUserType())) {
+                if (isDepartmentAdmin(user.getId())) {
+                    user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
+                } else {
+                    user.setUserType(UserType.SYSTEM_ADMIN.getCode());
+                }
+            } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && isDepartmentAdmin(user.getId())) {
+                // 教师也可能是院系管理员
                 user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
-            } else {
-                user.setUserType(UserType.SYSTEM_ADMIN.getCode());
             }
+
             return convertToLoginUserInfoVO(user);
         }, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
     }
@@ -251,9 +259,18 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     public void clearCurrentUserCache(Long userId) {
         if (userId != null) {
             String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
-            log.debug("用户{}登出，清除缓存: {}",userId, cacheKey);
+            log.debug("用户{}登出，清除缓存：{}",userId, cacheKey);
             cacheHelper.evictCache(cacheKey);
         }
+    }
+    
+    /**
+     * 清除所有用户缓存（用于系统初始化或用户类型变更时）
+     */
+    public void clearAllUserCache() {
+        String pattern = CacheConstants.KeyPrefix.CURRENT_USER + "*";
+        log.debug("清除所有用户缓存，pattern={}", pattern);
+        cacheHelper.evictPattern(pattern);
     }
 
     /**
@@ -263,10 +280,22 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (userId != null) {
             SysUser user = sysUserMapper.selectById(userId);
             if (user != null) {
+                // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
+                if (UserType.ADMIN.getCode().equals(user.getUserType())) {
+                    if (isDepartmentAdmin(user.getId())) {
+                        user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
+                    } else {
+                        user.setUserType(UserType.SYSTEM_ADMIN.getCode());
+                    }
+                } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && isDepartmentAdmin(user.getId())) {
+                    // 教师也可能是院系管理员
+                    user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
+                }
+    
                 String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
                 LoginUserInfoVO userInfo = convertToLoginUserInfoVO(user);
                 cacheHelper.putToCache(cacheKey, userInfo, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
-                log.debug("预热当前用户缓存: {}", cacheKey);
+                log.debug("预热当前用户缓存：{}, userType={}", cacheKey, userInfo.getUserType());
             }
         }
     }

@@ -16,6 +16,7 @@ public enum UserType implements IEnum<String> {
     /**
      * 登录用户枚举
      */
+    ADMIN("admin", "管理员"), // 兼容旧数据
     STUDENT("student", "学生"),
     TEACHER("teacher", "教师"),
     SYSTEM_ADMIN("system_admin", "系统管理员"),
