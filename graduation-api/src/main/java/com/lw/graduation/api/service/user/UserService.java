@@ -5,6 +5,7 @@ import com.lw.graduation.api.dto.user.UserChangePasswordDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
+import com.lw.graduation.api.vo.user.UserDetailsInfoVO;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
 
 /**
@@ -24,12 +25,12 @@ public interface UserService{
     IPage<UserListInfoVO> getUserPage(UserPageQueryDTO queryDTO);
 
     /**
-     * 根据用户 ID获取用户详情（统一返回 UserListInfoVO）
+     * 根据用户 ID获取用户详情（统一返回 UserDetailsInfoVO）
      *
      * @param userId 用户 ID
      * @return 用户详情 VO
      */
-    UserListInfoVO getUserByUserId(Long userId);
+    UserDetailsInfoVO getUserByUserId(Long userId);
 
     /**
      * 创建新用户

@@ -10,6 +10,7 @@ import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
+import com.lw.graduation.api.vo.user.UserDetailsInfoVO;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.constant.CacheConstants;
@@ -91,26 +92,26 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     }
 
     /**
-     * 根据用户 ID获取用户详情（统一返回 UserListInfoVO）
+     * 根据用户 ID获取用户详情（统一返回 UserDetailsInfoVO）
      *
      * @param userId 用户 ID
      * @return 用户详情 VO
      */
     @Override
-    public UserListInfoVO getUserByUserId(Long userId) {
+    public UserDetailsInfoVO getUserByUserId(Long userId) {
         if (userId == null) {
             return null;
         }
 
         String cacheKey = CacheConstants.KeyPrefix.USER_INFO + userId;
 
-        return cacheHelper.getFromCache(cacheKey, UserListInfoVO.class, () -> {
+        return cacheHelper.getFromCache(cacheKey, UserDetailsInfoVO.class, () -> {
             SysUser user = sysUserMapper.selectById(userId);
             if (user == null) {
                 log.debug("用户不存在: {}", userId);
                 return null; // 返回 null，CacheHelper 会处理空值标记
             }
-            return convertToUserListInfoVO(user);
+            return convertToUserDetailsInfoVO(user);
         }, CacheConstants.ExpireTime.USER_INFO_EXPIRE);
     }
 
@@ -530,7 +531,6 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         log.info("用户 {} 账户{}成功，ID: {}", user.getUsername(), action, id);
     }
 
-
     /**
      * 将 SysUser 实体转换为 UserListInfoVO 视图对象
      *
@@ -538,8 +538,18 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * @return 用户视图对象
      */
     private UserListInfoVO convertToUserListInfoVO(SysUser user) {
+        return BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
+    }
+
+    /**
+     * 将 SysUser 实体转换为 UserDetailsInfoVO 视图对象
+     *
+     * @param user 用户实体
+     * @return 用户视图对象
+     */
+    private UserDetailsInfoVO convertToUserDetailsInfoVO(SysUser user) {
         // 1. 复制基本属性
-        UserListInfoVO vo = BeanMapperUtil.copyProperties(user, UserListInfoVO.class);
+        UserDetailsInfoVO vo = BeanMapperUtil.copyProperties(user, UserDetailsInfoVO.class);
 
         // 2. 根据用户类型，从对应的业务表中获取额外字段
         if (UserType.STUDENT.getCode().equals(user.getUserType())) {

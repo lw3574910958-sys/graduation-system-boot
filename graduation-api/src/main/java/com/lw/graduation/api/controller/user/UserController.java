@@ -8,8 +8,9 @@ import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
-import com.lw.graduation.api.vo.user.UserListInfoVO;
+import com.lw.graduation.api.vo.user.UserDetailsInfoVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -63,7 +63,7 @@ public class UserController {
     @GetMapping("/{userId}")
     @Operation(summary = "根据用户 ID获取用户详情")
     @SaCheckRole({"system_admin"})
-    public Result<UserListInfoVO> getUserByUserId(@PathVariable Long userId) {
+    public Result<UserDetailsInfoVO> getUserByUserId(@PathVariable Long userId) {
         return Result.success(userService.getUserByUserId(userId));
     }
 
@@ -124,7 +124,7 @@ public class UserController {
         userService.changeOwnPassword(currentUserId, dto);
         return Result.success();
     }
-    
+
     /**
      * 启用用户
      *
