@@ -10,9 +10,6 @@ import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.api.dto.user.UserPageQueryDTO;
 import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
-import com.lw.graduation.api.vo.admin.AdminVO;
-import com.lw.graduation.api.vo.student.StudentVO;
-import com.lw.graduation.api.vo.teacher.TeacherVO;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.constant.CacheConstants;
@@ -94,23 +91,23 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     }
 
     /**
-     * 根据ID获取用户详情（带缓存穿透防护）
+     * 根据用户 ID获取用户详情（统一返回 UserListInfoVO）
      *
-     * @param id 用户ID
+     * @param userId 用户 ID
      * @return 用户详情 VO
      */
     @Override
-    public UserListInfoVO getUserById(Long id) {
-        if (id == null) {
+    public UserListInfoVO getUserByUserId(Long userId) {
+        if (userId == null) {
             return null;
         }
 
-        String cacheKey = CacheConstants.KeyPrefix.USER_INFO + id;
+        String cacheKey = CacheConstants.KeyPrefix.USER_INFO + userId;
 
         return cacheHelper.getFromCache(cacheKey, UserListInfoVO.class, () -> {
-            SysUser user = sysUserMapper.selectById(id);
+            SysUser user = sysUserMapper.selectById(userId);
             if (user == null) {
-                log.debug("用户不存在: {}", id);
+                log.debug("用户不存在: {}", userId);
                 return null; // 返回 null，CacheHelper 会处理空值标记
             }
             return convertToUserListInfoVO(user);
@@ -622,113 +619,5 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             cacheHelper.evictCache(cacheKey);
             log.debug("清除用户缓存：{}", cacheKey);
         }
-    }
-
-    /**
-     * 根据用户 ID 获取学生详情
-     *
-     * @param userId 用户 ID
-     * @return 学生详情 VO
-     */
-    @Override
-    public StudentVO getStudentByUserId(Long userId) {
-        if (userId == null) {
-            return null;
-        }
-
-        // 1. 查询学生信息
-        BizStudent student = bizStudentMapper.selectOne(
-                new LambdaQueryWrapper<BizStudent>().eq(BizStudent::getUserId, userId)
-        );
-
-        if (student == null) {
-            return null;
-        }
-
-        // 2. 转换为 VO
-        StudentVO vo = BeanMapperUtil.copyProperties(student, StudentVO.class);
-
-        // 3. 填充院系名称
-        if (student.getDepartmentId() != null) {
-            SysDepartment dept = sysDepartmentMapper.selectById(student.getDepartmentId());
-            if (dept != null) {
-                vo.setDepartmentName(dept.getName());
-            }
-        }
-
-        return vo;
-    }
-
-    /**
-     * 根据用户 ID 获取教师详情
-     *
-     * @param userId 用户 ID
-     * @return 教师详情 VO
-     */
-    @Override
-    public TeacherVO getTeacherByUserId(Long userId) {
-        if (userId == null) {
-            return null;
-        }
-
-        // 1. 查询教师信息
-        BizTeacher teacher = bizTeacherMapper.selectOne(
-                new LambdaQueryWrapper<BizTeacher>().eq(BizTeacher::getUserId, userId)
-        );
-
-        if (teacher == null) {
-            return null;
-        }
-
-        // 2. 转换为 VO
-        TeacherVO vo = BeanMapperUtil.copyProperties(teacher, TeacherVO.class);
-
-        // 3. 填充院系名称
-        if (teacher.getDepartmentId() != null) {
-            SysDepartment dept = sysDepartmentMapper.selectById(teacher.getDepartmentId());
-            if (dept != null) {
-                vo.setDepartmentName(dept.getName());
-            }
-        }
-
-        return vo;
-    }
-
-    /**
-     * 根据用户 ID 获取管理员详情
-     *
-     * @param userId 用户 ID
-     * @return 管理员详情 VO
-     */
-    @Override
-    public AdminVO getAdminByUserId(Long userId) {
-        if (userId == null) {
-            return null;
-        }
-
-        // 1. 查询管理员信息
-        BizAdmin admin = bizAdminMapper.selectOne(
-                new LambdaQueryWrapper<BizAdmin>().eq(BizAdmin::getUserId, userId)
-        );
-
-        if (admin == null) {
-            return null;
-        }
-
-        // 2. 转换为 VO
-        AdminVO vo = BeanMapperUtil.copyProperties(admin, AdminVO.class);
-
-        // 3. 填充院系名称（如果是院系管理员）
-        if (admin.getRoleLevel().equals(IsDepartment.DEPARTMENT.getCode())) {
-            SysDepartment dept = sysDepartmentMapper.selectById(admin.getDepartmentId());
-            if (dept != null) {
-                vo.setDepartmentName(dept.getName());
-            }
-            vo.setRoleLevelDesc(UserType.DEPARTMENT_ADMIN.getDescription());
-        }
-
-        vo.setRoleLevelDesc(UserType.SYSTEM_ADMIN.getDescription());
-
-        return vo;
     }
 }
