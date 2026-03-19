@@ -1,5 +1,6 @@
 package com.lw.graduation.user.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
@@ -77,11 +78,20 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 .eq(SysUser::getIsDeleted, IsDelete.NOT_DELETED.getCode()) // 只查询未删除的用户
                 .orderByDesc(SysUser::getCreatedAt); // 按创建时间倒序
 
-        // 2. 执行分页查询
+        // 2. 如果当前登录用户是院系管理员，则只返回该院系的学生和教师
+        if (isCurrentUserDepartmentAdmin()) {
+            Long departmentId = getCurrentUserDepartmentId();
+            if (departmentId != null) {
+                // 通过子查询限制只返回该院系的学生或教师
+                addDepartmentFilter(wrapper, departmentId);
+            }
+        }
+
+        // 3. 执行分页查询
         IPage<SysUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<SysUser> userPage = sysUserMapper.selectPage(page, wrapper);
 
-        // 3. 将实体列表转换为 VO 列表（优化：减少不必要的对象创建）
+        // 4. 将实体列表转换为 VO 列表（优化：减少不必要的对象创建）
         IPage<UserListInfoVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(userPage.getRecords().stream()
                 .map(this::convertToUserListInfoVO) // 转换方法
@@ -89,6 +99,64 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         voPage.setTotal(userPage.getTotal());
 
         return voPage;
+    }
+
+    /**
+     * 判断当前登录用户是否为院系管理员
+     * 复用 CustomSaTokenConfig 中的 isDepartmentAdmin 方法逻辑
+     *
+     * @return 是返回 true
+     */
+    private boolean isCurrentUserDepartmentAdmin() {
+        try {
+            Long currentUserId = StpUtil.getLoginIdAsLong();
+            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BizAdmin::getUserId, currentUserId)
+                   .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode())  // role_level = 1 表示院系管理员
+                   .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
+            return bizAdminMapper.selectCount(wrapper) > 0;
+        } catch (Exception e) {
+            log.warn("检查院系管理员身份失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取当前登录用户（院系管理员）所属的院系 ID
+     *
+     * @return 院系 ID
+     */
+    private Long getCurrentUserDepartmentId() {
+        try {
+            Long currentUserId = StpUtil.getLoginIdAsLong();
+            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BizAdmin::getUserId, currentUserId)
+                   .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+            BizAdmin admin = bizAdminMapper.selectOne(wrapper);
+            return admin != null ? admin.getDepartmentId() : null;
+        } catch (Exception e) {
+            log.warn("获取当前用户院系失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 添加院系过滤条件（通过子查询）
+     * 限制只返回指定院系的学生和教师
+     *
+     * @param wrapper 查询条件
+     * @param departmentId 院系 ID
+     */
+    private void addDepartmentFilter(LambdaQueryWrapper<SysUser> wrapper, Long departmentId) {
+        // 使用子查询同时过滤学生和教师
+        wrapper.and(w -> w
+            .inSql(SysUser::getId, 
+                String.format("SELECT user_id FROM biz_student WHERE department_id = %d AND is_deleted = 0", departmentId))
+            .or()
+            .inSql(SysUser::getId, 
+                String.format("SELECT user_id FROM biz_teacher WHERE department_id = %d AND is_deleted = 0", departmentId))
+        );
     }
 
     /**
@@ -175,6 +243,11 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             log.error("创建业务表数据失败，回滚用户创建：{}", e.getMessage());
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "创建业务数据失败：" + e.getMessage());
         }
+        
+        // 8. 清除缓存（虽然新用户没有缓存，但保持一致性）
+        clearUserCache(user.getId());
+        
+        log.info("创建用户成功：userId={}, username={}", user.getId(), user.getUsername());
     }
 
     /**
@@ -416,6 +489,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 6. 清除缓存
         clearUserCache(id);
+        
+        log.info("更新用户信息并清除缓存：userId={}", id);
     }
 
     /**
@@ -432,11 +507,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
 
-        // 2. 执行删除（MyBatis-Plus会自动处理逻辑删除，通过@TableLogic注解）
+        // 2. 执行删除（MyBatis-Plus 会自动处理逻辑删除，通过@TableLogic 注解）
         sysUserMapper.deleteById(id);
-
+    
         // 3. 清除缓存
         clearUserCache(id);
+            
+        log.info("删除用户成功并清除缓存：userId={}", id);
     }
 
    /**
@@ -472,6 +549,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         sysUserMapper.updateById(updateUser);
         clearUserCache(currentUserId);
+        
+        log.info("用户修改密码成功并清除缓存：userId={}", currentUserId);
     }
 
     /**
@@ -528,7 +607,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         clearUserCache(id);
 
         String action = status.isEnabled() ? "启用" : "禁用";
-        log.info("用户 {} 账户{}成功，ID: {}", user.getUsername(), action, id);
+        log.info("用户 {} 账户{}成功并清除缓存，ID: {}", user.getUsername(), action, id);
     }
 
     /**

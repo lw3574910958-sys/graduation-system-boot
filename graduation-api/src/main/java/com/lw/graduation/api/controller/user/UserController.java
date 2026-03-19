@@ -1,7 +1,7 @@
 package com.lw.graduation.api.controller.user;
 
-import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpUtil;
 import com.lw.graduation.api.dto.user.UserChangePasswordDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
@@ -49,7 +49,7 @@ public class UserController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询用户列表")
-    @SaCheckRole({"system_admin"})
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
     public Result<IPage<UserListInfoVO>> getUserPage(UserPageQueryDTO queryDTO) {
         return Result.success(userService.getUserPage(queryDTO));
     }
@@ -62,7 +62,7 @@ public class UserController {
      */
     @GetMapping("/{userId}")
     @Operation(summary = "根据用户 ID获取用户详情")
-    @SaCheckRole({"system_admin"})
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
     public Result<UserDetailsInfoVO> getUserByUserId(@PathVariable Long userId) {
         return Result.success(userService.getUserByUserId(userId));
     }
@@ -118,7 +118,7 @@ public class UserController {
      */
     @PostMapping("/my/password")
     @Operation(summary = "修改自己的密码")
-    @SaCheckLogin
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<Void> changeOwnPassword(@Validated @RequestBody UserChangePasswordDTO dto) {
         Long currentUserId = StpUtil.getLoginIdAsLong();
         userService.changeOwnPassword(currentUserId, dto);

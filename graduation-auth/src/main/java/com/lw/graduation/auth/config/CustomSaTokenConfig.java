@@ -65,13 +65,14 @@ public class CustomSaTokenConfig implements StpInterface {
         List<String> roleList = new ArrayList<>();
         switch (userType) {
             case "admin" -> {
-                // 不再添加 "admin"，而是直接赋予明确角色
-                roleList.add("system_admin"); // 所有 admin 都是系统管理员
-
                 if (isDepartmentAdmin(userId)) {
                     roleList.add("department_admin");
+                } else{
+                    roleList.add("system_admin");
                 }
             }
+            case "system_admin" -> roleList.add("system_admin");
+            case "department_admin" -> roleList.add("department_admin");
             case "teacher" -> {
                 roleList.add("teacher");
                 if (isDepartmentAdmin(userId)) {

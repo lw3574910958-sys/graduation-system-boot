@@ -31,5 +31,11 @@ public class LoginUserInfoVO {
      */
     @Schema(description = "用户类型")
     private String userType;
+    
+    /**
+     * 头像 URL
+     */
+    @Schema(description = "头像 URL")
+    private String avatar;
 
 }

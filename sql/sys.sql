@@ -19,7 +19,7 @@ CREATE TABLE `sys_user` (
   `username` VARCHAR(50) NOT NULL COMMENT '登录账号(学号/工号/管理员账号)',
   `password` VARCHAR(255) NOT NULL COMMENT '密码(bcrypt加密)',
   `real_name` VARCHAR(50) NOT NULL COMMENT '真实姓名',
-  `user_type` VARCHAR(20) NOT NULL COMMENT '用户类型: student, teacher, admin',
+  `user_type` VARCHAR(20) NOT NULL COMMENT '用户类型：student-学生，teacher-教师，system_admin-系统管理员，department_admin-院系管理员',
   `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 0-禁用, 1-启用',
   `avatar` VARCHAR(500) DEFAULT NULL COMMENT '头像URL或存储路径',
   `last_login_at` DATETIME(3) NULL DEFAULT NULL COMMENT '最后登录时间',
