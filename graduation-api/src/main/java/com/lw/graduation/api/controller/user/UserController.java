@@ -62,7 +62,7 @@ public class UserController {
      */
     @GetMapping("/{userId}")
     @Operation(summary = "根据用户 ID获取用户详情")
-    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<UserDetailsInfoVO> getUserByUserId(@PathVariable Long userId) {
         return Result.success(userService.getUserByUserId(userId));
     }
@@ -90,7 +90,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新用户信息")
-    @SaCheckRole({"system_admin"})
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<Void> updateUser(@PathVariable Long id, @Validated @RequestBody UserUpdateDTO updateDTO) {
         userService.updateUser(id, updateDTO);
         return Result.success();
