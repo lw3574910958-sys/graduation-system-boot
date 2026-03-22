@@ -1,7 +1,7 @@
 package com.lw.graduation.common.util;
 
 
-import com.lw.graduation.domain.enums.IEnum;
+import com.lw.graduation.common.enums.IEnum;
 
 import java.util.Arrays;
 import java.util.Map;

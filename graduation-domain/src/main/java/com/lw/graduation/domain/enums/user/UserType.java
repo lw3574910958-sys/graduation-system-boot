@@ -1,6 +1,6 @@
 package com.lw.graduation.domain.enums.user;
 
-import com.lw.graduation.domain.enums.IEnum;
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

@@ -1,6 +1,6 @@
 package com.lw.graduation.domain.enums.common;
 
-import com.lw.graduation.domain.enums.IEnum;
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -9,7 +9,7 @@ import lombok.Getter;
 public enum IsDelete implements IEnum<Integer> {
 
     /**
-     * 删除状态
+     * 未删除状态
      */
     NOT_DELETED(0, "正常"),
     DELETED(1, "删除");

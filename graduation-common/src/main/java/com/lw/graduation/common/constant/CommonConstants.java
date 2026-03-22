@@ -20,6 +20,10 @@ public class CommonConstants {
         public static final String TIME_ONLY = "HH:mm:ss";
         /** 紧凑日期时间格式 */
         public static final String COMPACT = "yyyyMMddHHmmss";
+        /** 毫秒级日期时间格式 */
+        public static final String MILLISECOND = "yyyyMMddHHmmssSSS";
+
+
     }
 
     /**

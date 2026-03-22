@@ -3,6 +3,7 @@ package com.lw.graduation.api.service.topic;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.topic.TopicCreateDTO;
 import com.lw.graduation.api.dto.topic.TopicPageQueryDTO;
+import com.lw.graduation.api.dto.topic.TopicReviewDTO;
 import com.lw.graduation.api.dto.topic.TopicUpdateDTO;
 import com.lw.graduation.api.vo.topic.TopicVO;
 
@@ -58,8 +59,16 @@ public interface TopicService {
      * 获取可选的课题列表
      * 只返回开放和审核中状态的题目
      *
-     * @param departmentId 院系ID（可选）
+     * @param departmentId 院系 ID（可选）
      * @return 可选课题列表
      */
     List<TopicVO> getSelectableTopics(Long departmentId);
+
+    /**
+     * 审核题目（院系管理员）
+     *
+     * @param reviewDTO 审核请求 DTO
+     * @param reviewerId 审核人 ID
+     */
+    void reviewTopic(TopicReviewDTO reviewDTO, Long reviewerId);
 }

@@ -1,9 +1,11 @@
 package com.lw.graduation.api.controller.topic;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.topic.TopicCreateDTO;
 import com.lw.graduation.api.dto.topic.TopicPageQueryDTO;
+import com.lw.graduation.api.dto.topic.TopicReviewDTO;
 import com.lw.graduation.api.dto.topic.TopicUpdateDTO;
 import com.lw.graduation.api.service.topic.TopicService;
 import com.lw.graduation.api.vo.topic.TopicVO;
@@ -101,6 +103,21 @@ public class TopicController {
     @SaCheckRole("teacher") // 仅教师可删除课题
     public Result<Void> deleteTopic(@PathVariable Long id) {
         topicService.deleteTopic(id);
+        return Result.success();
+    }
+
+    /**
+     * 审核题目（院系管理员）
+     *
+     * @param reviewDTO 审核请求 DTO
+     * @return 审核结果
+     */
+    @PostMapping("/review")
+    @Operation(summary = "审核题目（院系管理员）")
+    @SaCheckRole({"department_admin"}) // 仅院系管理员可审核题目
+    public Result<Void> reviewTopic(@Validated @RequestBody TopicReviewDTO reviewDTO) {
+        Long reviewerId = StpUtil.getLoginIdAsLong();
+        topicService.reviewTopic(reviewDTO, reviewerId);
         return Result.success();
     }
 }

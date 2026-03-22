@@ -32,6 +32,14 @@ public class CacheConstants {
         public static final String DOCUMENT_INFO = "document:info:";
         /** 所有院系列表缓存键 */
         public static final String ALL_DEPARTMENTS = "departments:all";
+        /** 仪表盘缓存前缀 */
+        public static final String DASHBOARD_PREFIX = "dashboard:";
+        /** 学生仪表盘缓存键 */
+        public static final String DASHBOARD_STUDENT = DASHBOARD_PREFIX + "student:";
+        /** 教师仪表盘缓存键 */
+        public static final String DASHBOARD_TEACHER = DASHBOARD_PREFIX + "teacher:";
+        /** 管理员仪表盘缓存键 */
+        public static final String DASHBOARD_ADMIN = DASHBOARD_PREFIX + "admin:";
     }
 
     /**
@@ -49,18 +57,20 @@ public class CacheConstants {
      */
     public static class ExpireTime {
         // 实际使用的过期时间
-        /** 院系信息缓存过期时间：2小时 */
+        /** 院系信息缓存过期时间：2 小时 */
         public static final int DEPARTMENT_INFO_EXPIRE = 7200;
-        /** 所有院系列表缓存过期时间：2小时 */
+        /** 所有院系列表缓存过期时间：2 小时 */
         public static final int ALL_DEPARTMENTS_EXPIRE = 7200;
-        /** 温数据缓存过期时间：1小时 */
+        /** 温数据缓存过期时间：1 小时 */
         public static final int WARM_DATA_EXPIRE = 3600;
-        /** 冷数据缓存过期时间：30分钟 */
+        /** 冷数据缓存过期时间：30 分钟 */
         public static final int COLD_DATA_EXPIRE = 1800;
-        /** 用户信息缓存过期时间：15分钟 */
+        /** 用户信息缓存过期时间：15 分钟 */
         public static final int USER_INFO_EXPIRE = 900;
-        /** 当前用户信息缓存过期时间：15分钟 */
+        /** 当前用户信息缓存过期时间：15 分钟 */
         public static final int CURRENT_USER_EXPIRE = 900;
+        /** 仪表盘缓存过期时间：5 分钟 */
+        public static final int DASHBOARD_EXPIRE = 300;
     }
 
 }

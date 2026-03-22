@@ -1,6 +1,6 @@
 package com.lw.graduation.domain.enums.user;
 
-import com.lw.graduation.domain.enums.IEnum;
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -30,7 +30,7 @@ public enum AccountStatus implements IEnum<Integer> {
     /**
      * 判断账户是否启用
      *
-     * @return 启用返回true
+     * @return 启用返回 true
      */
     public boolean isEnabled() {
         return this == ENABLED;
@@ -39,7 +39,7 @@ public enum AccountStatus implements IEnum<Integer> {
     /**
      * 判断账户是否禁用
      *
-     * @return 禁用返回true
+     * @return 禁用返回 true
      */
     public boolean isDisabled() {
         return this == DISABLED;

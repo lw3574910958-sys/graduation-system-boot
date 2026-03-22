@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.math.BigDecimal;
+
 /**
  * 成绩分页查询参数
  *
@@ -37,11 +39,11 @@ public class GradePageQueryDTO extends BasePageQueryDTO {
      * 最低成绩
      */
     @Schema(description = "最低成绩")
-    private java.math.BigDecimal minScore;
+    private BigDecimal minScore;
 
     /**
      * 最高成绩
      */
     @Schema(description = "最高成绩")
-    private java.math.BigDecimal maxScore;
+    private BigDecimal maxScore;
 }

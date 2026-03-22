@@ -26,6 +26,12 @@
 			<artifactId>graduation-domain</artifactId>
 		</dependency>
 
+		<!-- Common 模块 -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-common</artifactId>
+		</dependency>
+
 		<!-- MySQL 驱动 -->
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -79,12 +85,6 @@
 		<dependency>
 			<groupId>cn.hutool</groupId>
 			<artifactId>hutool-all</artifactId>
-		</dependency>
-
-		<!-- 公共模块（工具类、枚举等） -->
-		<dependency>
-			<groupId>com.lw.graduation</groupId>
-			<artifactId>graduation-common</artifactId>
 		</dependency>
 
 	</dependencies>

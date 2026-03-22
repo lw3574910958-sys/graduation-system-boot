@@ -237,6 +237,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             }
 
             // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
+            // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
             if (UserType.ADMIN.getCode().equals(user.getUserType())) {
                 if (isDepartmentAdmin(user.getId())) {
                     user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
@@ -244,7 +245,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                     user.setUserType(UserType.SYSTEM_ADMIN.getCode());
                 }
             } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && isDepartmentAdmin(user.getId())) {
-                // 教师也可能是院系管理员
+                // 教师兼任院系管理员时，使用院系管理员角色
                 user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
             }
 
@@ -281,6 +282,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             SysUser user = sysUserMapper.selectById(userId);
             if (user != null) {
                 // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
+                // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
                 if (UserType.ADMIN.getCode().equals(user.getUserType())) {
                     if (isDepartmentAdmin(user.getId())) {
                         user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
@@ -288,7 +290,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                         user.setUserType(UserType.SYSTEM_ADMIN.getCode());
                     }
                 } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && isDepartmentAdmin(user.getId())) {
-                    // 教师也可能是院系管理员
+                    // 教师兼任院系管理员时，使用院系管理员角色
                     user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
                 }
     

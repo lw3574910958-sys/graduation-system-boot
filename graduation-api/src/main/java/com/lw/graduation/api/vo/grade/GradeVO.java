@@ -5,6 +5,7 @@ import com.lw.graduation.common.constant.CommonConstants;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -48,10 +49,10 @@ public class GradeVO {
     private String topicTitle;
 
     /**
-     * 成绩(0.00 ~ 100.00)
+     * 成绩 (0.00 ~ 100.00)
      */
-    @Schema(description = "成绩(0.00 ~ 100.00)")
-    private java.math.BigDecimal score;
+    @Schema(description = "成绩 (0.00 ~ 100.00)")
+    private BigDecimal score;
 
     /**
      * 评分教师ID
@@ -102,7 +103,7 @@ public class GradeVO {
      * 绩点
      */
     @Schema(description = "绩点")
-    private java.math.BigDecimal gpa;
+    private BigDecimal gpa;
 
     /**
      * 是否及格

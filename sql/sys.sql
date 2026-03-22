@@ -2,7 +2,7 @@
 -- 高校毕业设计论文管理系统 - 企业级数据库建表脚本(含 department_id 权限增强)
 -- 字符集: utf8mb4 | 排序规则: utf8mb4_unicode_ci | 引擎: InnoDB
 
--- 创建数据库(可选)
+-- 创建数据库
 CREATE DATABASE IF NOT EXISTS graduation_system
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
@@ -137,16 +137,18 @@ CREATE TABLE `biz_topic` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `title` VARCHAR(200) NOT NULL COMMENT '题目标题',
   `description` TEXT NOT NULL COMMENT '题目描述',
-  `teacher_id` BIGINT NOT NULL COMMENT '发布教师ID(biz_teacher.id)',
-  `department_id` BIGINT NOT NULL COMMENT '所属院系ID',
+  `teacher_id` BIGINT NOT NULL COMMENT '发布教师 ID(biz_teacher.id)',
+  `department_id` BIGINT NOT NULL COMMENT '所属院系 ID',
   `source` VARCHAR(100) NULL DEFAULT NULL COMMENT '题目来源',
   `type` VARCHAR(50) NULL DEFAULT NULL COMMENT '题目类型',
   `nature` VARCHAR(50) NULL DEFAULT NULL COMMENT '题目性质',
-  `difficulty` TINYINT NULL DEFAULT NULL COMMENT '预计难度(1-5)',
-  `workload` TINYINT NULL DEFAULT NULL COMMENT '预计工作量(1-5)',
+  `difficulty` TINYINT NULL DEFAULT NULL COMMENT '预计难度 (1-5)',
+  `workload` TINYINT NULL DEFAULT NULL COMMENT '预计工作量 (1-5)',
   `max_selections` INT NOT NULL DEFAULT 1 COMMENT '选题人数限制',
   `selected_count` INT NOT NULL DEFAULT 0 COMMENT '已选人数',
-  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1-开放, 2-审核中, 3-已选, 4-关闭',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1-开放，2-审核中，3-已选，4-关闭',
+  `reviewer_id` BIGINT NULL DEFAULT NULL COMMENT '审核人 ID(sys_user.id)',
+  `reviewed_at` DATETIME(3) NULL DEFAULT NULL COMMENT '审核时间',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -154,13 +156,15 @@ CREATE TABLE `biz_topic` (
   KEY `idx_teacher` (`teacher_id`),
   KEY `idx_department` (`department_id`),
   KEY `idx_status` (`status`),
+  KEY `idx_reviewer` (`reviewer_id`),
   -- 添加复合索引优化查询性能
   KEY `idx_department_status` (`department_id`, `status`),
   KEY `idx_teacher_status` (`teacher_id`, `status`),
   -- 确保题目选题人数不超过限制
   CONSTRAINT `chk_topic_selection_limit` CHECK (`selected_count` <= `max_selections`),
   CONSTRAINT `fk_topic_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `biz_teacher` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_topic_department` FOREIGN KEY (`department_id`) REFERENCES `sys_department` (`id`) ON DELETE RESTRICT
+  CONSTRAINT `fk_topic_department` FOREIGN KEY (`department_id`) REFERENCES `sys_department` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_topic_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `sys_user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='题目表';
 
 -- ----------------------------
@@ -234,17 +238,18 @@ CREATE TABLE `biz_document` (
 DROP TABLE IF EXISTS `biz_grade`;
 CREATE TABLE `biz_grade` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `student_id` BIGINT NOT NULL COMMENT '学生ID(biz_student.id)',
-  `topic_id` BIGINT NOT NULL COMMENT '题目ID(biz_topic.id)',
-  `score` DECIMAL(5,2) NOT NULL COMMENT '成绩(0.00 ~ 100.00)',
-  `grader_id` BIGINT NOT NULL COMMENT '评分教师ID(sys_user.id)',
+  `student_id` BIGINT NOT NULL COMMENT '学生 ID(biz_student.id)',
+  `topic_id` BIGINT NOT NULL COMMENT '题目 ID(biz_topic.id)',
+  `grade_type` TINYINT NOT NULL DEFAULT 1 COMMENT '成绩类型：1-指导教师评分，2-评阅教师评分，3-答辩成绩，4-综合成绩',
+  `score` DECIMAL(5,2) NOT NULL COMMENT '成绩 (0.00 ~ 100.00)',
+  `grader_id` BIGINT NOT NULL COMMENT '评分教师 ID(sys_user.id)',
   `comment` TEXT NULL DEFAULT NULL COMMENT '评语',
   `graded_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '评分时间',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_student_topic` (`student_id`, `topic_id`),
+  UNIQUE KEY `uk_student_topic_grade_type` (`student_id`, `topic_id`, `grade_type`),
   KEY `idx_grader` (`grader_id`),
   CONSTRAINT `fk_grade_student` FOREIGN KEY (`student_id`) REFERENCES `biz_student` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_grade_topic` FOREIGN KEY (`topic_id`) REFERENCES `biz_topic` (`id`) ON DELETE RESTRICT,

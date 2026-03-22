@@ -48,6 +48,7 @@
 			</dependency>
 
 			<!-- 内部模块（无版本号，由当前 BOM 控制） -->
+
 			<dependency>
 				<groupId>com.lw.graduation</groupId>
 				<artifactId>graduation-domain</artifactId>
@@ -108,6 +109,12 @@
 				<artifactId>graduation-notice</artifactId>
 				<version>${project.version}</version>
 			</dependency>
+			<dependency>
+				<groupId>com.lw.graduation</groupId>
+				<artifactId>graduation-dashboard</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
 
 			<!-- Web 层 -->
 			<dependency>

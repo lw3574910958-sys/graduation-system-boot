@@ -1,5 +1,6 @@
 package com.lw.graduation.common.service;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * WebSocket 业务消息服务
@@ -24,6 +27,17 @@ public class WebSocketMessageService {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    
+    /**
+     * 用户类型提供者接口
+     * 用于解耦，避免 common 模块直接依赖 infrastructure
+     */
+    @FunctionalInterface
+    public interface UserTypeProvider {
+        List<Long> getUserIdsByType(String userType);
+    }
+    
+    private UserTypeProvider userTypeProvider;
 
     /**
      * 广播消息到 /topic（所有订阅者都会收到）
@@ -90,6 +104,16 @@ public class WebSocketMessageService {
     }
 
     /**
+     * 设置用户类型提供者
+     * 由上层模块（如 API 模块）提供具体实现
+     * 
+     * @param provider 用户类型提供者
+     */
+    public void setUserTypeProvider(UserTypeProvider provider) {
+        this.userTypeProvider = provider;
+    }
+    
+    /**
      * 根据用户类型推送消息
      * 需要获取该类型的所有在线用户并推送
      *
@@ -98,10 +122,44 @@ public class WebSocketMessageService {
      * @param userType 用户类型 (student, teacher, admin)
      */
     private void sendToUserType(String destination, Object message, String userType) {
-        // TODO: 需要从在线用户会话中获取特定用户类型的用户 ID 列表
-        // 目前暂时广播，后续需要实现基于用户类型的精确推送
-        // 可以通过查询在线用户会话表，根据用户类型过滤后推送
-        broadcast(destination, message);
+        if (userTypeProvider == null) {
+            log.warn("未设置 UserTypeProvider，无法按用户类型 {} 推送消息，降级为广播", userType);
+            broadcast(destination, message);
+            return;
+        }
+        
+        try {
+            // 1. 获取指定类型的所有用户 ID 列表
+            List<Long> userIds = userTypeProvider.getUserIdsByType(userType);
+            
+            if (userIds.isEmpty()) {
+                log.debug("未找到任何 {} 类型的用户", userType);
+                return;
+            }
+            
+            // 2. 遍历用户 ID 列表，逐个推送
+            int successCount = 0;
+            for (Long userId : userIds) {
+                try {
+                    // 检查用户是否在线（通过 StpUtil）
+                    if (StpUtil.isLogin(userId)) {
+                        messagingTemplate.convertAndSendToUser(
+                            userId.toString(), 
+                            destination, 
+                            message
+                        );
+                        successCount++;
+                    }
+                } catch (Exception e) {
+                    log.debug("推送消息给用户 {} 失败：{}", userId, e.getMessage());
+                }
+            }
+            
+            log.info("已向 {}/{} 个 {} 用户推送消息到 {}", 
+                    successCount, userIds.size(), userType, destination);
+        } catch (Exception e) {
+            log.error("按用户类型推送消息失败：userType={}, destination={}", userType, destination, e);
+        }
     }
 
     /**

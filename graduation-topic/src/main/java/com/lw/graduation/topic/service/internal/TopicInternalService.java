@@ -3,15 +3,16 @@ package com.lw.graduation.topic.service.internal;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 题目内部服务类
+ * 题目内部服务
  * 专门处理需要事务保护的核心数据库操作
- * 避免@Transactional自调用问题
+ * 避免@Transactional 自调用问题
  *
  * @author lw
  */
@@ -25,12 +26,12 @@ public class TopicInternalService {
     /**
      * 更新题目状态（带事务保护）
      * 
-     * @param topicId 题目ID
+     * @param topicId 题目 ID
      * @param newStatusValue 新状态值
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateTopicStatus(Long topicId, Integer newStatusValue) {
-        log.debug("开始更新题目 {} 状态为: {}", topicId, newStatusValue);
+        log.debug("开始更新题目{} 状态为：{}", topicId, newStatusValue);
         
         BizTopic topic = bizTopicMapper.selectById(topicId);
         if (topic == null || topic.getIsDeleted() == 1) {
@@ -46,21 +47,21 @@ public class TopicInternalService {
             TopicStatus newStatus = TopicStatus.getByValue(newStatusValue);
             String currentStatusDesc = getCurrentStatusDescription(topic);
             String newStatusDesc = newStatus != null ? newStatus.getDescription() : "未知状态";
-            log.info("题目[{}] 状态变更: {} -> {}", topicId, currentStatusDesc, newStatusDesc);
+            log.info("题目 [{}] 状态变化：{} -> {}", topicId, currentStatusDesc, newStatusDesc);
         } else {
-            log.error("题目[{}] 状态更新失败", topicId);
+            log.error("题目 [{}] 状态更新失败", topicId);
         }
     }
     
     /**
      * 更新题目已选人数（带事务保护）
      * 
-     * @param topicId 题目ID
-     * @param increment 增量（通常为1）
+     * @param topicId 题目 ID
+     * @param increment 增量（通常为 1）
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateSelectedCount(Long topicId, int increment) {
-        log.debug("更新题目 {} 已选人数，增量: {}", topicId, increment);
+        log.debug("更新题目 {} 已选人数，增量：{}", topicId, increment);
         
         BizTopic topic = bizTopicMapper.selectById(topicId);
         if (topic == null || topic.getIsDeleted() == 1) {
@@ -75,20 +76,20 @@ public class TopicInternalService {
         boolean updated = bizTopicMapper.updateById(topic) > 0;
         
         if (updated) {
-            log.info("题目[{}] 选题人数更新: {} -> {}", 
+            log.info("题目 [{}] 选题人数更新：{} -> {}", 
                     topicId, topic.getSelectedCount() - increment, topic.getSelectedCount());
         } else {
-            log.error("题目[{}] 选题人数更新失败", topicId);
+            log.error("题目 [{}] 选题人数更新失败", topicId);
         }
     }
     
     /**
      * 记录题目不存在警告日志
      * 
-     * @param topicId 题目ID
+     * @param topicId 题目 ID
      */
     private void logTopicNotFound(Long topicId) {
-        log.warn("题目[{}] 不存在或已删除", topicId);
+        log.warn("题目 [{}] 不存在或已删除", topicId);
     }
     
     /**

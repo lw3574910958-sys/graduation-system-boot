@@ -70,9 +70,11 @@
         <module>graduation-grade</module>
         <!-- 通知公告模块 -->
         <module>graduation-notice</module>
+        <!-- 仪表盘模块 -->
+        <module>graduation-dashboard</module>
         <!-- 系统日志模块 -->
         <module>graduation-log</module>
-        <!-- 后续添加其他模块 -->
+        <!-- 代码生成模块 -->
         <module>graduation-codegen</module>
         <!-- 测试模块 -->
 <!--        <module>graduation-test</module>-->

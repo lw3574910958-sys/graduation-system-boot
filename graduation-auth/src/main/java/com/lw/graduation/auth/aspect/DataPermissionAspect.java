@@ -3,6 +3,7 @@ package com.lw.graduation.auth.aspect;
 import cn.dev33.satoken.stp.StpUtil;
 import com.lw.graduation.auth.service.PermissionValidationService;
 import com.lw.graduation.common.annotation.DataPermission;
+import com.lw.graduation.domain.enums.user.UserType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -190,21 +191,34 @@ public class DataPermissionAspect {
 
     /**
      * 获取用户角色
-     * 根据实际的SaToken配置进行调整
+     * 根据 SaToken 的角色配置获取当前登录用户的角色
      * 
      * @return 用户角色
      */
     private String getUserRole() {
-        // TODO: 根据实际的SaToken角色获取方式进行调整
-        // 这里只是一个示例实现
         try {
-            return StpUtil.hasRole("admin") ? "admin" : 
-                   StpUtil.hasRole("department_admin") ? "department_admin" : 
-                   StpUtil.hasRole("teacher") ? "teacher" : 
-                   StpUtil.hasRole("student") ? "student" : "guest";
+            // 使用 StpUtil.getRoleList() 获取用户的角色列表
+            var roleList = StpUtil.getRoleList();
+            if (roleList == null || roleList.isEmpty()) {
+                return null;
+            }
+            
+            // 按优先级返回第一个匹配的角色
+            // system_admin > department_admin > teacher > student
+            if (roleList.contains(UserType.SYSTEM_ADMIN.getCode())) {
+                return UserType.SYSTEM_ADMIN.getCode();
+            } else if (roleList.contains(UserType.DEPARTMENT_ADMIN.getCode())) {
+                return UserType.DEPARTMENT_ADMIN.getCode();
+            } else if (roleList.contains(UserType.TEACHER.getCode())) {
+                return UserType.TEACHER.getCode();
+            } else if (roleList.contains(UserType.STUDENT.getCode())) {
+                return UserType.STUDENT.getCode();
+            } else {
+                return null;
+            }
         } catch (Exception e) {
-            log.warn("获取用户角色失败", e);
-            return "guest";
+            log.warn("获取用户角色失败：{}", e.getMessage());
+            return null;
         }
     }
 }

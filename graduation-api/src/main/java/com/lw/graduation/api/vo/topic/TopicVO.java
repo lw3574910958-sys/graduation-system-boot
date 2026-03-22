@@ -96,6 +96,31 @@ public class TopicVO {
     private Integer selectedCount;
 
     /**
+     * 发布教师工号（用于详情显示）
+     */
+    @Schema(description = "发布教师工号")
+    private String teacherNumber;
+
+    /**
+     * 院系名称（用于详情显示）
+     */
+    @Schema(description = "院系名称")
+    private String departmentName;
+
+    /**
+     * 审核人 ID（用于管理端显示）
+     */
+    @Schema(description = "审核人 ID")
+    private Long reviewerId;
+
+    /**
+     * 审核时间
+     */
+    @Schema(description = "审核时间")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
+    private LocalDateTime reviewedAt;
+
+    /**
      * 创建时间
      */
     @Schema(description = "创建时间")
