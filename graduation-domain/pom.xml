@@ -44,6 +44,13 @@
 			<artifactId>jackson-annotations</artifactId>
 		</dependency>
 
+		<!-- Spring Boot DevTools（热部署，optional 防止传递） -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<optional>true</optional>
+		</dependency>
+
 	</dependencies>
 
 </project>

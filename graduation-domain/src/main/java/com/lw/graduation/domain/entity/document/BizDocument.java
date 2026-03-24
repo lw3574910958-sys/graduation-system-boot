@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.lw.graduation.common.constant.CommonConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.lw.graduation.domain.enums.status.ReviewStatus;
 import lombok.Data;
@@ -16,8 +18,6 @@ import java.time.LocalDateTime;
 
 /**
  * 文档表
- * 用于管理毕业设计过程中的各类文档，包括开题报告、中期报告、毕业论文等。
- * 支持文档上传、审核、下载等完整功能。
  */
 @Data
 @TableName("biz_document")
@@ -75,7 +75,7 @@ public class BizDocument implements Serializable {
      * 审核时间
      */
     @TableField("reviewed_at")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime reviewedAt;
 
     /**
@@ -94,21 +94,21 @@ public class BizDocument implements Serializable {
      * 上传时间
      */
     @TableField("uploaded_at")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime uploadedAt;
 
     /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**
@@ -120,7 +120,6 @@ public class BizDocument implements Serializable {
 
     /**
      * 获取文件大小的友好显示格式
-     *
      * @return 格式化的文件大小字符串
      */
     public String getFileSizeDisplay() {
@@ -142,7 +141,6 @@ public class BizDocument implements Serializable {
 
     /**
      * 获取文件扩展名
-     *
      * @return 文件扩展名（小写）
      */
     public String getFileExtension() {
@@ -163,7 +161,7 @@ public class BizDocument implements Serializable {
      * @return 通过审核返回true
      */
     public boolean isApproved() {
-        ReviewStatus status = ReviewStatus.getByValue(this.reviewStatus);
+        ReviewStatus status = IEnum.getByCode(ReviewStatus.class,this.reviewStatus);
         return status == ReviewStatus.APPROVED;
     }
 
@@ -173,7 +171,7 @@ public class BizDocument implements Serializable {
      * @return 被驳回返回true
      */
     public boolean isRejected() {
-        ReviewStatus status = ReviewStatus.getByValue(this.reviewStatus);
+        ReviewStatus status = IEnum.getByCode(ReviewStatus.class,this.reviewStatus);
         return status == ReviewStatus.REJECTED;
     }
 
@@ -183,7 +181,7 @@ public class BizDocument implements Serializable {
      * @return 待审核返回true
      */
     public boolean isPendingReview() {
-        ReviewStatus status = ReviewStatus.getByValue(this.reviewStatus);
+        ReviewStatus status = IEnum.getByCode(ReviewStatus.class,this.reviewStatus);
         return status == null || status == ReviewStatus.PENDING;
     }
 }

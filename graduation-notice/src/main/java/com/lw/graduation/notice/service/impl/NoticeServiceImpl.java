@@ -11,6 +11,7 @@ import com.lw.graduation.api.dto.notice.NoticeUpdateDTO;
 import com.lw.graduation.api.service.notice.NoticeService;
 import com.lw.graduation.api.vo.notice.NoticeVO;
 import com.lw.graduation.common.constant.CacheConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.service.WebSocketMessageService;
@@ -133,10 +134,10 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     
         // 设置初始状态
         if (Boolean.TRUE.equals(createDTO.getPublishNow())) {
-            notice.setStatus(NoticeStatus.PUBLISHED.getValue());
+            notice.setStatus(NoticeStatus.PUBLISHED.getCode());
             notice.setPublishedAt(LocalDateTime.now());
         } else {
-            notice.setStatus(NoticeStatus.DRAFT.getValue());
+            notice.setStatus(NoticeStatus.DRAFT.getCode());
         }
     
         // 验证状态设置的合理性
@@ -220,7 +221,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有草稿状态的通知才能发布");
         }
     
-        notice.setStatus(NoticeStatus.PUBLISHED.getValue());
+        notice.setStatus(NoticeStatus.PUBLISHED.getCode());
         notice.setPublishedAt(LocalDateTime.now());
     
         boolean updated = updateById(notice);
@@ -253,7 +254,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有已发布的通知才能撤回");
         }
 
-        notice.setStatus(NoticeStatus.WITHDRAWN.getValue());
+        notice.setStatus(NoticeStatus.WITHDRAWN.getCode());
 
         boolean updated = updateById(notice);
         if (!updated) {
@@ -291,7 +292,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     @Override
     public List<NoticeVO> getStickyNotices(Integer targetScope) {
         LambdaQueryWrapper<BizNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getValue())
+        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getCode())
                 .eq(targetScope != null, BizNotice::getTargetScope, targetScope)
                 .eq(BizNotice::getIsDeleted, 0)
                 .orderByDesc(BizNotice::getPublishedAt);
@@ -306,7 +307,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     @Override
     public List<NoticeVO> getLatestNotices(Integer targetScope, Integer size) {
         LambdaQueryWrapper<BizNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getValue())
+        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getCode())
                 .eq(targetScope != null, BizNotice::getTargetScope, targetScope)
                 .eq(BizNotice::getIsDeleted, 0)
                 .orderByDesc(BizNotice::getPublishedAt);
@@ -413,8 +414,8 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         
         // 草稿和已撤回状态的通知，如果指定了生效状态过滤，只显示对应的状态
         if (notice.getStatus() != null && 
-            (notice.getStatus() == NoticeStatus.DRAFT.getValue() || 
-             notice.getStatus() == NoticeStatus.WITHDRAWN.getValue())) {
+            (notice.getStatus() == NoticeStatus.DRAFT.getCode() || 
+             notice.getStatus() == NoticeStatus.WITHDRAWN.getCode())) {
             // 草稿和已撤回状态不显示生效状态，所以不过滤
             return true;
         }
@@ -442,12 +443,12 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         NoticeVO vo = BeanMapperUtil.copyProperties(notice, NoticeVO.class);
     
         // 填充描述信息
-        NoticeType type = NoticeType.getByValue(notice.getType());
+        NoticeType type = IEnum.getByCode(NoticeType.class,notice.getType());
         if (type != null) {
             vo.setTypeDesc(type.getDescription());
         }
     
-        NoticeStatus status = NoticeStatus.getByValue(notice.getStatus());
+        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,notice.getStatus());
         if (status != null) {
             vo.setStatusDesc(status.getDescription());
         }

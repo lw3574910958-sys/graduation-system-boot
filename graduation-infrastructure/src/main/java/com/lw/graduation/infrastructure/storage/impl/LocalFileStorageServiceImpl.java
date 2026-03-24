@@ -3,6 +3,7 @@ package com.lw.graduation.infrastructure.storage.impl;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
+import com.lw.graduation.common.constant.CommonConstants;
 import com.lw.graduation.common.enums.FileFormatType;
 import com.lw.graduation.infrastructure.storage.FileStorageService;
 import lombok.extern.slf4j.Slf4j;
@@ -175,7 +176,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             return customName + "." + extension.toLowerCase();
         }
         // 使用时间戳格式：yyyyMMddHHmmssSSS
-        String timestamp = DateUtil.format(new java.util.Date(), "yyyyMMddHHmmssSSS");
+        String timestamp = DateUtil.format(new java.util.Date(), CommonConstants.DateTimeFormat.MILLISECOND);
         return timestamp + "." + extension.toLowerCase();
     }
 }

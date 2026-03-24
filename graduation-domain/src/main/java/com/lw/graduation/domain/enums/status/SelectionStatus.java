@@ -1,5 +1,6 @@
 package com.lw.graduation.domain.enums.status;
 
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -11,7 +12,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum SelectionStatus {
+public enum SelectionStatus implements IEnum<Integer> {
 
     /**
      * 待审核 - 学生提交选题申请
@@ -34,42 +35,15 @@ public enum SelectionStatus {
     CONFIRMED(3, "已确认");
 
     /**
-     * 值
+     * Code（数据库存储值）
      */
-    private final Integer value;
+    private final Integer code;
     /**
      * 描述
      */
     private final String description;
 
-    /**
-     * 根据值获取选题状态枚举
-     *
-     * @param value 状态值
-     * @return 对应的枚举，未找到返回null
-     */
-    public static SelectionStatus getByValue(Integer value) {
-        if (value == null) {
-            return null;
-        }
-        
-        for (SelectionStatus status : values()) {
-            if (status.value.equals(value)) {
-                return status;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 判断值是否有效
-     *
-     * @param value 状态值
-     * @return 有效返回true
-     */
-    public static boolean isValid(Integer value) {
-        return getByValue(value) != null;
-    }
+    
 
     /**
      * 判断是否为最终状态（通过或驳回）

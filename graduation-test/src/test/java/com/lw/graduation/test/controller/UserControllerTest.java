@@ -9,7 +9,6 @@ import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
 import com.lw.graduation.domain.enums.user.AccountStatus;
-import com.lw.graduation.domain.enums.permission.SystemRole;
 import com.lw.graduation.test.config.WebMvcTestConfig;
 import com.lw.graduation.test.util.TestDataGenerator;
 import com.lw.graduation.test.util.TestUtil;

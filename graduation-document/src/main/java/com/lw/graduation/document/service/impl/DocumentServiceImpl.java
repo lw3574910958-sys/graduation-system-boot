@@ -10,6 +10,7 @@ import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.service.document.DocumentService;
 import com.lw.graduation.api.vo.document.DocumentVO;
 import com.lw.graduation.common.constant.CacheConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
@@ -115,7 +116,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 1. 验证文件类型
         com.lw.graduation.domain.enums.document.DocumentFileType fileType =
-            com.lw.graduation.domain.enums.document.DocumentFileType.getByValue(uploadDTO.getFileType());
+            IEnum.getByCode(com.lw.graduation.domain.enums.document.DocumentFileType.class, uploadDTO.getFileType());
         if (fileType == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "不支持的文件类型");
         }
@@ -152,7 +153,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         document.setOriginalFilename(uploadDTO.getFile().getOriginalFilename());
         document.setStoredPath(storedPath);
         document.setFileSize(uploadDTO.getFile().getSize());
-        document.setReviewStatus(ReviewStatus.PENDING.getValue());
+        document.setReviewStatus(ReviewStatus.PENDING.getCode());
         document.setUploadedAt(LocalDateTime.now());
 
         boolean saved = save(document);
@@ -207,7 +208,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         }
 
         // 2. 验证审核状态
-        ReviewStatus reviewStatus = ReviewStatus.getByValue(reviewDTO.getReviewStatus());
+        ReviewStatus reviewStatus = IEnum.getByCode(ReviewStatus.class, reviewDTO.getReviewStatus());
         if (reviewStatus == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的审核状态");
         }
@@ -299,7 +300,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权限重新提交此文档");
         }
         
-        ReviewStatus currentStatus = ReviewStatus.getByValue(document.getReviewStatus());
+                ReviewStatus currentStatus = IEnum.getByCode(ReviewStatus.class, document.getReviewStatus());
         if (currentStatus == null || !currentStatus.canResubmit()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "文档状态不允许重新提交");
         }
@@ -332,7 +333,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         document.setOriginalFilename(originalFilename);
         document.setStoredPath(newStoredPath);
         document.setFileSize(newFile.getSize());
-        document.setReviewStatus(ReviewStatus.PENDING.getValue()); // 重置为待审核状态
+        document.setReviewStatus(ReviewStatus.PENDING.getCode()); // 重置为待审核状态
         document.setReviewedAt(null);
         document.setReviewerId(null);
         document.setFeedback(null);
@@ -420,7 +421,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         }
 
         // 填充审核状态描述
-        ReviewStatus reviewStatus = ReviewStatus.getByValue(document.getReviewStatus());
+        ReviewStatus reviewStatus = IEnum.getByCode(ReviewStatus.class, document.getReviewStatus());
         if (reviewStatus != null) {
             vo.setReviewStatusDesc(reviewStatus.getDescription());
         }
@@ -497,13 +498,13 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
             // 填充文件类型描述
             com.lw.graduation.domain.enums.document.DocumentFileType fileType =
-                com.lw.graduation.domain.enums.document.DocumentFileType.getByValue(document.getFileType());
+                        IEnum.getByCode(com.lw.graduation.domain.enums.document.DocumentFileType.class, document.getFileType());
             if (fileType != null) {
                 vo.setFileTypeDesc(fileType.getDescription());
             }
 
             // 填充审核状态描述
-            ReviewStatus reviewStatus = ReviewStatus.getByValue(document.getReviewStatus());
+            ReviewStatus reviewStatus = IEnum.getByCode(ReviewStatus.class, document.getReviewStatus());
             if (reviewStatus != null) {
                 vo.setReviewStatusDesc(reviewStatus.getDescription());
             }

@@ -78,6 +78,20 @@ public class TopicController {
     }
 
     /**
+     * 教师提交题目审核
+     *
+     * @param id 课题 ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/submit")
+    @Operation(summary = "教师提交题目审核")
+    @SaCheckRole("teacher") // 仅教师可提交审核
+    public Result<Void> submitForReview(@PathVariable Long id) {
+        topicService.submitForReview(id);
+        return Result.success();
+    }
+
+    /**
      * 更新课题
      *
      * @param id 课题ID
@@ -95,7 +109,7 @@ public class TopicController {
     /**
      * 删除课题
      *
-     * @param id 课题ID
+     * @param id 课题 ID
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
@@ -118,6 +132,34 @@ public class TopicController {
     public Result<Void> reviewTopic(@Validated @RequestBody TopicReviewDTO reviewDTO) {
         Long reviewerId = StpUtil.getLoginIdAsLong();
         topicService.reviewTopic(reviewDTO, reviewerId);
+        return Result.success();
+    }
+
+    /**
+     * 开放课题（教师用户）
+     *
+     * @param id 课题 ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/open")
+    @Operation(summary = "开放课题")
+    @SaCheckRole("teacher") // 仅教师可开放课题
+    public Result<Void> openTopic(@PathVariable Long id) {
+        topicService.openTopic(id);
+        return Result.success();
+    }
+
+    /**
+     * 关闭课题（教师用户）
+     *
+     * @param id 课题 ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/close")
+    @Operation(summary = "关闭课题")
+    @SaCheckRole("teacher") // 仅教师可关闭课题
+    public Result<Void> closeTopic(@PathVariable Long id) {
+        topicService.closeTopic(id);
         return Result.success();
     }
 }

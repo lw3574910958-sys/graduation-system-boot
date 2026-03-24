@@ -44,6 +44,10 @@
             <groupId>com.lw.graduation</groupId>
             <artifactId>graduation-notice</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-dashboard</artifactId>
+        </dependency>
 
         <!-- 基础设施 -->
         <dependency>
@@ -88,12 +92,19 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Knife4j：OpenAPI 文档 -->
+        <!-- Knife4j:OpenAPI 文档 -->
         <dependency>
             <groupId>com.github.xiaoymin</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
         </dependency>
-
+    
+        <!-- Spring Boot DevTools（热部署） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
+        </dependency>
+    
     </dependencies>
 
     <build>

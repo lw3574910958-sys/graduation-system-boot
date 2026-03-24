@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.lw.graduation.common.constant.CommonConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.lw.graduation.domain.enums.permission.AdminRole;
 import lombok.Data;
@@ -72,14 +74,14 @@ public class BizAdmin implements Serializable {
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**
@@ -95,7 +97,7 @@ public class BizAdmin implements Serializable {
      * @return AdminRole枚举
      */
     public AdminRole getRoleLevelEnum() {
-        return AdminRole.getByValue(this.roleLevel);
+        return IEnum.getByCode(AdminRole.class,this.roleLevel);
     }
 
     /**
@@ -104,7 +106,7 @@ public class BizAdmin implements Serializable {
      * @return 系统管理员返回true
      */
     public boolean isSystemAdmin() {
-        return this.roleLevel != null && this.roleLevel.equals(AdminRole.SYSTEM_ADMIN.getValue());
+        return this.roleLevel != null && this.roleLevel.equals(AdminRole.SYSTEM_ADMIN.getCode());
     }
 
     /**
@@ -113,6 +115,6 @@ public class BizAdmin implements Serializable {
      * @return 院系管理员返回true
      */
     public boolean isDeptAdmin() {
-        return this.roleLevel != null && this.roleLevel.equals(AdminRole.DEPARTMENT_ADMIN.getValue());
+        return this.roleLevel != null && this.roleLevel.equals(AdminRole.DEPARTMENT_ADMIN.getCode());
     }
 }

@@ -1,5 +1,6 @@
 package com.lw.graduation.domain.enums.notice;
 
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -10,7 +11,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum NoticeStatus {
+public enum NoticeStatus implements IEnum<Integer> {
 
     /**
      * 草稿
@@ -28,43 +29,16 @@ public enum NoticeStatus {
     WITHDRAWN(2, "已撤回");
 
     /**
-     * 值
+     * Code（数据库存储值）
      */
-    private final Integer value;
+    private final Integer code;
 
     /**
      * 描述
      */
     private final String description;
 
-    /**
-     * 根据值获取通知状态枚举
-     *
-     * @param value 状态值
-     * @return 对应的枚举，未找到返回null
-     */
-    public static NoticeStatus getByValue(Integer value) {
-        if (value == null) {
-            return null;
-        }
-
-        for (NoticeStatus status : values()) {
-            if (status.value.equals(value)) {
-                return status;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 判断值是否有效
-     *
-     * @param value 状态值
-     * @return 有效返回true
-     */
-    public static boolean isValid(Integer value) {
-        return getByValue(value) != null;
-    }
+    
 
     /**
      * 判断是否为最终状态

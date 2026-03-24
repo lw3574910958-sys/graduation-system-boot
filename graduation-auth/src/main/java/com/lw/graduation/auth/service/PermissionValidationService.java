@@ -323,7 +323,7 @@ public class PermissionValidationService {
             return false;
         }
         
-        TopicStatus status = TopicStatus.getByValue(topic.getStatus());
+        TopicStatus status = IEnum.getByCode(TopicStatus.class,topic.getStatus());
         return status != null && (status == TopicStatus.OPEN || status == TopicStatus.REVIEWING);
     }
     

@@ -24,7 +24,6 @@ TRUNCATE TABLE biz_topic;
 TRUNCATE TABLE biz_student;
 TRUNCATE TABLE biz_teacher;
 TRUNCATE TABLE biz_admin;
-TRUNCATE TABLE sys_user_role;
 TRUNCATE TABLE sys_user;
 TRUNCATE TABLE sys_department;
 
@@ -56,35 +55,37 @@ INSERT INTO sys_department (id, code, name, created_at, updated_at, is_deleted) 
 -- ============================
 
 -- 密码设计:
--- 管理员账户：admin123 -> BCrypt hash: $2a$10$7Jr9oeN8qKzHb0uRkVv5L.3hMJQqvXwYpGjFhCnDxPzT4WfE8yNKy
--- 教师账户：teacher123 -> BCrypt hash: $2a$10$9XqH8YvN7KpLmZrTcUwOe.x5DjGfBnChQyWsE3PtA6RiM9FjLkS2
--- 学生账户：student123 -> BCrypt hash: $2a$10$2HsK9LpMnQrTvXwYzBeNc.u6EjHgCnDiRzYtF4QuB7SjN0GkMpT3
+-- 管理员账户：admin123 -> BCrypt hash: $2a$10$4BBVhIQQtBdycLg1XLB4r.4svfzrjOvxZfqgNVj3It4J5lrQRbSfu
+-- 教师账户：teacher123 -> BCrypt hash: $2a$10$VC25zdoKcvtj/QiOOcgmy.V6GFc0cKWBKb4uVYBbFzFQPvTdZfOb6
+-- 学生账户：student123 -> BCrypt hash: $2a$10$KfwiAIGlaWsI4rXCU0PZeum/j7geDKUdWL6kBGSOZVB.TRTHl7QMG
 
 -- 系统管理员 (密码：admin123)
 INSERT INTO sys_user (id, username, password, real_name, user_type, status, avatar, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, is_deleted) VALUES
-(1800000000000000001, 'sys_admin', '$2a$10$7Jr9oeN8qKzHb0uRkVv5L.3hMJQqvXwYpGjFhCnDxPzT4WfE8yNKy', '系统管理员', 'system_admin', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
+(1800000000000000001, 'sys_admin', '$2a$10$4BBVhIQQtBdycLg1XLB4r.4svfzrjOvxZfqgNVj3It4J5lrQRbSfu', '系统管理员', 'system_admin', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
 
 -- 院系管理员 (计算机学院) (密码：admin123)
 INSERT INTO sys_user (id, username, password, real_name, user_type, status, avatar, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, is_deleted) VALUES
-(1800000000000000002, 'dept_admin_cs', '$2a$10$7Jr9oeN8qKzHb0uRkVv5L.3hMJQqvXwYpGjFhCnDxPzT4WfE8yNKy', '张主任', 'department_admin', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
+(1800000000000000002, 'dept_admin_cs', '$2a$10$4BBVhIQQtBdycLg1XLB4r.4svfzrjOvxZfqgNVj3It4J5lrQRbSfu', '张主任', 'department_admin', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
 
 -- 院系管理员 (软件学院) (密码：admin123)
 INSERT INTO sys_user (id, username, password, real_name, user_type, status, avatar, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, is_deleted) VALUES
-(1800000000000000003, 'dept_admin_se', '$2a$10$7Jr9oeN8qKzHb0uRkVv5L.3hMJQqvXwYpGjFhCnDxPzT4WfE8yNKy', '李主任', 'department_admin', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
+(1800000000000000003, 'dept_admin_se', '$2a$10$4BBVhIQQtBdycLg1XLB4r.4svfzrjOvxZfqgNVj3It4J5lrQRbSfu', '李主任', 'department_admin', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
 
 -- 教师用户 (密码：teacher123)
 INSERT INTO sys_user (id, username, password, real_name, user_type, status, avatar, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, is_deleted) VALUES
-(1800000000000000010, 'teacher001', '$2a$10$9XqH8YvN7KpLmZrTcUwOe.x5DjGfBnChQyWsE3PtA6RiM9FjLkS2', '王教授', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
-(1800000000000000011, 'teacher002', '$2a$10$9XqH8YvN7KpLmZrTcUwOe.x5DjGfBnChQyWsE3PtA6RiM9FjLkS2', '刘副教授', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
-(1800000000000000012, 'teacher003', '$2a$10$9XqH8YvN7KpLmZrTcUwOe.x5DjGfBnChQyWsE3PtA6RiM9FjLkS2', '陈讲师', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
+(1800000000000000010, 'teacher001', '$2a$10$VC25zdoKcvtj/QiOOcgmy.V6GFc0cKWBKb4uVYBbFzFQPvTdZfOb6', '王教授', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000011, 'teacher002', '$2a$10$VC25zdoKcvtj/QiOOcgmy.V6GFc0cKWBKb4uVYBbFzFQPvTdZfOb6', '刘副教授', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000012, 'teacher003', '$2a$10$VC25zdoKcvtj/QiOOcgmy.V6GFc0cKWBKb4uVYBbFzFQPvTdZfOb6', '陈讲师', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000013, 'teacher004', '$2a$10$VC25zdoKcvtj/QiOOcgmy.V6GFc0cKWBKb4uVYBbFzFQPvTdZfOb6', '张讲师', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000014, 'teacher005', '$2a$10$VC25zdoKcvtj/QiOOcgmy.V6GFc0cKWBKb4uVYBbFzFQPvTdZfOb6', '李助教', 'teacher', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
 
 -- 学生用户 (密码：student123)
 INSERT INTO sys_user (id, username, password, real_name, user_type, status, avatar, last_login_at, last_login_ip, login_fail_count, locked_until, created_at, updated_at, is_deleted) VALUES
-(1800000000000000020, '2022001', '$2a$10$2HsK9LpMnQrTvXwYzBeNc.u6EjHgCnDiRzYtF4QuB7SjN0GkMpT3', '张三', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
-(1800000000000000021, '2022002', '$2a$10$2HsK9LpMnQrTvXwYzBeNc.u6EjHgCnDiRzYtF4QuB7SjN0GkMpT3', '李四', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
-(1800000000000000022, '2022003', '$2a$10$2HsK9LpMnQrTvXwYzBeNc.u6EjHgCnDiRzYtF4QuB7SjN0GkMpT3', '王五', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
-(1800000000000000023, '2022004', '$2a$10$2HsK9LpMnQrTvXwYzBeNc.u6EjHgCnDiRzYtF4QuB7SjN0GkMpT3', '赵六', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
-(1800000000000000024, '2022005', '$2a$10$2HsK9LpMnQrTvXwYzBeNc.u6EjHgCnDiRzYtF4QuB7SjN0GkMpT3', '钱七', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
+(1800000000000000020, '2022001', '$2a$10$KfwiAIGlaWsI4rXCU0PZeum/j7geDKUdWL6kBGSOZVB.TRTHl7QMG', '张三', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000021, '2022002', '$2a$10$KfwiAIGlaWsI4rXCU0PZeum/j7geDKUdWL6kBGSOZVB.TRTHl7QMG', '李四', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000022, '2022003', '$2a$10$KfwiAIGlaWsI4rXCU0PZeum/j7geDKUdWL6kBGSOZVB.TRTHl7QMG', '王五', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000023, '2022004', '$2a$10$KfwiAIGlaWsI4rXCU0PZeum/j7geDKUdWL6kBGSOZVB.TRTHl7QMG', '赵六', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0),
+(1800000000000000024, '2022005', '$2a$10$KfwiAIGlaWsI4rXCU0PZeum/j7geDKUdWL6kBGSOZVB.TRTHl7QMG', '钱七', 'student', 1, NULL, NULL, NULL, 0, NULL, NOW(3), NOW(3), 0);
 
 -- ============================
 -- 三、业务详细信息初始化
@@ -100,7 +101,9 @@ INSERT INTO biz_admin (id, user_id, admin_id, department_id, role_level, phone, 
 INSERT INTO biz_teacher (id, user_id, teacher_id, department_id, gender, title, phone, email, created_at, updated_at, is_deleted) VALUES
 (1900000000000000010, 1800000000000000010, 'T001', 1700000000000000001, 1, '教授', '13800138010', 'wang@university.edu.cn', NOW(3), NOW(3), 0),
 (1900000000000000011, 1800000000000000011, 'T002', 1700000000000000001, 1, '副教授', '13800138011', 'liu@university.edu.cn', NOW(3), NOW(3), 0),
-(1900000000000000012, 1800000000000000012, 'T003', 1700000000000000002, 0, '讲师', '13800138012', 'chen@university.edu.cn', NOW(3), NOW(3), 0);
+(1900000000000000012, 1800000000000000012, 'T003', 1700000000000000002, 0, '讲师', '13800138012', 'chen@university.edu.cn', NOW(3), NOW(3), 0),
+(1900000000000000013, 1800000000000000013, 'T004', 1700000000000000002, 0, '讲师', '13800138013', 'zhang@university.edu.cn', NOW(3), NOW(3), 0),
+(1900000000000000014, 1800000000000000014, 'T005', 1700000000000000001, 1, '助教', '13800138014', 'li@university.edu.cn', NOW(3), NOW(3), 0);
 
 -- 学生业务信息
 INSERT INTO biz_student (id, user_id, student_id, department_id, gender, major, class_name, phone, email, created_at, updated_at, is_deleted) VALUES
@@ -114,43 +117,73 @@ INSERT INTO biz_student (id, user_id, student_id, department_id, gender, major, 
 -- 四、毕业设计题目初始化
 -- ============================
 
--- 题目 1: 开放状态 (OPEN=1, 王教授发布)
-INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+-- 题目 1: 开放状态 (OPEN=2, 王教授发布)
+-- last_review_outcome: NULL (未审核过)
+-- last_review_feedback: NULL
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
 (2000000000000000001, 
 '基于深度学习的图像识别系统设计与实现', 
 '本课题要求设计并实现一个基于深度学习的图像识别系统。主要内容包括：1. 研究 CNN 等深度学习算法；2. 使用 TensorFlow 或 PyTorch 框架；3. 构建图像分类模型；4. 开发 Web 应用展示结果。适合对 AI 感兴趣的同学。',
-1900000000000000010, 1700000000000000001, '科研项目', '理论研究', '工程设计', 4, 4, 3, 0, 1, NULL, NULL, NOW(3), NOW(3), 0);
+1900000000000000010, 1700000000000000001, '科研项目', '理论研究', '工程设计', 4, 4, 3, 0, 2, NULL, NULL, NULL, NULL, NOW(3), NOW(3), 0);
 
--- 题目 2: 审核中状态 (REVIEWING=2, 刘副教授发布)
+-- 题目 2: 审核中状态 (REVIEWING=1, 刘副教授发布)
+-- last_review_outcome: NULL (刚提交审核，尚未审核)
+-- last_review_feedback: NULL
 -- reviewer_id: 1800000000000000002 (院系管理员 dept_admin_cs 的用户 ID)
-INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
 (2000000000000000002, 
 '企业级微服务架构设计与实践', 
 '研究微服务架构的核心技术，包括服务注册发现、配置管理、负载均衡、熔断机制等。使用 Spring Cloud Alibaba 技术栈，实现一个完整的电商平台。要求熟悉 Java 编程和分布式系统原理。',
-1900000000000000011, 1700000000000000001, '企业合作', '应用开发', '工程设计', 5, 5, 2, 1, 2, 1800000000000000002, NULL, NOW(3), NOW(3), 0);
+1900000000000000011, 1700000000000000001, '企业合作', '应用开发', '工程设计', 5, 5, 2, 1, 1, NULL, NULL, 1800000000000000002, NULL, NOW(3), NOW(3), 0);
 
--- 题目 3: 已选状态 (SELECTED=3, 陈讲师发布)
+-- 题目 3: 开放状态 (OPEN=2, 陈讲师发布)
+-- last_review_outcome: 1 (已通过)
+-- last_review_feedback: NULL
 -- reviewer_id: 1800000000000000003 (院系管理员 dept_admin_se 的用户 ID)
-INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
 (2000000000000000003, 
 '移动应用跨平台开发框架对比研究', 
 '对比分析 React Native、Flutter、Uni-app 等主流跨平台开发框架的性能、生态和适用场景。实现同一个应用的多个版本，进行性能测试和用户体验评估。',
-1900000000000000012, 1700000000000000002, '教学实践', '理论研究', '科学研究', 3, 3, 5, 5, 3, 1800000000000000003, NOW(3), NOW(3), NOW(3), 0);
+1900000000000000012, 1700000000000000002, '教学实践', '理论研究', '科学研究', 3, 3, 5, 5, 2, 1, NULL, 1800000000000000003, NOW(3), NOW(3), NOW(3), 0);
 
--- 题目 4: 关闭状态 (CLOSED=4, 王教授发布)
+-- 题目 4: 关闭状态 (CLOSED=3, 王教授发布)
+-- last_review_outcome: 1 (已通过)
+-- last_review_feedback: NULL
 -- reviewer_id: 1800000000000000001 (系统管理员 sys_admin 的用户 ID)
-INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
 (2000000000000000004, 
 '区块链技术在供应链管理中的应用', 
 '研究区块链技术的基本原理，设计基于区块链的供应链管理系统。实现产品溯源、信息不可篡改等功能。需要了解智能合约和分布式账本技术。',
-1900000000000000010, 1700000000000000001, '社会实践', '应用开发', '科学研究', 4, 4, 2, 2, 4, 1800000000000000001, NOW(3), NOW(3), NOW(3), 0);
+1900000000000000010, 1700000000000000001, '社会实践', '应用开发', '科学研究', 4, 4, 2, 2, 3, 1, NULL, 1800000000000000001, NOW(3), NOW(3), NOW(3), 0);
 
--- 题目 5: 开放状态 (OPEN=1, 刘副教授发布)
-INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+-- 题目 5: 草稿状态 (DRAFT=0, 张讲师创建但未提交审核)
+-- last_review_outcome: NULL (未审核过)
+-- last_review_feedback: NULL
+-- reviewer_id: NULL (未提交审核，无审核人)
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
 (2000000000000000005, 
+'基于知识图谱的智能问答系统', 
+'构建特定领域的知识图谱，并实现基于图谱的智能问答功能。研究实体识别、关系抽取、图数据库等技术。适合对自然语言处理感兴趣的同学。',
+1900000000000000013, 1700000000000000002, '科研项目', '理论研究', '科学研究', 3, 3, 4, 0, 0, NULL, NULL, NULL, NULL, NOW(3), NOW(3), 0);
+
+-- 题目 6: 草稿状态 - 被驳回 (DRAFT=0, 李助教发布，被院系管理员驳回后待修改)
+-- reviewer_id: 1800000000000000002 (院系管理员 dept_admin_cs 的用户 ID)
+-- last_review_outcome: 2 (驳回)
+-- last_review_feedback: '题目描述不清晰，工作量不足，建议增加功能模块'
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+(2000000000000000006, 
+'简单的网站开发', 
+'做一个个人博客网站。要求会使用 HTML 和 CSS 即可。',
+1900000000000000014, 1700000000000000001, '其他', '应用开发', '工程设计', 1, 1, 10, 0, 0, 2, '题目描述不清晰，工作量不足，建议增加功能模块', 1800000000000000002, NOW(3), NOW(3), NOW(3), 0);
+
+-- 题目 7: 开放状态 (OPEN=2, 刘副教授发布)
+-- last_review_outcome: 1 (已通过)
+-- last_review_feedback: NULL
+INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source, type, nature, difficulty, workload, max_selections, selected_count, status, last_review_outcome, last_review_feedback, reviewer_id, reviewed_at, created_at, updated_at, is_deleted) VALUES
+(2000000000000000007, 
 '大数据驱动的用户行为分析平台', 
 '基于 Hadoop/Spark 构建大数据分析平台，对用户行为数据进行采集、存储、分析和可视化。使用机器学习算法进行用户画像和推荐。处理 TB 级数据。',
-1900000000000000011, 1700000000000000001, '科研项目', '应用开发', '工程设计', 5, 5, 3, 0, 1, NULL, NULL, NOW(3), NOW(3), 0);
+1900000000000000011, 1700000000000000001, '科研项目', '应用开发', '工程设计', 5, 5, 3, 0, 2, 1, NULL, NULL, NULL, NOW(3), NOW(3), 0);
 
 -- ============================
 -- 五、选题记录初始化

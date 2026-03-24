@@ -96,6 +96,18 @@ public class TopicVO {
     private Integer selectedCount;
 
     /**
+     * 最近一次审核结果：NULL-未审，1-通过，2-驳回
+     */
+    @Schema(description = "最近一次审核结果：NULL-未审，1-通过，2-驳回")
+    private Integer lastReviewOutcome;
+
+    /**
+     * 最近一次审核意见
+     */
+    @Schema(description = "最近一次审核意见")
+    private String lastReviewFeedback;
+
+    /**
      * 发布教师工号（用于详情显示）
      */
     @Schema(description = "发布教师工号")

@@ -1,6 +1,8 @@
 package com.lw.graduation.domain.entity.notice;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.lw.graduation.common.constant.CommonConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.lw.graduation.domain.enums.notice.NoticeStatus;
 import lombok.Data;
@@ -59,21 +61,21 @@ public class BizNotice implements Serializable {
      * 发布时间
      */
     @TableField("published_at")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime publishedAt;
 
     /**
      * 生效开始时间
      */
     @TableField("start_time")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime startTime;
 
     /**
      * 生效结束时间
      */
     @TableField("end_time")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime endTime;
 
     /**
@@ -110,14 +112,14 @@ public class BizNotice implements Serializable {
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**
@@ -133,7 +135,7 @@ public class BizNotice implements Serializable {
      * @return 可以编辑返回true
      */
     public boolean isEditable() {
-        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,this.status);
         return status != null && status.canEdit();
     }
 
@@ -143,7 +145,7 @@ public class BizNotice implements Serializable {
      * @return 最终状态返回true
      */
     public boolean isFinalStatus() {
-        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,this.status);
         return status != null && status.isFinalStatus();
     }
 
@@ -153,7 +155,7 @@ public class BizNotice implements Serializable {
      * @return 可以发布返回true
      */
     public boolean canPublish() {
-        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,this.status);
         return status != null && status.canPublish();
     }
 
@@ -163,7 +165,7 @@ public class BizNotice implements Serializable {
      * @return 可以撤回返回true
      */
     public boolean canWithdraw() {
-        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,this.status);
         return status != null && status.canWithdraw();
     }
 
@@ -173,7 +175,7 @@ public class BizNotice implements Serializable {
      * @return 已撤回返回true
      */
     public boolean isWithdrawn() {
-        NoticeStatus status = NoticeStatus.getByValue(this.status);
+        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,this.status);
         return status == NoticeStatus.WITHDRAWN;
     }
 

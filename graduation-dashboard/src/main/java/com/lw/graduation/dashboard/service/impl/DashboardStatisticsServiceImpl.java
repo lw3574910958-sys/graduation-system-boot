@@ -5,9 +5,12 @@ import com.lw.graduation.api.dto.dashboard.GradeDistributionVO;
 import com.lw.graduation.api.dto.dashboard.TopicProgressVO;
 import com.lw.graduation.api.service.dashboard.DashboardStatisticsService;
 import com.lw.graduation.domain.entity.grade.BizGrade;
+import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
+import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
+import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,7 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
 
     private final BizGradeMapper bizGradeMapper;
     private final BizTopicMapper bizTopicMapper;
+    private final BizSelectionMapper bizSelectionMapper;
 
     @Override
     public GradeDistributionVO getGradeDistribution(Integer year) {
@@ -114,7 +118,14 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
             .count();
 
         long selected = allTopics.stream()
-            .filter(t -> t.getStatus().equals(TopicStatus.SELECTED.getCode()))
+            .filter(t -> {
+                // 检查该题目是否有已确认的选题
+                LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
+                selectionWrapper.eq(BizSelection::getTopicId, t.getId())
+                               .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
+                               .eq(BizSelection::getIsDeleted, 0);
+                return bizSelectionMapper.selectCount(selectionWrapper) > 0;
+            })
             .count();
 
         long closed = allTopics.stream()

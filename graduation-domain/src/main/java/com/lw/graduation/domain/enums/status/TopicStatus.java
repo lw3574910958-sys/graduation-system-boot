@@ -1,5 +1,6 @@
 package com.lw.graduation.domain.enums.status;
 
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -10,78 +11,92 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum TopicStatus {
+public enum TopicStatus implements IEnum<Integer> {
 
     /**
-     * 开放状态 - 题目可供学生选择
+     * 草稿状态 - 教师创建题目后未提交审核或被驳回后待修改
      */
-    OPEN(1, "开放"),
+    DRAFT(0, "草稿"),
     
     /**
-     * 审核中状态 - 有学生正在申请该题目
+     * 审核中状态 - 等待院系管理员审核
      */
-    REVIEWING(2, "审核中"),
+    REVIEWING(1, "审核中"),
     
     /**
-     * 已选状态 - 题目已被学生选中
+     * 开放状态 - 审核通过，可供学生选择
      */
-    SELECTED(3, "已选"),
+    OPEN(2, "开放"),
     
     /**
      * 关闭状态 - 题目不再接受选题
      */
-    CLOSED(4, "关闭");
+    CLOSED(3, "关闭");
 
     /**
-     * 状态值
+     * Code（数据库存储值）
      */
-    private final Integer value;
+    private final Integer code;
     
     /**
      * 状态描述
      */
     private final String description;
 
-    /**
-     * 根据状态值获取枚举
-     *
-     * @param value 状态值
-     * @return 对应的枚举，未找到返回null
-     */
-    public static TopicStatus getByValue(Integer value) {
-        for (TopicStatus status : values()) {
-            if (status.value.equals(value)) {
-                return status;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 判断状态值是否有效
-     *
-     * @param value 状态值
-     * @return 有效返回true，否则返回false
-     */
-    public static boolean isValid(Integer value) {
-        return getByValue(value) != null;
-    }
+    
 
     /**
      * 判断是否为可选状态
+     * 注意：还需结合 selected_count < max_selections 判断是否已满员
      *
-     * @return 可选返回true
+     * @return 可选返回 true
      */
     public boolean isSelectable() {
-        return this == OPEN || this == REVIEWING;
+        return this == OPEN;
     }
 
     /**
-     * 判断是否为活跃状态
+     * 判断是否为活跃状态（非终态）
      *
-     * @return 活跃返回true
+     * @return 活跃返回 true
      */
     public boolean isActive() {
         return this != CLOSED;
+    }
+    
+    /**
+     * 判断是否为草稿状态
+     *
+     * @return 草稿返回 true
+     */
+    public boolean isDraft() {
+        return this == DRAFT;
+    }
+    
+    /**
+     * 判断是否为审核中状态
+     *
+     * @return 审核中返回 true
+     */
+    public boolean isReviewing() {
+        return this == REVIEWING;
+    }
+    
+    /**
+     * 判断是否为开放状态
+     *
+     * @return 开放返回 true
+     */
+    public boolean isOpen() {
+        return this == OPEN;
+    }
+    
+    /**
+     * 判断是否为关闭状态
+     *
+     * @return 关闭返回 true
+     */
+    public boolean isClosed() {
+        return this == CLOSED;
     }
 }

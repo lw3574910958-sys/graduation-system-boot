@@ -94,6 +94,20 @@
 			<version>${mybatis-plus.version}</version>
 		</dependency>
 
+		<!-- Graduation Common（用于使用 CommonConstants） -->
+		<dependency>
+			<groupId>com.lw.graduation</groupId>
+			<artifactId>graduation-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Spring Boot DevTools（热部署，optional 防止传递） -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<optional>true</optional>
+		</dependency>
+
 	</dependencies>
 
 	<build>

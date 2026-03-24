@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.lw.graduation.common.constant.CommonConstants;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
@@ -14,12 +15,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * <p>
  * 学生表
- * </p>
- *
- * @author lw
- * @since 2025-12-30
  */
 @Data
 @TableName("biz_student")
@@ -50,7 +46,7 @@ public class BizStudent implements Serializable {
     private Long departmentId;
 
     /**
-     * 性别: 0-女, 1-男
+     * 性别: 0-未知, 1-男, 2-女
      */
     @TableField("gender")
     private Integer gender;
@@ -83,14 +79,14 @@ public class BizStudent implements Serializable {
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**

@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.common.constant.CommonConstants;
 import lombok.Data;
 
 import java.io.Serial;
@@ -68,7 +69,7 @@ public class SysUser implements Serializable {
      * 最后登录时间
      */
     @TableField("last_login_at")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime lastLoginAt;
 
     /**
@@ -87,21 +88,21 @@ public class SysUser implements Serializable {
      * 账户锁定截止时间
      */
     @TableField("locked_until")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime lockedUntil;
 
     /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**

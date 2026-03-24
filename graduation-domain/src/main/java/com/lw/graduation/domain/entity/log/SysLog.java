@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.lw.graduation.common.constant.CommonConstants;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
@@ -13,12 +14,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * <p>
  * 系统日志表
- * </p>
- *
- * @author lw
- * @since 2025-12-30
  */
 @Data
 @TableName("sys_log")
@@ -37,13 +33,13 @@ public class SysLog implements Serializable {
     private Long userId;
 
     /**
-     * 用户名 (用于未认证场景)
+     * 操作用户
      */
     @TableField("username")
     private String username;
 
     /**
-     * 操作人类型
+     * 操作用户类型
      */
     @TableField("user_type")
     private String userType;
@@ -94,6 +90,6 @@ public class SysLog implements Serializable {
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 }

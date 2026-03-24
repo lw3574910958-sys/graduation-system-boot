@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.common.constant.CommonConstants;
 import lombok.Data;
 
 import java.io.Serial;
@@ -104,17 +105,42 @@ public class BizTopic implements Serializable {
     private Integer selectedCount;
 
     /**
+     * 最近一次审核结果：NULL-未审，1-通过，2-驳回
+     */
+    @TableField("last_review_outcome")
+    private Integer lastReviewOutcome;
+
+    /**
+     * 最近一次审核意见
+     */
+    @TableField("last_review_feedback")
+    private String lastReviewFeedback;
+
+    /**
+     * 审核人 ID(sys_user.id)
+     */
+    @TableField("reviewer_id")
+    private Long reviewerId;
+
+    /**
+     * 最后一次审核时间
+     */
+    @TableField("reviewed_at")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
+    private LocalDateTime reviewedAt;
+
+    /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**

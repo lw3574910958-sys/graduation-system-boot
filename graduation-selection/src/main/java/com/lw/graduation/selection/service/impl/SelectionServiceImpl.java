@@ -10,6 +10,7 @@ import com.lw.graduation.api.dto.selection.SelectionReviewDTO;
 import com.lw.graduation.api.service.selection.SelectionService;
 import com.lw.graduation.api.vo.selection.SelectionVO;
 import com.lw.graduation.common.constant.CacheConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
@@ -106,7 +107,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
         
-        TopicStatus topicStatus = TopicStatus.getByValue(topic.getStatus());
+        TopicStatus topicStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
         if (topicStatus == null || !topicStatus.isSelectable()) { // 非可选状态
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "题目当前不可选择");
         }
@@ -119,7 +120,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         
         List<BizSelection> existingApplications = list(existWrapper);
         for (BizSelection existing : existingApplications) {
-            SelectionStatus existingStatus = SelectionStatus.getByValue(existing.getStatus());
+            SelectionStatus existingStatus = IEnum.getByCode(SelectionStatus.class, existing.getStatus());
             if (existingStatus != null && existingStatus.isActive()) {
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "您已提交过该题目的申请，请勿重复申请");
             }
@@ -135,7 +136,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         selection.setStudentId(studentId);
         selection.setTopicId(applyDTO.getTopicId());
         selection.setTopicTitle(topic.getTitle());
-        selection.setStatus(SelectionStatus.PENDING_REVIEW.getValue()); // 待审核状态
+        selection.setStatus(SelectionStatus.PENDING_REVIEW.getCode()); // 待审核状态
         
         boolean saved = save(selection);
         if (!saved) {
@@ -155,9 +156,9 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SelectionVO reviewSelection(SelectionReviewDTO reviewDTO, Long teacherId) {
-        log.info("教师[{}] 审核选题，申请ID: {}，审核结果: {}", 
+        log.info("教师 [{}] 审核选题，申请 ID: {}，审核结果：{}", 
                 teacherId, reviewDTO.getSelectionId(), 
-                SelectionStatus.APPROVED.getValue().equals(reviewDTO.getReviewResult()) ? "通过" : "驳回");
+                SelectionStatus.APPROVED.getCode().equals(reviewDTO.getReviewResult()) ? "通过" : "驳回");
         
         // 1. 获取选题申请信息
         BizSelection selection = getById(reviewDTO.getSelectionId());
@@ -172,7 +173,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         }
         
         // 3. 验证选题状态
-        SelectionStatus currentStatus = SelectionStatus.getByValue(selection.getStatus());
+        SelectionStatus currentStatus = IEnum.getByCode(SelectionStatus.class, selection.getStatus());
         if (currentStatus != null && currentStatus.isFinalStatus()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "选题状态不允许审核");
         }
@@ -189,7 +190,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         }
         
         // 5. 触发题目状态变更
-        boolean isApproved = SelectionStatus.APPROVED.getValue().equals(reviewDTO.getReviewResult());
+        boolean isApproved = SelectionStatus.APPROVED.getCode().equals(reviewDTO.getReviewResult());
         topicService.handleSelectionReviewed(selection.getTopicId(), isApproved);
         
         // 6. 清除缓存
@@ -221,7 +222,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         }
         
         // 4. 更新确认状态
-        selection.setStatus(SelectionStatus.CONFIRMED.getValue());
+        selection.setStatus(SelectionStatus.CONFIRMED.getCode());
         selection.setConfirmedAt(LocalDateTime.now());
         
         boolean updated = updateById(selection);
@@ -269,7 +270,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         // 查询这些题目下的待审核选题申请
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.in(BizSelection::getTopicId, topicIds)
-                       .eq(BizSelection::getStatus, SelectionStatus.PENDING_REVIEW.getValue())
+                       .eq(BizSelection::getStatus, SelectionStatus.PENDING_REVIEW.getCode())
                        .eq(BizSelection::getIsDeleted, 0)
                        .orderByAsc(BizSelection::getCreatedAt);
         
@@ -341,7 +342,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权重新申请他人选题");
         }
         
-        SelectionStatus originalStatus = SelectionStatus.getByValue(originalSelection.getStatus());
+        SelectionStatus originalStatus = IEnum.getByCode(SelectionStatus.class, originalSelection.getStatus());
         if (originalStatus == null || !originalStatus.canResubmit()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该选题状态不允许重新申请");
         }
@@ -352,7 +353,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "原题目不存在");
         }
         
-        TopicStatus topicStatus = TopicStatus.getByValue(topic.getStatus());
+        TopicStatus topicStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
         if (topicStatus == null || !topicStatus.isSelectable()) { // 非可选状态
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "原题目当前不可选择");
         }
@@ -373,7 +374,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         newSelection.setStudentId(studentId);
         newSelection.setTopicId(originalSelection.getTopicId());
         newSelection.setTopicTitle(originalSelection.getTopicTitle());
-        newSelection.setStatus(SelectionStatus.PENDING_REVIEW.getValue()); // 重新设置为待审核状态
+        newSelection.setStatus(SelectionStatus.PENDING_REVIEW.getCode()); // 重新设置为待审核状态
         
         boolean saved = save(newSelection);
         if (!saved) {
@@ -439,7 +440,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         SelectionVO vo = BeanMapperUtil.copyProperties(selection, SelectionVO.class);
         
         // 填充状态描述
-        SelectionStatus status = SelectionStatus.getByValue(selection.getStatus());
+        SelectionStatus status = IEnum.getByCode(SelectionStatus.class, selection.getStatus());
         if (status != null) {
             vo.setStatusDesc(status.getDescription());
         }

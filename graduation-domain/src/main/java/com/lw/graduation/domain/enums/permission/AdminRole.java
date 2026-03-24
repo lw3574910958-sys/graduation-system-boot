@@ -1,5 +1,6 @@
 package com.lw.graduation.domain.enums.permission;
 
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -11,7 +12,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum AdminRole {
+public enum AdminRole implements IEnum<Integer> {
     
     /**
      * 系统管理员 - 拥有最高权限，可管理所有用户和系统配置
@@ -24,57 +25,21 @@ public enum AdminRole {
     DEPARTMENT_ADMIN(1, "department_admin", "院系管理员");
 
     /**
-     * 数据库存储值
+     * Code（数据库存储值）
      */
-    private final Integer value;
-    
+    private final Integer code;
+        
     /**
-     * 角色编码（用于sys_user_role表）
+     * 角色编码（用于 sys_user_role 表）
      */
-    private final String code;
-    
+    private final String roleCode;
+        
     /**
      * 角色描述
      */
     private final String description;
 
-    /**
-     * 根据数据库值获取枚举
-     *
-     * @param value 数据库存储值
-     * @return 对应的枚举，未找到返回null
-     */
-    public static AdminRole getByValue(Integer value) {
-        if (value == null) {
-            return null;
-        }
-        
-        for (AdminRole role : values()) {
-            if (role.value.equals(value)) {
-                return role;
-            }
-        }
-        return null;
-    }
     
-    /**
-     * 根据角色编码获取枚举
-     *
-     * @param code 角色编码
-     * @return 对应的枚举，未找到返回null
-     */
-    public static AdminRole getByCode(String code) {
-        if (code == null) {
-            return null;
-        }
-        
-        for (AdminRole role : values()) {
-            if (role.code.equals(code)) {
-                return role;
-            }
-        }
-        return null;
-    }
     
     /**
      * 判断是否为系统管理员
@@ -97,9 +62,28 @@ public enum AdminRole {
     /**
      * 判断是否为管理员角色
      *
-     * @return 是管理员返回true
+     * @return 是管理员返回 true
      */
     public boolean isAdmin() {
         return true; // 所有枚举值都是管理员角色
+    }
+    
+    /**
+     * 根据角色编码获取 AdminRole 枚举
+     * 用于从 sys_user_role 表的 roleCode 字段查找
+     *
+     * @param roleCode 角色编码（如 "system_admin"）
+     * @return 匹配的 AdminRole，不存在返回 null
+     */
+    public static AdminRole getByRoleCode(String roleCode) {
+        if (roleCode == null) {
+            return null;
+        }
+        for (AdminRole role : values()) {
+            if (role.roleCode.equals(roleCode)) {
+                return role;
+            }
+        }
+        return null;
     }
 }

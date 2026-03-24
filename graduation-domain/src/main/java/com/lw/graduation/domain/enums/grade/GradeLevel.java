@@ -1,5 +1,6 @@
 package com.lw.graduation.domain.enums.grade;
 
+import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -13,33 +14,38 @@ import java.math.BigDecimal;
  */
 @Getter
 @AllArgsConstructor
-public enum GradeLevel {
+public enum GradeLevel implements IEnum<Integer> {
 
     /**
      * 优秀 (90-100分)
      */
-    EXCELLENT(new BigDecimal("90"), new BigDecimal("100"), "优秀", new BigDecimal("4.0")),
-    
+    EXCELLENT(0, new BigDecimal("90"), new BigDecimal("100"), "优秀", new BigDecimal("4.0")),
+        
     /**
-     * 良好 (80-89分)
+     * 良好 (80-89 分)
      */
-    GOOD(new BigDecimal("80"), new BigDecimal("89"), "良好", new BigDecimal("3.0")),
-    
+    GOOD(1, new BigDecimal("80"), new BigDecimal("89"), "良好", new BigDecimal("3.0")),
+        
     /**
-     * 中等 (70-79分)
+     * 中等 (70-79 分)
      */
-    FAIR(new BigDecimal("70"), new BigDecimal("79"), "中等", new BigDecimal("2.0")),
-    
+    FAIR(2, new BigDecimal("70"), new BigDecimal("79"), "中等", new BigDecimal("2.0")),
+        
     /**
-     * 及格 (60-69分)
+     * 及格 (60-69 分)
      */
-    PASS(new BigDecimal("60"), new BigDecimal("69"), "及格", new BigDecimal("1.0")),
-    
+    PASS(3, new BigDecimal("60"), new BigDecimal("69"), "及格", new BigDecimal("1.0")),
+        
     /**
-     * 不及格 (0-59分)
+     * 不及格 (0-59 分)
      */
-    FAIL(new BigDecimal("0"), new BigDecimal("59"), "不及格", new BigDecimal("0.0"));
+    FAIL(4, new BigDecimal("0"), new BigDecimal("59"), "不及格", new BigDecimal("0.0"));
 
+    /**
+     * Code（数据库存储值）
+     */
+    private final Integer code;
+    
     /**
      * 最低分数
      */
@@ -51,7 +57,7 @@ public enum GradeLevel {
     private final BigDecimal maxScore;
     
     /**
-     * 等级描述
+     * 描述
      */
     private final String description;
     
@@ -60,11 +66,13 @@ public enum GradeLevel {
      */
     private final BigDecimal gpa;
 
+    
+
     /**
-     * 根据分数获取成绩等级
+     * 根据分数获取成绩等级（业务方法）
      *
      * @param score 分数
-     * @return 对应的成绩等级，未找到返回null
+     * @return 对应的成绩等级，未找到返回 null
      */
     public static GradeLevel getByScore(BigDecimal score) {
         if (score == null) {

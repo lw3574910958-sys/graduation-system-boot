@@ -379,7 +379,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStudentId, studentId)
                        .eq(BizSelection::getTopicId, topicId)
-                       .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getValue()); // 已确认状态
+                       .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode()); // 已确认状态
         
         if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "该学生未选择此题目");

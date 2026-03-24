@@ -127,6 +127,13 @@ spring:
     charset: UTF-8
     location: classpath:banner.txt
 
+  devtools:
+    restart:
+      enabled: true  # 启用重启功能
+      additional-paths: src/main/java  # 监控这些目录的变化
+    livereload:
+      enabled: true  # 启用 LiveReload
+
 
 
 # mybatis-plus 配置

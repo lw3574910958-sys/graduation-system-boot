@@ -1,6 +1,7 @@
 package com.lw.graduation.topic.service.internal;
 
 import com.lw.graduation.domain.entity.topic.BizTopic;
+import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 
@@ -44,7 +45,7 @@ public class TopicInternalService {
         boolean updated = bizTopicMapper.updateById(topic) > 0;
         
         if (updated) {
-            TopicStatus newStatus = TopicStatus.getByValue(newStatusValue);
+            TopicStatus newStatus = IEnum.getByCode(TopicStatus.class,newStatusValue);
             String currentStatusDesc = getCurrentStatusDescription(topic);
             String newStatusDesc = newStatus != null ? newStatus.getDescription() : "未知状态";
             log.info("题目 [{}] 状态变化：{} -> {}", topicId, currentStatusDesc, newStatusDesc);
@@ -99,7 +100,7 @@ public class TopicInternalService {
      * @return 状态描述
      */
     private String getCurrentStatusDescription(BizTopic topic) {
-        TopicStatus currentStatus = TopicStatus.getByValue(topic.getStatus());
+        TopicStatus currentStatus = IEnum.getByCode(TopicStatus.class,topic.getStatus());
         return currentStatus != null ? currentStatus.getDescription() : "未知状态";
     }
 }

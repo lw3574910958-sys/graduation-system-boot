@@ -5,7 +5,6 @@ import com.lw.graduation.api.dto.department.DepartmentCreateDTO;
 import com.lw.graduation.api.dto.topic.TopicCreateDTO;
 import com.lw.graduation.api.dto.user.UserCreateDTO;
 import com.lw.graduation.domain.enums.user.AccountStatus;
-import com.lw.graduation.domain.enums.permission.SystemRole;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 
 import java.time.LocalDateTime;

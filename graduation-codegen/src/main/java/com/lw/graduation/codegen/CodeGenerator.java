@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.generator.config.OutputFile;
 import com.baomidou.mybatisplus.generator.config.rules.DateType;
 import com.baomidou.mybatisplus.generator.config.rules.NamingStrategy;
 import com.baomidou.mybatisplus.generator.engine.FreemarkerTemplateEngine;
+import com.lw.graduation.common.constant.CommonConstants;
 
 import java.io.File;
 import java.net.URL;
@@ -146,7 +147,7 @@ public class CodeGenerator {
                         .author("lw")
 //                        .enableSwagger()
                         .dateType(DateType.TIME_PACK)
-                        .commentDate("yyyy-MM-dd")
+                        .commentDate(CommonConstants.DateTimeFormat.DATE_ONLY)
                         .disableOpenDir() // 不自动打开文件夹
                 )
                 .packageConfig(builder -> builder

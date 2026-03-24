@@ -288,7 +288,7 @@
 				<version>${spring-boot.version}</version>
 				<scope>test</scope>
 			</dependency>
-
+		
 			<!-- MyBatis-Plus 专用测试支持（Spring Boot 3） -->
 			<dependency>
 				<groupId>com.baomidou</groupId>
@@ -296,7 +296,15 @@
 				<version>${mybatis-plus.version}</version>
 				<scope>test</scope>
 			</dependency>
-
+		
+			<!-- Spring Boot DevTools（热部署） -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-devtools</artifactId>
+				<version>${spring-boot.version}</version>
+				<optional>true</optional>
+			</dependency>
+		
 		</dependencies>
 	</dependencyManagement>
 </project>

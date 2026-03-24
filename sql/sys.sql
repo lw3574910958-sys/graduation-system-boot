@@ -146,7 +146,9 @@ CREATE TABLE `biz_topic` (
   `workload` TINYINT NULL DEFAULT NULL COMMENT '预计工作量 (1-5)',
   `max_selections` INT NOT NULL DEFAULT 1 COMMENT '选题人数限制',
   `selected_count` INT NOT NULL DEFAULT 0 COMMENT '已选人数',
-  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1-开放，2-审核中，3-已选，4-关闭',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '题目状态：0-草稿，1-审核中，2-开放（审核通过），3-已关闭',
+  `last_review_outcome` TINYINT NULL DEFAULT NULL COMMENT '最近一次审核结果：NULL-未审，1-通过，2-驳回',
+  `last_review_feedback` VARCHAR(500) NULL DEFAULT NULL COMMENT '最近一次审核意见',
   `reviewer_id` BIGINT NULL DEFAULT NULL COMMENT '审核人 ID(sys_user.id)',
   `reviewed_at` DATETIME(3) NULL DEFAULT NULL COMMENT '审核时间',
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -255,24 +257,6 @@ CREATE TABLE `biz_grade` (
   CONSTRAINT `fk_grade_topic` FOREIGN KEY (`topic_id`) REFERENCES `biz_topic` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_grade_grader` FOREIGN KEY (`grader_id`) REFERENCES `sys_user` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成绩表';
-
--- ----------------------------
--- Table structure for sys_user_role
--- 用户角色关联表
--- ----------------------------
-DROP TABLE IF EXISTS `sys_user_role`;
-CREATE TABLE `sys_user_role` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `user_id` BIGINT NOT NULL COMMENT '用户ID(sys_user.id)',
-  `role_code` VARCHAR(50) NOT NULL COMMENT '角色编码',
-  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
-  PRIMARY KEY (`id`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_role_code` (`role_code`),
-  CONSTRAINT `fk_user_role_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关联表';
 
 -- ----------------------------
 -- Table structure for biz_notice

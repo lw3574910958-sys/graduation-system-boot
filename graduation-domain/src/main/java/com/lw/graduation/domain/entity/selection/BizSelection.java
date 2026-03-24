@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.lw.graduation.common.constant.CommonConstants;
+import com.lw.graduation.common.enums.IEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
 import lombok.Data;
@@ -57,14 +59,14 @@ public class BizSelection implements Serializable {
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime updatedAt;
 
     /**
@@ -84,7 +86,7 @@ public class BizSelection implements Serializable {
      * 审核时间
      */
     @TableField("reviewed_at")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime reviewedAt;
 
     /**
@@ -97,7 +99,7 @@ public class BizSelection implements Serializable {
      * 学生确认时间
      */
     @TableField("confirmed_at")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime confirmedAt;
 
     /**
@@ -106,7 +108,7 @@ public class BizSelection implements Serializable {
      * @return 通过审核返回true
      */
     public boolean isApproved() {
-        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
         return status == SelectionStatus.APPROVED;
     }
 
@@ -116,7 +118,7 @@ public class BizSelection implements Serializable {
      * @return 被驳回返回true
      */
     public boolean isRejected() {
-        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
         return status == SelectionStatus.REJECTED;
     }
 
@@ -126,7 +128,7 @@ public class BizSelection implements Serializable {
      * @return 待审核返回true
      */
     public boolean isPendingReview() {
-        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
         return status == null || status == SelectionStatus.PENDING_REVIEW;
     }
 
@@ -136,7 +138,7 @@ public class BizSelection implements Serializable {
      * @return 已确认返回true
      */
     public boolean isConfirmed() {
-        SelectionStatus status = SelectionStatus.getByValue(this.status);
+        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
         return status == SelectionStatus.CONFIRMED;
     }
 }
