@@ -1,4 +1,4 @@
-﻿package com.lw.graduation.api.service.topic;
+package com.lw.graduation.api.service.topic;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.topic.TopicCreateDTO;
@@ -47,6 +47,13 @@ public interface TopicService {
      * @param updateDTO 更新课题 DTO
      */
     void updateTopic(Long id, TopicUpdateDTO updateDTO);
+
+    /**
+     * 撤销题目（仅草稿状态）
+     *
+     * @param id 课题 ID
+     */
+    void revokeTopic(Long id);
 
     /**
      * 删除课题

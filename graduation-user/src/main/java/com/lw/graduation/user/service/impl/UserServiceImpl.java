@@ -13,6 +13,7 @@ import com.lw.graduation.api.dto.user.UserUpdateDTO;
 import com.lw.graduation.api.service.user.UserService;
 import com.lw.graduation.api.vo.user.UserDetailsInfoVO;
 import com.lw.graduation.api.vo.user.UserListInfoVO;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
@@ -53,9 +54,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements UserService {
 
-    private final SysUserMapper sysUserMapper; // 引入用户数据访问接口
+    private final SysUserMapper sysUserMapper; // 注入用户数据访问接口
     private final PasswordUtil passwordUtil; // 注入密码工具类
     private final CacheHelper cacheHelper; // 注入缓存助手
+    private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
     private final BizStudentMapper bizStudentMapper; // 注入学生 Mapper
     private final BizTeacherMapper bizTeacherMapper; // 注入教师 Mapper
     private final SysDepartmentMapper sysDepartmentMapper; // 注入院系 Mapper
@@ -79,8 +81,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 .orderByDesc(SysUser::getCreatedAt); // 按创建时间倒序
 
         // 2. 如果当前登录用户是院系管理员，则只返回该院系的学生和教师
-        if (isCurrentUserDepartmentAdmin()) {
-            Long departmentId = getCurrentUserDepartmentId();
+        if (dataPermissionUtil.isCurrentLoginUserDepartmentAdmin()) {
+            Long departmentId = dataPermissionUtil.getCurrentUserDepartmentId();
             if (departmentId != null) {
                 // 通过子查询限制只返回该院系的学生或教师
                 addDepartmentFilter(wrapper, departmentId);
@@ -99,46 +101,6 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         voPage.setTotal(userPage.getTotal());
 
         return voPage;
-    }
-
-    /**
-     * 判断当前登录用户是否为院系管理员
-     * 复用 CustomSaTokenConfig 中的 isDepartmentAdmin 方法逻辑
-     *
-     * @return 是返回 true
-     */
-    private boolean isCurrentUserDepartmentAdmin() {
-        try {
-            Long currentUserId = StpUtil.getLoginIdAsLong();
-            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BizAdmin::getUserId, currentUserId)
-                   .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode())  // role_level = 1 表示院系管理员
-                   .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
-
-            return bizAdminMapper.selectCount(wrapper) > 0;
-        } catch (Exception e) {
-            log.warn("检查院系管理员身份失败", e);
-            return false;
-        }
-    }
-
-    /**
-     * 获取当前登录用户（院系管理员）所属的院系 ID
-     *
-     * @return 院系 ID
-     */
-    private Long getCurrentUserDepartmentId() {
-        try {
-            Long currentUserId = StpUtil.getLoginIdAsLong();
-            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BizAdmin::getUserId, currentUserId)
-                   .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
-            BizAdmin admin = bizAdminMapper.selectOne(wrapper);
-            return admin != null ? admin.getDepartmentId() : null;
-        } catch (Exception e) {
-            log.warn("获取当前用户院系失败", e);
-            return null;
-        }
     }
 
     /**

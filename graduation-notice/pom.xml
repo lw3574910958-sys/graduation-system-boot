@@ -33,6 +33,11 @@
             <artifactId>graduation-domain</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.lw.graduation</groupId>
+            <artifactId>graduation-auth</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

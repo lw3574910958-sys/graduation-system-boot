@@ -1,6 +1,5 @@
 package com.lw.graduation.auth.service.impl;
 
-
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -9,6 +8,7 @@ import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
 import com.lw.graduation.api.vo.user.LoginUserInfoVO;
 import com.lw.graduation.auth.util.CaptchaUtil;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.auth.util.PasswordUtil;
 import com.lw.graduation.common.config.SaTokenProperties;
 import com.lw.graduation.common.constant.CacheConstants;
@@ -17,9 +17,7 @@ import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.common.util.EnumUtils;
-import com.lw.graduation.domain.entity.admin.BizAdmin;
 import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.domain.enums.common.IsDepartment;
 import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.domain.enums.user.UserType;
 import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
@@ -45,11 +43,11 @@ import java.time.LocalDateTime;
 public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements AuthService {
 
     private final SysUserMapper sysUserMapper; // 注入用户数据访问层
-    private final BizAdminMapper bizAdminMapper;
     private final CaptchaUtil captchaUtil;     // 注入验证码工具类
     private final PasswordUtil passwordUtil;   // 注入密码工具类
-    private  final CacheHelper cacheHelper;
+    private final CacheHelper cacheHelper;
     private final SaTokenProperties saTokenProperties;
+    private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
 
 
     /**
@@ -239,17 +237,17 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
             // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
             if (UserType.ADMIN.getCode().equals(user.getUserType())) {
-                if (isDepartmentAdmin(user.getId())) {
+                if (dataPermissionUtil.isDepartmentAdmin(user.getId())) {
                     user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
                 } else {
                     user.setUserType(UserType.SYSTEM_ADMIN.getCode());
                 }
-            } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && isDepartmentAdmin(user.getId())) {
+            } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && dataPermissionUtil.isDepartmentAdmin(user.getId())) {
                 // 教师兼任院系管理员时，使用院系管理员角色
                 user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
             }
 
-            return convertToLoginUserInfoVO(user);
+            return BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
         }, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
     }
 
@@ -284,51 +282,22 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
                 // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
                 if (UserType.ADMIN.getCode().equals(user.getUserType())) {
-                    if (isDepartmentAdmin(user.getId())) {
+                    if (dataPermissionUtil.isDepartmentAdmin(user.getId())) {
                         user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
                     } else {
                         user.setUserType(UserType.SYSTEM_ADMIN.getCode());
                     }
-                } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && isDepartmentAdmin(user.getId())) {
+                } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && dataPermissionUtil.isDepartmentAdmin(user.getId())) {
                     // 教师兼任院系管理员时，使用院系管理员角色
                     user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
                 }
     
                 String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
-                LoginUserInfoVO userInfo = convertToLoginUserInfoVO(user);
+                LoginUserInfoVO userInfo = BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
                 cacheHelper.putToCache(cacheKey, userInfo, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
                 log.debug("预热当前用户缓存：{}, userType={}", cacheKey, userInfo.getUserType());
             }
         }
     }
 
-    /**
-     * 将 SysUser 实体转换为 LoginUserInfoVO 视图对象
-     *
-     * @param user 用户实体
-     * @return 用户视图对象
-     */
-    private LoginUserInfoVO convertToLoginUserInfoVO(SysUser user) {
-        return BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
-    }
-
-    /**
-     * 检查用户是否为院系管理员
-     *
-     * @param userId 用户ID
-     * @return true表示是院系管理员，false表示不是
-     */
-    private boolean isDepartmentAdmin(Long userId) {
-        try {
-            // 使用MyBatis-Plus的Lambda查询方式检查是否为院系管理员
-            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BizAdmin::getUserId, userId)
-                    .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode()); // role_level = 1 表示院系管理员
-
-            return bizAdminMapper.selectCount(wrapper) > 0;
-        } catch (Exception e) {
-            log.warn("检查院系管理员身份失败: userId={}", userId, e);
-        }
-        return false;
-    }
 }

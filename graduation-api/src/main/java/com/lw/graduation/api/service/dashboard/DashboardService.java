@@ -30,8 +30,8 @@ public interface DashboardService {
     /**
      * 获取管理员仪表盘统计信息
      *
-     * @param departmentId 院系 ID（可选，null 表示系统管理员）
+     * @param adminId 管理员 ID（可选，null 表示系统管理员）
      * @return 管理员仪表盘统计信息
      */
-    AdminDashboardVO getAdminDashboard(Long departmentId);
+    AdminDashboardVO getAdminDashboard(Long adminId);
 }

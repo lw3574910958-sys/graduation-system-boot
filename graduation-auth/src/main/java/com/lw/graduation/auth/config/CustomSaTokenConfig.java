@@ -1,12 +1,8 @@
 package com.lw.graduation.auth.config;
 
 import cn.dev33.satoken.stp.StpInterface;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.lw.graduation.domain.entity.admin.BizAdmin;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.domain.enums.common.IsDelete;
-import com.lw.graduation.domain.enums.common.IsDepartment;
-import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +26,7 @@ import static cn.hutool.core.convert.Convert.toLong;
 public class CustomSaTokenConfig implements StpInterface {
 
     private final SysUserMapper sysUserMapper;
-    private final BizAdminMapper bizAdminMapper;
+    private final DataPermissionUtil dataPermissionUtil;
 
     /**
      * 返回指定账号id所拥有的权限码集合
@@ -65,7 +61,7 @@ public class CustomSaTokenConfig implements StpInterface {
         List<String> roleList = new ArrayList<>();
         switch (userType) {
             case "admin" -> {
-                if (isDepartmentAdmin(userId)) {
+                if (dataPermissionUtil.isDepartmentAdmin(userId)) {
                     roleList.add("department_admin");
                 } else{
                     roleList.add("system_admin");
@@ -81,7 +77,7 @@ public class CustomSaTokenConfig implements StpInterface {
             case "department_admin" -> roleList.add("department_admin");
             case "teacher" -> {
                 roleList.add("teacher");
-                if (isDepartmentAdmin(userId)) {
+                if (dataPermissionUtil.isDepartmentAdmin(userId)) {
                     roleList.add("department_admin");
                 }
             }
@@ -108,24 +104,4 @@ public class CustomSaTokenConfig implements StpInterface {
         }
     }
 
-    /**
-     * 检查用户是否为院系管理员
-     *
-     * @param userId 用户ID
-     * @return true表示是院系管理员，false表示不是
-     */
-    private boolean isDepartmentAdmin(Long userId) {
-        try {
-            // 使用MyBatis-Plus的Lambda查询方式检查是否为院系管理员
-            LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BizAdmin::getUserId, userId)
-                   .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode())  // role_level = 1 表示院系管理员
-                   .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
-
-            return bizAdminMapper.selectCount(wrapper) > 0;
-        } catch (Exception e) {
-            log.warn("检查院系管理员身份失败: userId={}", userId, e);
-        }
-        return false;
-    }
 }

@@ -1,7 +1,7 @@
 package com.lw.graduation.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.lw.graduation.domain.entity.department.SysDepartment;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.grade.BizGrade;
 import com.lw.graduation.domain.entity.selection.BizSelection;
@@ -11,7 +11,6 @@ import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.domain.enums.user.UserType;
-import com.lw.graduation.infrastructure.mapper.department.SysDepartmentMapper;
 import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
@@ -35,11 +34,11 @@ public class PermissionValidationService {
 
     private final BizStudentMapper bizStudentMapper;
     private final BizTeacherMapper bizTeacherMapper;
-    private final SysDepartmentMapper sysDepartmentMapper;
     private final BizTopicMapper bizTopicMapper;
     private final BizDocumentMapper bizDocumentMapper;
     private final BizSelectionMapper bizSelectionMapper;
     private final BizGradeMapper bizGradeMapper;
+    private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
 
     /**
      * 验证用户是否有权限操作指定学生数据
@@ -57,7 +56,7 @@ public class PermissionValidationService {
             
         // 院系管理员可以访问本院系学生数据
         if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
-            return isSameDepartment(userId, studentId);
+            return dataPermissionUtil.isSameDepartment(userId, studentId);
         }
             
         // 教师可以访问自己指导的学生数据
@@ -231,41 +230,6 @@ public class PermissionValidationService {
     // ==================== 辅助方法 ====================
     
     /**
-     * 判断两个用户是否属于同一院系
-     */
-    private boolean isSameDepartment(Long userId1, Long userId2) {
-        // 查询第一个用户所属院系
-        LambdaQueryWrapper<BizStudent> studentWrapper1 = new LambdaQueryWrapper<>();
-        studentWrapper1.eq(BizStudent::getUserId, userId1)
-                       .eq(BizStudent::getIsDeleted, 0);
-        BizStudent student1 = bizStudentMapper.selectOne(studentWrapper1);
-        
-        if (student1 != null && student1.getDepartmentId() != null) {
-            LambdaQueryWrapper<BizStudent> studentWrapper2 = new LambdaQueryWrapper<>();
-            studentWrapper2.eq(BizStudent::getUserId, userId2)
-                          .eq(BizStudent::getIsDeleted, 0);
-            BizStudent student2 = bizStudentMapper.selectOne(studentWrapper2);
-            return student2 != null && student1.getDepartmentId().equals(student2.getDepartmentId());
-        }
-        
-        // 如果不是学生，检查是否是教师
-        LambdaQueryWrapper<BizTeacher> teacherWrapper1 = new LambdaQueryWrapper<>();
-        teacherWrapper1.eq(BizTeacher::getUserId, userId1)
-                      .eq(BizTeacher::getIsDeleted, 0);
-        BizTeacher teacher1 = bizTeacherMapper.selectOne(teacherWrapper1);
-        
-        if (teacher1 != null && teacher1.getDepartmentId() != null) {
-            LambdaQueryWrapper<BizTeacher> teacherWrapper2 = new LambdaQueryWrapper<>();
-            teacherWrapper2.eq(BizTeacher::getUserId, userId2)
-                          .eq(BizTeacher::getIsDeleted, 0);
-            BizTeacher teacher2 = bizTeacherMapper.selectOne(teacherWrapper2);
-            return teacher2 != null && teacher1.getDepartmentId().equals(teacher2.getDepartmentId());
-        }
-        
-        return false;
-    }
-    
-    /**
      * 判断教师是否是学生的指导教师
      */
     private boolean isTeacherOfStudent(Long teacherId, Long studentId) {
@@ -293,7 +257,7 @@ public class PermissionValidationService {
      */
     private boolean isTopicInDepartment(Long userId, Long topicId) {
         // 获取用户所属院系 ID
-        Long userDepartmentId = getUserDepartmentId(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -331,7 +295,7 @@ public class PermissionValidationService {
      * 判断文档是否属于用户所在院系
      */
     private boolean isDocumentInDepartment(Long userId, Long documentId) {
-        Long userDepartmentId = getUserDepartmentId(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -342,7 +306,7 @@ public class PermissionValidationService {
         }
         
         // 获取文档上传者的院系 ID（通过 userId 查找）
-        Long docOwnerDeptId = getUserDepartmentId(document.getUserId());
+        Long docOwnerDeptId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(document.getUserId());
         return userDepartmentId.equals(docOwnerDeptId);
     }
     
@@ -380,7 +344,7 @@ public class PermissionValidationService {
      * 判断用户是否属于指定院系
      */
     private boolean isUserInDepartment(Long userId, Long departmentId) {
-        Long userDeptId = getUserDepartmentId(userId);
+        Long userDeptId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
         return userDeptId != null && userDeptId.equals(departmentId);
     }
     
@@ -388,7 +352,7 @@ public class PermissionValidationService {
      * 判断选题是否属于用户所在院系
      */
     private boolean isSelectionInDepartment(Long userId, Long selectionId) {
-        Long userDepartmentId = getUserDepartmentId(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -437,7 +401,7 @@ public class PermissionValidationService {
      * 判断成绩是否属于用户所在院系
      */
     private boolean isGradeInDepartment(Long userId, Long gradeId) {
-        Long userDepartmentId = getUserDepartmentId(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -499,30 +463,4 @@ public class PermissionValidationService {
         return bizStudentMapper.selectCount(wrapper) > 0;
     }
     
-    /**
-     * 获取用户所属院系 ID
-     * @param userId 用户 ID
-     * @return 院系 ID，如果用户不属于任何院系则返回 null
-     */
-    private Long getUserDepartmentId(Long userId) {
-        // 先尝试从学生表查询
-        LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
-        studentWrapper.eq(BizStudent::getUserId, userId)
-                     .eq(BizStudent::getIsDeleted, 0);
-        BizStudent student = bizStudentMapper.selectOne(studentWrapper);
-        if (student != null && student.getDepartmentId() != null) {
-            return student.getDepartmentId();
-        }
-        
-        // 再尝试从教师表查询
-        LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
-        teacherWrapper.eq(BizTeacher::getUserId, userId)
-                     .eq(BizTeacher::getIsDeleted, 0);
-        BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
-        if (teacher != null && teacher.getDepartmentId() != null) {
-            return teacher.getDepartmentId();
-        }
-        
-        return null;
-    }
 }

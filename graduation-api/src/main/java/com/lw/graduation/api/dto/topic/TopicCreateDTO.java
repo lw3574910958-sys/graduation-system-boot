@@ -76,4 +76,11 @@ public class TopicCreateDTO implements Serializable {
      */
     @Schema(description = "选题人数限制", defaultValue = "1")
     private Integer maxSelections = 1;
+
+    /**
+     * 题目状态（用于控制创建后的初始状态）
+     * 0-暂存为草稿，1-直接提交审核（不传默认为 0）
+     */
+    @Schema(description = "题目状态：0-暂存为草稿，1-直接提交审核", defaultValue = "0")
+    private Integer status = 0;
 }

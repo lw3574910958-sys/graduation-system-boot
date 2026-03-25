@@ -10,6 +10,7 @@ import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.service.grade.GradeService;
 import com.lw.graduation.api.vo.grade.GradeVO;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
@@ -60,6 +61,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     private final CacheHelper cacheHelper;
     private final GradeCalculatorService gradeCalculatorService;
     private final ObjectMapper objectMapper;
+    private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
 
     @Override
     public IPage<GradeVO> getGradePage(GradePageQueryDTO queryDTO) {
@@ -404,7 +406,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         }
         
         // 5. 检查是否为院系管理员
-        if (isDepartmentAdmin(graderId, topic.getDepartmentId())) {
+        if (dataPermissionUtil.isDepartmentAdminInSpecificDepartment(graderId, topic.getDepartmentId())) {
             log.debug("院系管理员 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
             return;
         }
@@ -440,22 +442,6 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     private boolean isDefenseTeacher(Long graderId, Long topicId) {
         // 这里可以实现具体的答辩教师检查逻辑
         // 比如查询答辩安排表、答辩小组成员等
-        // 简化处理：暂时返回false，实际项目中需要实现具体逻辑
-        return false;
-    }
-    
-    /**
-     * 判断是否为院系管理员
-     * 检查教师是否具有指定院系的管理权限
-     * 
-     * @param graderId 评分教师ID
-     * @param departmentId 院系ID
-     * @return 是否为院系管理员
-     */
-    @SuppressWarnings("unused")
-    private boolean isDepartmentAdmin(Long graderId, Long departmentId) {
-        // 这里可以实现院系管理员检查逻辑
-        // 比如查询用户角色、权限表等
         // 简化处理：暂时返回false，实际项目中需要实现具体逻辑
         return false;
     }

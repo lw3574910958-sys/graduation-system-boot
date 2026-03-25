@@ -1,10 +1,12 @@
 package com.lw.graduation.dashboard.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lw.graduation.api.dto.dashboard.AdminDashboardVO;
 import com.lw.graduation.api.dto.dashboard.StudentDashboardVO;
 import com.lw.graduation.api.dto.dashboard.TeacherDashboardVO;
 import com.lw.graduation.api.service.dashboard.DashboardService;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.department.SysDepartment;
 import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.selection.BizSelection;
@@ -42,13 +44,14 @@ public class DashboardServiceImpl implements DashboardService {
     private final BizSelectionMapper bizSelectionMapper;
     private final BizDocumentMapper bizDocumentMapper;
     private final SysDepartmentMapper sysDepartmentMapper;
+    private final DataPermissionUtil dataPermissionUtil;
 
     @Override
     public StudentDashboardVO getStudentDashboard(Long studentId) {
         log.info("获取学生仪表盘信息，学生 ID: {}", studentId);
         return calculateStudentDashboard(studentId);
     }
-    
+
     /**
      * 计算学生仪表盘数据
      */
@@ -131,13 +134,13 @@ public class DashboardServiceImpl implements DashboardService {
             .totalDocuments((int) submittedDocs)
             .build();
     }
-    
+
     @Override
     public TeacherDashboardVO getTeacherDashboard(Long teacherId) {
         log.info("获取教师仪表盘信息，教师 ID: {}", teacherId);
         return calculateTeacherDashboard(teacherId);
     }
-    
+
     /**
      * 计算教师仪表盘数据
      */
@@ -195,13 +198,17 @@ public class DashboardServiceImpl implements DashboardService {
             .confirmedSelections((int) confirmedSelections)
             .build();
     }
-    
+
+    /**
+     * 获取管理员仪表盘信息
+     */
     @Override
-    public AdminDashboardVO getAdminDashboard(Long departmentId) {
+    public AdminDashboardVO getAdminDashboard(Long adminId) {
+        Long departmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(StpUtil.getLoginIdAsLong());
         log.info("获取管理员仪表盘信息，院系 ID: {}", departmentId);
         return calculateAdminDashboard(departmentId);
     }
-    
+
     /**
      * 计算管理员仪表盘数据
      */

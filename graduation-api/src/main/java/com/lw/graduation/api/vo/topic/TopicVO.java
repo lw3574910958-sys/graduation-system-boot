@@ -126,6 +126,12 @@ public class TopicVO {
     private Long reviewerId;
 
     /**
+     * 审核人姓名（用于管理端显示）
+     */
+    @Schema(description = "审核人姓名")
+    private String reviewerName;
+
+    /**
      * 审核时间
      */
     @Schema(description = "审核时间")

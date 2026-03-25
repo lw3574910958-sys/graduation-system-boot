@@ -10,6 +10,7 @@ import com.lw.graduation.api.dto.notice.NoticePageQueryDTO;
 import com.lw.graduation.api.dto.notice.NoticeUpdateDTO;
 import com.lw.graduation.api.service.notice.NoticeService;
 import com.lw.graduation.api.vo.notice.NoticeVO;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
@@ -47,6 +48,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     private final SysUserMapper sysUserMapper;
     private final CacheHelper cacheHelper;
     private final WebSocketMessageService webSocketMessageService;
+    private final DataPermissionUtil dataPermissionUtil;
 
     @Override
     public IPage<NoticeVO> getNoticePage(NoticePageQueryDTO queryDTO) {
@@ -350,7 +352,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         
         // 从查询条件中获取当前用户类型
         // 0-学生，1-教师，2-管理员
-        Integer currentUserType = getCurrentUserType();
+        Integer currentUserType = dataPermissionUtil.getCurrentUserTypeCode();
         
         // 根据目标范围判断当前用户是否可以看到
         // targetScope: 1-学生，2-教师，3-管理员
@@ -367,35 +369,6 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         
         return true;
     }
-    
-    /**
-     * 获取当前用户类型
-     * 通过 StpUtil 获取当前登录用户 ID，然后查询用户类型
-     * @return 用户类型：0-学生，1-教师，2-管理员，null-获取失败
-     */
-    private Integer getCurrentUserType() {
-        try {
-            Long userId = StpUtil.getLoginIdAsLong();
-            if (userId != null) {
-                SysUser user = sysUserMapper.selectById(userId);
-                if (user != null && user.getUserType() != null) {
-                    String userType = user.getUserType();
-                    // 将用户类型转换为内部表示：0-学生，1-教师，2-管理员
-                    if ("student".equals(userType)) {
-                        return 0;
-                    } else if ("teacher".equals(userType)) {
-                        return 1;
-                    } else if ("admin".equals(userType)) {
-                        return 2;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("获取当前用户类型失败：{}", e.getMessage());
-        }
-        return null;
-    }
-
     /**
      * 根据生效时间过滤通知
      * 草稿状态的通知不受生效时间限制，始终显示

@@ -18,11 +18,14 @@ import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.department.SysDepartment;
+import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
 import com.lw.graduation.infrastructure.mapper.department.SysDepartmentMapper;
+import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
@@ -51,6 +54,8 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     private final BizSelectionMapper bizSelectionMapper;
     private final BizTeacherMapper bizTeacherMapper;
     private final SysDepartmentMapper sysDepartmentMapper;
+    private final SysUserMapper sysUserMapper;
+    private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
     private final CacheHelper cacheHelper;
     private final TopicInternalService topicInternalService; // 注入内部服务
 
@@ -75,11 +80,14 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                 .eq(BizTopic::getIsDeleted, 0)
                 .orderByDesc(BizTopic::getCreatedAt);
 
-        // 2. 执行分页查询
+        // 2. 根据用户类型添加权限过滤
+        addPermissionFilter(wrapper, queryDTO);
+
+        // 3. 执行分页查询
         IPage<BizTopic> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<BizTopic> topicPage = bizTopicMapper.selectPage(page, wrapper);
 
-        // 3. 转换为 VO
+        // 4. 转换为 VO
         IPage<TopicVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(topicPage.getRecords().stream()
                 .map(this::convertToTopicVO)
@@ -150,7 +158,16 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         topic.setWorkload(createDTO.getWorkload());
         topic.setMaxSelections(createDTO.getMaxSelections() != null ? createDTO.getMaxSelections() : 1);
         topic.setSelectedCount(0); // 新增时已选人数为 0
-        topic.setStatus(TopicStatus.DRAFT.getCode()); // 默认草稿状态，需要提交审核
+        
+        // 根据传入的 status 字段设置初始状态
+        // 如果 status=1（直接提交审核），则设置为 REVIEWING；否则默认为 DRAFT
+        if (createDTO.getStatus() != null && createDTO.getStatus() == 1) {
+            topic.setStatus(TopicStatus.REVIEWING.getCode());
+            log.info("题目创建时直接提交审核，ID: {}", topic.getId());
+        } else {
+            topic.setStatus(TopicStatus.DRAFT.getCode());
+            log.info("题目创建为草稿状态，ID: {}", topic.getId());
+        }
 
         // 3. 保存到数据库
         boolean saved = save(topic);
@@ -210,14 +227,14 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     }
 
     /**
-     * 删除题目
+     * 撤销题目（仅草稿状态）
      *
      * @param id 题目 ID
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteTopic(Long id) {
-        log.info("删除题目：{}", id);
+    public void revokeTopic(Long id) {
+        log.info("撤销题目：{}", id);
 
         // 1. 检查题目是否存在
         BizTopic existingTopic = getById(id);
@@ -225,7 +242,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
 
-        // 2. 只有草稿状态才能删除（撤销）
+        // 2. 只有草稿状态才能撤销
         TopicStatus currentStatus = IEnum.getByCode(TopicStatus.class, existingTopic.getStatus());
         if (currentStatus != TopicStatus.DRAFT) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有草稿状态的题目才能撤销");
@@ -241,6 +258,45 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         clearTopicCache(id);
 
         log.info("题目撤销成功，ID: {}", id);
+    }
+
+    /**
+     * 删除题目（仅审核通过状态）
+     *
+     * @param id 题目 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTopic(Long id) {
+        log.info("删除题目：{}", id);
+
+        // 1. 检查题目是否存在
+        BizTopic existingTopic = getById(id);
+        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
+        }
+
+        // 2. 只有审核通过状态才能删除（开放或关闭）
+        TopicStatus currentStatus = IEnum.getByCode(TopicStatus.class, existingTopic.getStatus());
+        if (currentStatus != TopicStatus.OPEN && currentStatus != TopicStatus.CLOSED) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只能删除审核通过的题目（开放或关闭状态）");
+        }
+
+        // 3. 检查是否有学生已选该题目
+        if (existingTopic.getSelectedCount() > 0) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已有学生选题，无法删除");
+        }
+
+        // 4. 逻辑删除
+        boolean removed = removeById(id);
+        if (!removed) {
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "题目删除失败");
+        }
+
+        // 5. 清除缓存
+        clearTopicCache(id);
+
+        log.info("题目删除成功，ID: {}", id);
     }
 
     /**
@@ -265,8 +321,18 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有草稿状态的题目才能提交审核");
         }
 
-        // 3. 更新状态为审核中
+        // 3. 更新状态为审核中，并清除上一次的审核结果
         topicInternalService.updateTopicStatus(topicId, TopicStatus.REVIEWING.getCode());
+        
+        // 清除上一次的审核记录，表示这是一次新的审核申请
+        LambdaUpdateWrapper<BizTopic> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(BizTopic::getId, topicId)
+               .set(BizTopic::getLastReviewOutcome, null)  // 清除审核结果
+               .set(BizTopic::getLastReviewFeedback, null)  // 清除审核意见
+               .set(BizTopic::getReviewerId, null)  // 清除审核人
+               .set(BizTopic::getReviewedAt, null);  // 清除审核时间
+        update(wrapper);
+        
         clearTopicCache(topicId);
 
         log.info("题目 [{}] 提交审核成功，当前状态：审核中", topicId);
@@ -297,11 +363,11 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         // 3. 根据审核结果更新状态和审核结果字段
         if (reviewDTO.getReviewResult() == 1) {
-            // 审核通过：转为开放状态，清除驳回记录
+            // 审核通过：转为开放状态
             topicInternalService.updateTopicStatus(reviewDTO.getTopicId(), TopicStatus.OPEN.getCode());
-            // 更新最近一次审核结果为通过
-            updateLastReviewOutcome(reviewDTO.getTopicId(), 1, null);
-            log.info("题目 [{}] 审核通过，转为开放状态", reviewDTO.getTopicId());
+            // 更新最近一次审核结果为通过，并保存审核意见
+            updateLastReviewOutcome(reviewDTO.getTopicId(), 1, reviewDTO.getReviewComment());
+            log.info("题目 [{}] 审核通过，审核意见：{}", reviewDTO.getTopicId(), reviewDTO.getReviewComment());
         } else if (reviewDTO.getReviewResult() == 2) {
             // 审核驳回：退回草稿状态，记录驳回意见
             topicInternalService.updateTopicStatus(reviewDTO.getTopicId(), TopicStatus.DRAFT.getCode());
@@ -327,8 +393,8 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         LambdaUpdateWrapper<BizTopic> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(BizTopic::getId, topicId)
                .set(BizTopic::getLastReviewOutcome, reviewOutcome)
-               // 审核通过时清除驳回意见，驳回时保留意见
-               .set(BizTopic::getLastReviewFeedback, reviewOutcome == 1 ? null : feedback)
+               // 无论通过还是驳回，都保存审核意见
+               .set(BizTopic::getLastReviewFeedback, feedback)
                .set(BizTopic::getReviewerId, StpUtil.getLoginIdAsLong())
                .set(BizTopic::getReviewedAt, LocalDateTime.now());
         update(wrapper);
@@ -408,6 +474,14 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                         vo.setDepartmentName(department.getName());
                     }
                 }
+            }
+        }
+
+        // 填充审核人姓名
+        if (topic.getReviewerId() != null) {
+            SysUser reviewer = sysUserMapper.selectById(topic.getReviewerId());
+            if (reviewer != null) {
+                vo.setReviewerName(reviewer.getRealName());
             }
         }
 
@@ -577,6 +651,41 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         log.info("课题状态{}成功：ID={}", action, id);
     }
+
+    /**
+     * 根据用户类型添加权限过滤条件
+     * - 系统管理员：查看所有题目
+     * - 院系管理员：只查看本院系的题目
+     * - 教师：只查看自己的题目
+     *
+     * @param wrapper 查询条件
+     * @param queryDTO 查询参数
+     */
+    private void addPermissionFilter(LambdaQueryWrapper<BizTopic> wrapper, TopicPageQueryDTO queryDTO) {
+        try {
+            // 判断是否为院系管理员
+            if (dataPermissionUtil.isCurrentLoginUserDepartmentAdmin()) {
+                // 院系管理员：只查看本院系的题目
+                Long departmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+                if (departmentId != null) {
+                    wrapper.eq(BizTopic::getDepartmentId, departmentId);
+                    log.info("院系管理员查询题目，过滤本院系题目：departmentId={}", departmentId);
+                }
+            } else if (dataPermissionUtil.isCurrentLoginUserTeacher()) {
+                // 教师：只查看自己的题目
+                Long teacherId = dataPermissionUtil.getCurrentUserTeacherId();
+                if (teacherId != null) {
+                    wrapper.eq(BizTopic::getTeacherId, teacherId);
+                    log.info("教师查询题目，过滤本人题目：teacherId={}", teacherId);
+                }
+            }
+            // 系统管理员：不过滤，查看所有题目
+        } catch (Exception e) {
+            log.warn("添加题目权限过滤失败", e);
+            // 如果权限判断失败，不添加过滤条件，避免影响正常使用
+        }
+    }
+
     private void clearTopicCache(Long topicId) {
         String cacheKey = CacheConstants.KeyPrefix.TOPIC_INFO + topicId;
         cacheHelper.evictCache(cacheKey);

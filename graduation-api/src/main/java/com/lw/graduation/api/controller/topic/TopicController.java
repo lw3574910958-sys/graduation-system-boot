@@ -92,6 +92,20 @@ public class TopicController {
     }
 
     /**
+     * 撤销题目（仅草稿状态，教师权限）
+     *
+     * @param id 课题 ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/revoke")
+    @Operation(summary = "撤销题目")
+    @SaCheckRole("teacher") // 仅教师可撤销题目
+    public Result<Void> revokeTopic(@PathVariable Long id) {
+        topicService.revokeTopic(id);
+        return Result.success();
+    }
+
+    /**
      * 更新课题
      *
      * @param id 课题ID
@@ -114,7 +128,7 @@ public class TopicController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除课题")
-    @SaCheckRole("teacher") // 仅教师可删除课题
+    @SaCheckRole("department_admin") // 仅院系管理员可删除课题
     public Result<Void> deleteTopic(@PathVariable Long id) {
         topicService.deleteTopic(id);
         return Result.success();
