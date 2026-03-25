@@ -20,7 +20,6 @@ import com.lw.graduation.common.util.EnumUtils;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.domain.enums.user.UserType;
-import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

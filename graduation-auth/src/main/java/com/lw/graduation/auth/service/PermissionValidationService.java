@@ -6,7 +6,6 @@ import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.grade.BizGrade;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.student.BizStudent;
-import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.domain.enums.status.TopicStatus;
@@ -15,7 +14,6 @@ import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
-import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +31,6 @@ import org.springframework.stereotype.Service;
 public class PermissionValidationService {
 
     private final BizStudentMapper bizStudentMapper;
-    private final BizTeacherMapper bizTeacherMapper;
     private final BizTopicMapper bizTopicMapper;
     private final BizDocumentMapper bizDocumentMapper;
     private final BizSelectionMapper bizSelectionMapper;

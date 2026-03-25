@@ -2,7 +2,6 @@ package com.lw.graduation.infrastructure.storage.impl;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.IdUtil;
 import com.lw.graduation.common.constant.CommonConstants;
 import com.lw.graduation.common.enums.FileFormatType;
 import com.lw.graduation.infrastructure.storage.FileStorageService;
@@ -152,16 +151,6 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         if (originalFilename.contains("../") || originalFilename.contains("..\\")) {
             throw new IllegalArgumentException("非法的文件名，可能包含路径遍历攻击");
         }
-    }
-
-    /**
-     * 生成文件名
-     */
-    private String generateFilename(String customName, String extension) {
-        if (customName != null && !customName.trim().isEmpty()) {
-            return customName + "." + extension.toLowerCase();
-        }
-        return IdUtil.fastSimpleUUID() + "." + extension.toLowerCase();
     }
 
     /**
