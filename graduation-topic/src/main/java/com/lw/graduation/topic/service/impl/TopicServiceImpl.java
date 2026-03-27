@@ -531,7 +531,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     /**
      * 处理学生确认选题事件
      *
-     * @param topicId 题目ID
+     * @param topicId 题目 ID
      */
     @Transactional(rollbackFor = Exception.class)
     public void handleSelectionConfirmed(Long topicId) {
@@ -539,19 +539,15 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         if (topic == null || topic.getIsDeleted() == 1) {
             return;
         }
-
-        // 更新已选人数
-        topicInternalService.updateSelectedCount(topicId, 1);
-        clearTopicCache(topicId); // 手动清除缓存
-
-        // 检查是否达到人数上限，若达到则自动关闭
-        topic = getById(topicId); // 重新获取最新数据
+    
+        // 确认选题时不再增加已选人数（已在申请时预占名额）
+        // 只检查是否达到人数上限，若达到则自动关闭
         if (topic.getSelectedCount() >= topic.getMaxSelections()) {
             topicInternalService.updateTopicStatus(topicId, TopicStatus.CLOSED.getCode());
             clearTopicCache(topicId); // 手动清除缓存
             log.info("题目 [{}] 操作完成：达到选题人数上限，自动关闭", topicId);
         } else {
-            log.info("题目 [{}] 操作完成：当前已选人数 {}/{}", topicId, topic.getSelectedCount(), topic.getMaxSelections());
+            log.info("题目 [{}] 学生确认选题，当前已选人数 {}/{}", topicId, topic.getSelectedCount(), topic.getMaxSelections());
         }
     }
 

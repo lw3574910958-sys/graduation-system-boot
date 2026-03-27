@@ -192,6 +192,22 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该题目已满员");
         }
 
+        // 4.1 预占选题名额：增加题目的已选人数
+        topic.setSelectedCount(topic.getSelectedCount() + 1);
+        bizTopicMapper.updateById(topic);
+        log.info("学生 [{}] 申请选题 [{}]，预占名额，当前已选人数：{}/{}", 
+                student.getId(), topic.getId(), topic.getSelectedCount(), topic.getMaxSelections());
+        
+        // 4.2 检查是否达到人数上限，若达到则自动关闭题目
+        if (topic.getSelectedCount() >= topic.getMaxSelections()) {
+            TopicStatus currentStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
+            if (currentStatus == TopicStatus.OPEN) {
+                topic.setStatus(TopicStatus.CLOSED.getCode());
+                bizTopicMapper.updateById(topic);
+                log.info("题目 [{}] 已达到选题人数上限，自动关闭", topic.getId());
+            }
+        }
+
         // 5. 创建选题申请记录
         BizSelection selection = new BizSelection();
         selection.setStudentId(student.getId());  // 使用学生业务 ID
@@ -209,11 +225,12 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             throw new BusinessException(ResponseCode.ERROR.getCode(), "选题申请失败");
         }
 
-        // 5. 触发题目状态变更
+        // 5. 触发题目状态变更检查（仅记录日志）
         topicService.handleSelectionApplied(applyDTO.getTopicId());
-
+        
         // 6. 清除相关缓存
         clearSelectionCache(selection.getId());
+        clearTopicCache(selection.getTopicId());
 
         log.info("选题申请成功，ID: {}", selection.getId());
         return convertToSelectionVO(selection);
@@ -427,22 +444,33 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         
         Long topicId = selection.getTopicId();
         
-        // 5. 如果是已通过的申请，需要减少题目选中人数
-        if (selection.isApproved()) {
-            BizTopic topic = bizTopicMapper.selectById(topicId);
-            if (topic != null && topic.getSelectedCount() > 0) {
-                topic.setSelectedCount(topic.getSelectedCount() - 1);
+        // 5. 减少题目选中人数（因为在申请时已预占名额）
+        BizTopic topic = bizTopicMapper.selectById(topicId);
+        if (topic != null && topic.getSelectedCount() > 0) {
+            topic.setSelectedCount(topic.getSelectedCount() - 1);
+            bizTopicMapper.updateById(topic);
+            log.info("学生 [{}] 撤销选题申请 [{}]，释放名额，当前已选人数：{}/{}", 
+                    studentBizId, selectionId, topic.getSelectedCount(), topic.getMaxSelections());
+        }
+        
+        // 6. 检查是否需要重新开放题目
+        if (topic != null && topic.getSelectedCount() < topic.getMaxSelections()) {
+            TopicStatus topicStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
+            if (topicStatus == TopicStatus.CLOSED) {
+                // 如果题目已关闭且还有名额，重新开放
+                topic.setStatus(TopicStatus.OPEN.getCode());
                 bizTopicMapper.updateById(topic);
+                log.info("题目 [{}] 因学生撤销申请且还有名额，自动重新开放", topicId);
             }
         }
         
-        // 6. 逻辑删除选题申请
+        // 7. 逻辑删除选题申请
         boolean removed = removeById(selectionId);
         if (!removed) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "选题撤销失败");
         }
         
-        // 7. 触发题目状态变更检查
+        // 7. 触发题目状态变更检查（仅记录日志）
         topicService.handleSelectionReviewed(topicId, false);
         
         // 8. 清除缓存
@@ -497,7 +525,9 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "原题目当前不可选择");
         }
         
-        // 5. 检查是否已达到最大申请次数（防止无限循环）
+        // 5. 重新申请不检查名额限制（因为是替换原申请，不改变 selected_count）
+        
+        // 6. 检查是否已达到最大申请次数（防止无限循环）
         LambdaQueryWrapper<BizSelection> countWrapper = new LambdaQueryWrapper<>();
         countWrapper.eq(BizSelection::getStudentId, studentBizId)
                    .eq(BizSelection::getTopicId, originalSelection.getTopicId())
@@ -532,11 +562,15 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             log.warn("逻辑删除原选题记录失败，原记录 ID: {}", selectionId);
         }
         
-        // 8. 触发题目状态变更
+        // 注意：重新申请是替换原申请，不改变 selected_count
+        // 原申请的 selected_count 已在首次申请时增加，无需额外操作
+        
+        // 8. 触发题目状态变更检查（仅记录日志）
         topicService.handleSelectionApplied(originalSelection.getTopicId());
         
         // 9. 清除相关缓存
         clearSelectionCache(newSelection.getId());
+        clearTopicCache(originalSelection.getTopicId());
         
         log.info("选题重新申请成功，新 ID: {}", newSelection.getId());
         return convertToSelectionVO(newSelection);
@@ -637,6 +671,14 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
      */
     private void clearSelectionCache(Long selectionId) {
         String cacheKey = CacheConstants.KeyPrefix.SELECTION_INFO + selectionId;
+        cacheHelper.evictCache(cacheKey);
+    }
+
+    /**
+     * 清除题目相关缓存
+     */
+    private void clearTopicCache(Long topicId) {
+        String cacheKey = CacheConstants.KeyPrefix.TOPIC_INFO + topicId;
         cacheHelper.evictCache(cacheKey);
     }
 
