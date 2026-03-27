@@ -111,14 +111,16 @@ public interface TopicService {
     List<TopicVO> getTopicsByTeacher(Long teacherId, Integer status);
 
     /**
-     * 处理选题申请事件，更新题目状态
+     * 处理选题申请事件（仅记录日志）
+     * 注意：学生选题时只更新选题表状态，不更新题目表状态
      *
      * @param topicId 题目 ID
      */
     void handleSelectionApplied(Long topicId);
 
     /**
-     * 处理选题审核结果事件
+     * 处理选题审核结果事件（仅记录日志）
+     * 注意：选题审核只更新选题表状态，不更新题目表状态
      *
      * @param topicId 题目 ID
      * @param selectionApproved 审核是否通过

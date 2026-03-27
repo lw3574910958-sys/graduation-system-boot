@@ -39,16 +39,4 @@ public class SelectionReviewDTO implements Serializable {
      */
     @Schema(description = "审核意见")
     private String reviewComment;
-
-    /**
-     * 建议修改内容
-     */
-    @Schema(description = "建议修改内容")
-    private String suggestedChanges;
-
-    /**
-     * 备注说明
-     */
-    @Schema(description = "备注说明")
-    private String remark;
 }

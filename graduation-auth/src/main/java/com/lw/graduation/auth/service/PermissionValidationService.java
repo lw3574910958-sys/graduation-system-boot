@@ -254,7 +254,7 @@ public class PermissionValidationService {
      */
     private boolean isTopicInDepartment(Long userId, Long topicId) {
         // 获取用户所属院系 ID
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -292,7 +292,7 @@ public class PermissionValidationService {
      * 判断文档是否属于用户所在院系
      */
     private boolean isDocumentInDepartment(Long userId, Long documentId) {
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -303,7 +303,7 @@ public class PermissionValidationService {
         }
         
         // 获取文档上传者的院系 ID（通过 userId 查找）
-        Long docOwnerDeptId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(document.getUserId());
+        Long docOwnerDeptId = dataPermissionUtil.getDepartmentIdByUserId(document.getUserId());
         return userDepartmentId.equals(docOwnerDeptId);
     }
     
@@ -341,7 +341,7 @@ public class PermissionValidationService {
      * 判断用户是否属于指定院系
      */
     private boolean isUserInDepartment(Long userId, Long departmentId) {
-        Long userDeptId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
+        Long userDeptId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         return userDeptId != null && userDeptId.equals(departmentId);
     }
     
@@ -349,7 +349,7 @@ public class PermissionValidationService {
      * 判断选题是否属于用户所在院系
      */
     private boolean isSelectionInDepartment(Long userId, Long selectionId) {
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         if (userDepartmentId == null) {
             return false;
         }
@@ -398,7 +398,7 @@ public class PermissionValidationService {
      * 判断成绩是否属于用户所在院系
      */
     private boolean isGradeInDepartment(Long userId, Long gradeId) {
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(userId);
+        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         if (userDepartmentId == null) {
             return false;
         }

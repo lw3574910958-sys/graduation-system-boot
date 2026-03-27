@@ -16,16 +16,34 @@ import lombok.EqualsAndHashCode;
 public class SelectionPageQueryDTO extends BasePageQueryDTO {
 
     /**
-     * 学生ID
+     * 学生 ID
      */
-    @Schema(description = "学生ID")
+    @Schema(description = "学生 ID")
     private Long studentId;
+    
+    /**
+     * 学生姓名
+     */
+    @Schema(description = "学生姓名")
+    private String studentName;
+    
+    /**
+     * 学号
+     */
+    @Schema(description = "学号")
+    private String studentNumber;
+    
+    /**
+     * 课题 ID
+     */
+    @Schema(description = "课题 ID")
+    private Long topicId;
 
     /**
-     * 课题ID
+     * 课题标题
      */
-    @Schema(description = "课题ID")
-    private Long topicId;
+    @Schema(description = "课题标题")
+    private String topicTitle;
 
     /**
      * 状态 (0-待审核, 1-审核通过, 2-审核驳回, 3-已确认)

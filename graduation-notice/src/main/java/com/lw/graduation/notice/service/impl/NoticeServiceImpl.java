@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 通知服务实现类
@@ -53,33 +52,31 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     public IPage<NoticeVO> getNoticePage(NoticePageQueryDTO queryDTO) {
         log.info("分页查询通知列表：{}", queryDTO);
     
-        // 构建查询条件
+        // 1. 构建查询条件
         LambdaQueryWrapper<BizNotice> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(queryDTO.getTitle() != null, BizNotice::getTitle, queryDTO.getTitle())
                 .eq(queryDTO.getType() != null, BizNotice::getType, queryDTO.getType())
                 .eq(queryDTO.getPriority() != null, BizNotice::getPriority, queryDTO.getPriority())
                 .eq(queryDTO.getStatus() != null, BizNotice::getStatus, queryDTO.getStatus())
                 .eq(queryDTO.getIsSticky() != null, BizNotice::getIsSticky, queryDTO.getIsSticky())
-                .eq(queryDTO.getTargetScope() != null, BizNotice::getTargetScope, queryDTO.getTargetScope())
-                .eq(queryDTO.getPublisherId() != null, BizNotice::getPublisherId, queryDTO.getPublisherId())
                 .eq(BizNotice::getIsDeleted, 0)
                 .orderByDesc(BizNotice::getIsSticky)
                 .orderByAsc(BizNotice::getCreatedAt);
     
+        // 2. 添加通用数据权限过滤（按目标范围）
+        addPermissionFilter(wrapper, queryDTO);
+    
+        // 3. 执行分页查询
         IPage<BizNotice> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<BizNotice> noticePage = bizNoticeMapper.selectPage(page, wrapper);
     
-        // 过滤生效时间和目标范围
+        // 4. 转换为 VO 并过滤生效时间（内存过滤保留，因为时间过滤较复杂）
         IPage<NoticeVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
-        List<NoticeVO> filteredRecords = noticePage.getRecords().stream()
-                .filter(this::filterByTargetScope)
+        voPage.setRecords(noticePage.getRecords().stream()
                 .filter(notice -> filterByEffectiveTime(notice, queryDTO.getEffectiveStatus()))
                 .map(this::convertToNoticeVO)
-                .collect(Collectors.toList());
-            
-        voPage.setRecords(filteredRecords);
-        // 使用过滤后的实际记录数作为总数，确保分页信息准确
-        voPage.setTotal(filteredRecords.size());
+                .toList());
+        voPage.setTotal(noticePage.getTotal()); // 使用数据库的总数
     
         return voPage;
     }
@@ -337,12 +334,53 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     }
 
     /**
-     * 根据目标范围过滤通知
-     * 注意：管理员可以看到所有通知，学生/教师/管理员用户只能看到对应范围的通知
+     * 根据用户类型添加权限过滤条件（使用通用方法）
+     * - 系统管理员：查看所有通知
+     * - 院系管理员：查看所有通知
+     * - 教师：只查看目标范围为全体、教师的通知
+     * - 学生：只查看目标范围为全体、学生的通知
+     *
+     * @param wrapper 查询条件
+     * @param queryDTO 查询参数
+     */
+    private void addPermissionFilter(LambdaQueryWrapper<BizNotice> wrapper, NoticePageQueryDTO queryDTO) {
+        // 使用通用数据权限过滤方法
+        dataPermissionUtil.addCommonDataPermissionFilter(
+            wrapper,
+            // 学生：只查看目标范围为全体、学生的通知
+            studentId -> {
+                wrapper.and(w -> w
+                    .isNull(BizNotice::getTargetScope)
+                    .or().eq(BizNotice::getTargetScope, 0) // 全体
+                    .or().eq(BizNotice::getTargetScope, 1) // 学生
+                );
+                log.info("学生查询通知，过滤目标范围");
+            },
+            // 教师：只查看目标范围为全体、教师的通知
+            teacherId -> {
+                wrapper.and(w -> w
+                    .isNull(BizNotice::getTargetScope)
+                    .or().eq(BizNotice::getTargetScope, 0) // 全体
+                    .or().eq(BizNotice::getTargetScope, 2) // 教师
+                );
+                log.info("教师查询通知，过滤目标范围");
+            },
+            // 院系管理员：查看所有通知
+            departmentId -> {
+                log.debug("院系管理员查询通知，无需目标范围过滤");
+            }
+        );
+    }
+
+    /**
+     * 根据目标范围过滤通知（简化版，用于特殊情况）
+     * 注意：此方法已不再在 getNoticePage 中使用，保留用于可能的特殊场景
      *
      * @param notice 通知对象
      * @return 是否符合目标范围
+     * @deprecated 已在数据库级别通过 addPermissionFilter 实现权限过滤
      */
+    @Deprecated
     private boolean filterByTargetScope(BizNotice notice) {
         // 如果目标范围为 0（全体），则所有人都可以看到
         if (notice.getTargetScope() == null || notice.getTargetScope() == 0) {

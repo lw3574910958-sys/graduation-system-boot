@@ -176,11 +176,14 @@ CREATE TABLE `biz_topic` (
 DROP TABLE IF EXISTS `biz_selection`;
 CREATE TABLE `biz_selection` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `student_id` BIGINT NOT NULL COMMENT '学生ID(biz_student.id)',
-  `topic_id` BIGINT NOT NULL COMMENT '题目ID(biz_topic.id)',
+  `student_id` BIGINT NOT NULL COMMENT '学生 ID(biz_student.id)',
+  `topic_id` BIGINT NOT NULL COMMENT '题目 ID(biz_topic.id)',
   `topic_title` VARCHAR(200) NOT NULL COMMENT '选题时的题目标题快照',
-  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0-待审核, 1-审核通过, 2-审核驳回, 3-已确认',
-  `reviewer_id` BIGINT NULL DEFAULT NULL COMMENT '审核教师ID(sys_user.id)',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0-待审核，1-审核通过，2-审核驳回，3-已确认',
+  `apply_reason` VARCHAR(500) NULL DEFAULT NULL COMMENT '申请理由（学生提交申请时填写）',
+  `student_ability` VARCHAR(500) NULL DEFAULT NULL COMMENT '学生能力说明（学生提交申请时填写）',
+  `expected_goal` VARCHAR(500) NULL DEFAULT NULL COMMENT '预期目标（学生提交申请时填写）',
+  `reviewer_id` BIGINT NULL DEFAULT NULL COMMENT '审核教师 ID(sys_user.id)',
   `reviewed_at` DATETIME(3) NULL DEFAULT NULL COMMENT '审核时间',
   `review_comment` VARCHAR(500) NULL DEFAULT NULL COMMENT '审核意见',
   `confirmed_at` DATETIME(3) NULL DEFAULT NULL COMMENT '学生确认时间',
@@ -316,3 +319,4 @@ CREATE TABLE `sys_log` (
   KEY `idx_status` (`status`),
   KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统日志表';
+

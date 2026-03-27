@@ -114,10 +114,22 @@ public class TopicVO {
     private String teacherNumber;
 
     /**
+     * 发布教师姓名（用于列表显示）
+     */
+    @Schema(description = "发布教师姓名")
+    private String teacherName;
+
+    /**
      * 院系名称（用于详情显示）
      */
     @Schema(description = "院系名称")
     private String departmentName;
+
+    /**
+     * 院系编码（用于列表显示）
+     */
+    @Schema(description = "院系编码")
+    private String departmentCode;
 
     /**
      * 审核人 ID（用于管理端显示）

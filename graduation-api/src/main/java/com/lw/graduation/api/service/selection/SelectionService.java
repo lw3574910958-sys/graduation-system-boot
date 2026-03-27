@@ -94,10 +94,10 @@ public interface SelectionService {
     /**
      * 重新申请被驳回的选题
      *
-     * @param selectionId 选题ID
-     * @param studentId 学生ID
-     * @param applyReason 重新申请理由
+     * @param selectionId 选题 ID
+     * @param studentId 学生 ID
+     * @param applyDTO 申请参数
      * @return 申请结果
      */
-    SelectionVO resubmitSelection(Long selectionId, Long studentId, String applyReason);
+    SelectionVO resubmitSelection(Long selectionId, Long studentId, SelectionApplyDTO applyDTO);
 }

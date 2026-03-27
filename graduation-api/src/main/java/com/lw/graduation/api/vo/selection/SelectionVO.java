@@ -92,6 +92,12 @@ public class SelectionVO {
     private String reviewerName;
 
     /**
+     * 审核教师工号
+     */
+    @Schema(description = "审核教师工号")
+    private String reviewerNumber;
+
+    /**
      * 审核时间
      */
     @Schema(description = "审核时间")
@@ -103,6 +109,24 @@ public class SelectionVO {
      */
     @Schema(description = "审核意见")
     private String reviewComment;
+
+    /**
+     * 申请理由（学生提交申请时填写）
+     */
+    @Schema(description = "申请理由")
+    private String applyReason;
+
+    /**
+     * 学生能力说明（学生提交申请时填写）
+     */
+    @Schema(description = "学生能力说明")
+    private String studentAbility;
+
+    /**
+     * 预期目标（学生提交申请时填写）
+     */
+    @Schema(description = "预期目标")
+    private String expectedGoal;
 
     /**
      * 学生确认时间

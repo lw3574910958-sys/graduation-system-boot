@@ -204,7 +204,7 @@ public class DashboardServiceImpl implements DashboardService {
      */
     @Override
     public AdminDashboardVO getAdminDashboard(Long adminId) {
-        Long departmentId = dataPermissionUtil.getDepartmentIdByUserIdGeneral(StpUtil.getLoginIdAsLong());
+        Long departmentId = dataPermissionUtil.getCurrentUserDepartmentId();
         log.info("获取管理员仪表盘信息，院系 ID: {}", departmentId);
         return calculateAdminDashboard(departmentId);
     }

@@ -1,6 +1,7 @@
 package com.lw.graduation.domain.entity.selection;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -96,9 +97,27 @@ public class BizSelection implements Serializable {
     private String reviewComment;
 
     /**
+     * 申请理由（学生提交申请时填写）
+     */
+    @TableField("apply_reason")
+    private String applyReason;
+
+    /**
+     * 学生能力说明（学生提交申请时填写）
+     */
+    @TableField("student_ability")
+    private String studentAbility;
+
+    /**
+     * 预期目标（学生提交申请时填写）
+     */
+    @TableField("expected_goal")
+    private String expectedGoal;
+
+    /**
      * 学生确认时间
      */
-    @TableField("confirmed_at")
+    @TableField(value = "confirmed_at", updateStrategy = FieldStrategy.ALWAYS)
     @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     private LocalDateTime confirmedAt;
 

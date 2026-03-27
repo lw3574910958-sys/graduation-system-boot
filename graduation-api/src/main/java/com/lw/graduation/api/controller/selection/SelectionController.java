@@ -92,7 +92,7 @@ public class SelectionController {
     /**
      * 学生确认选题
      *
-     * @param id 选题ID
+     * @param id 选题 ID
      * @return 确认结果
      */
     @PostMapping("/{id}/confirm")
@@ -101,6 +101,22 @@ public class SelectionController {
     public Result<SelectionVO> confirmSelection(@PathVariable Long id) {
         Long studentId = StpUtil.getLoginIdAsLong();
         SelectionVO selectionVO = selectionService.confirmSelection(id, studentId);
+        return Result.success(selectionVO);
+    }
+    
+    /**
+     * 学生重新申请选题（审核驳回后）
+     *
+     * @param id 原选题 ID
+     * @param applyDTO 申请参数
+     * @return 重新申请结果
+     */
+    @PostMapping("/{id}/resubmit")
+    @Operation(summary = "学生重新申请选题（审核驳回后）")
+    @SaCheckRole("student")
+    public Result<SelectionVO> resubmitSelection(@PathVariable Long id, @Validated @RequestBody SelectionApplyDTO applyDTO) {
+        Long studentId = StpUtil.getLoginIdAsLong();
+        SelectionVO selectionVO = selectionService.resubmitSelection(id, studentId, applyDTO);
         return Result.success(selectionVO);
     }
 

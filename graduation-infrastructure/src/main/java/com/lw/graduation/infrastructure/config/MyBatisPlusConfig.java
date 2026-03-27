@@ -3,6 +3,8 @@ package com.lw.graduation.infrastructure.config;
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.BlockAttackInnerInterceptor;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,30 +19,28 @@ import org.springframework.context.annotation.Configuration;
 public class MyBatisPlusConfig {
 
     /**
-     * 添加分页插件
+     * 添加分页插件、逻辑删除插件等
      */
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
-        // 创建分页插件实例
+        // 1. 分页插件
         PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor();
-
-        // --- 常用配置 ---
-        // 1. 指定数据库类型 (非常重要!)
         paginationInnerInterceptor.setDbType(DbType.MYSQL);
-
-        // 2. 配置请求页码大于最大页时的操作， true调回到首页 (可选)
         paginationInnerInterceptor.setOverflow(true);
-
-        // 3. 配置最大单页限制数量，防止内存溢出 (推荐)
-        paginationInnerInterceptor.setMaxLimit(1000L); // 例如限制最大1000条/页
-
-        // 将配置好的分页插件添加到拦截器链中
+        paginationInnerInterceptor.setMaxLimit(1000L);
         interceptor.addInnerInterceptor(paginationInnerInterceptor);
 
-        // 如果以后需要添加其他插件，记得分页插件一般最后添加
-        // interceptor.addInnerInterceptor(new OtherInnerInterceptor());
+        // 2. 乐观锁插件（可选）
+        // interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+
+        // 3. 防止全表更新与删除插件（可选）
+        // interceptor.addInnerInterceptor(new BlockAttackInnerInterceptor());
+
+        // 注意：逻辑删除不需要插件，通过注解和配置自动生效
+        // MyBatis-Plus 3.4.0+ 版本，@TableLogic 注解会自动处理逻辑删除
+        // 无需添加 LogicDeleteInnerInterceptor
 
         return interceptor;
     }

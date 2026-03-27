@@ -190,28 +190,28 @@ INSERT INTO biz_topic (id, title, description, teacher_id, department_id, source
 -- ============================
 
 -- 张三选择了题目 2(待审核 PENDING_REVIEW=0)
-INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
-(2100000000000000001, 1900000000000000020, 2000000000000000002, '企业级微服务架构设计与实践', 0, NULL, NULL, NULL, NULL, NOW(3), NOW(3), 0);
+INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, apply_reason, student_ability, expected_goal, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
+(2100000000000000001, 1900000000000000020, 2000000000000000002, '企业级微服务架构设计与实践', 0, '我对微服务架构非常感兴趣，学习过 Spring Cloud 相关技术，希望通过这个题目提升自己的工程实践能力。', '熟悉 Java 编程语言，了解 Spring Boot 框架，有基本的数据库设计能力，自学过 Docker 容器技术。', '掌握微服务架构的核心理念和技术栈，能够独立完成一个完整的分布式系统设计与实现。', NULL, NULL, NULL, NULL, NOW(3), NOW(3), 0);
 
 -- 李四选择了题目 2(审核通过 APPROVED=1)
--- reviewer_id: 1800000000000000002 (院系管理员 dept_admin_cs 的用户 ID)
-INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
-(2100000000000000002, 1900000000000000021, 2000000000000000002, '企业级微服务架构设计与实践', 1, 1800000000000000002, NOW(3), '同意该生的选题申请', NOW(3), NOW(3), NOW(3), 0);
+-- reviewer_id: 1800000000000000011 (教师 teacher002 刘副教授的用户 ID，题目 2 的发布教师)
+INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, apply_reason, student_ability, expected_goal, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
+(2100000000000000002, 1900000000000000021, 2000000000000000002, '企业级微服务架构设计与实践', 1, '在课程项目中接触过微服务，想深入研究服务治理、配置管理等核心技术。有一定的分布式系统开发经验。', '掌握 Spring Cloud Alibaba 组件使用，熟悉 MySQL 数据库和 Redis 缓存，了解消息队列 RabbitMQ。', '深入理解微服务架构的设计模式，具备大型分布式系统的设计和开发能力。', 1800000000000000011, NOW(3), '同意该生的选题申请', NOW(3), NOW(3), NOW(3), 0);
 
 -- 王五确认了题目 3(已确认 CONFIRMED=3)
--- reviewer_id: 1800000000000000003 (院系管理员 dept_admin_se 的用户 ID)
-INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
-(2100000000000000003, 1900000000000000022, 2000000000000000003, '移动应用跨平台开发框架对比研究', 3, 1800000000000000003, NOW(3), '题目很好，认真研究', NOW(3), NOW(3), NOW(3), 0);
+-- reviewer_id: 1800000000000000012 (教师 teacher003 陈讲师的用户 ID，题目 3 的发布教师)
+INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, apply_reason, student_ability, expected_goal, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
+(2100000000000000003, 1900000000000000022, 2000000000000000003, '移动应用跨平台开发框架对比研究', 3, '对移动开发很感兴趣，想了解跨平台技术的优势和适用场景。学习过 React Native 基础。', '熟悉 JavaScript 和 TypeScript，了解 Vue.js 框架，有基本的移动端 H5 开发经验。', '掌握主流跨平台开发框架的核心技术，能够根据项目需求选择合适的技术方案并完成开发。', 1800000000000000012, NOW(3), '题目很好，认真研究', NOW(3), NOW(3), NOW(3), 0);
 
 -- 赵六选择了题目 3(审核通过 APPROVED=1，未确认)
--- reviewer_id: 1800000000000000003 (院系管理员 dept_admin_se 的用户 ID)
-INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
-(2100000000000000004, 1900000000000000023, 2000000000000000003, '移动应用跨平台开发框架对比研究', 1, 1800000000000000003, NOW(3), '可以开始研究', NULL, NOW(3), NOW(3), 0);
+-- reviewer_id: 1800000000000000012 (教师 teacher003 陈讲师的用户 ID，题目 3 的发布教师)
+INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, apply_reason, student_ability, expected_goal, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
+(2100000000000000004, 1900000000000000023, 2000000000000000003, '移动应用跨平台开发框架对比研究', 1, '想系统学习 Flutter 等跨平台技术，为以后就业做准备。有 Android 开发基础。', '熟悉 Java 编程，了解 Android Studio 开发工具，自学过 Dart 语言基础。', '能够使用至少一种跨平台框架完成完整的应用开发，并产出高质量的对比分析报告。', 1800000000000000012, NOW(3), '可以开始研究', NULL, NOW(3), NOW(3), 0);
 
 -- 钱七选择了题目 3(审核通过 APPROVED=1，未确认)
--- reviewer_id: 1800000000000000003 (院系管理员 dept_admin_se 的用户 ID)
-INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
-(2100000000000000005, 1900000000000000024, 2000000000000000003, '移动应用跨平台开发框架对比研究', 1, 1800000000000000003, NOW(3), '同意', NULL, NOW(3), NOW(3), 0);
+-- reviewer_id: 1800000000000000012 (教师 teacher003 陈讲师的用户 ID，题目 3 的发布教师)
+INSERT INTO biz_selection (id, student_id, topic_id, topic_title, status, apply_reason, student_ability, expected_goal, reviewer_id, reviewed_at, review_comment, confirmed_at, created_at, updated_at, is_deleted) VALUES
+(2100000000000000005, 1900000000000000024, 2000000000000000003, '移动应用跨平台开发框架对比研究', 1, '看好跨平台开发的前景，希望能掌握一门实用的开发技术。学习能力强。', '有扎实的编程基础，熟悉面向对象设计，了解前端三件套 HTML/CSS/JavaScript。', '深入理解跨平台开发的原理和挑战，能够独立完成一款中等复杂度的移动应用。', 1800000000000000012, NOW(3), '同意', NULL, NOW(3), NOW(3), 0);
 
 -- ============================
 -- 六、通知公告初始化

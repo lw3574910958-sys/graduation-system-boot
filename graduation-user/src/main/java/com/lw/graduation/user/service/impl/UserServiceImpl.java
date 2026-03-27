@@ -1,6 +1,5 @@
 package com.lw.graduation.user.service.impl;
 
-import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
@@ -80,14 +79,8 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 .eq(SysUser::getIsDeleted, IsDelete.NOT_DELETED.getCode()) // 只查询未删除的用户
                 .orderByDesc(SysUser::getCreatedAt); // 按创建时间倒序
 
-        // 2. 如果当前登录用户是院系管理员，则只返回该院系的学生和教师
-        if (dataPermissionUtil.isCurrentLoginUserDepartmentAdmin()) {
-            Long departmentId = dataPermissionUtil.getCurrentUserDepartmentId();
-            if (departmentId != null) {
-                // 通过子查询限制只返回该院系的学生或教师
-                addDepartmentFilter(wrapper, departmentId);
-            }
-        }
+        // 2. 添加通用数据权限过滤
+        addPermissionFilter(wrapper, queryDTO);
 
         // 3. 执行分页查询
         IPage<SysUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
@@ -670,5 +663,39 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             cacheHelper.evictCache(cacheKey);
             log.debug("清除用户缓存：{}", cacheKey);
         }
+    }
+
+    /**
+     * 根据用户类型添加权限过滤条件（使用通用方法）
+     * - 系统管理员：查看所有用户
+     * - 院系管理员：只查看本院系的学生和教师
+     * - 教师：不显示其他用户信息
+     * - 学生：不显示其他用户信息
+     *
+     * @param wrapper 查询条件
+     * @param queryDTO 查询参数
+     */
+    private void addPermissionFilter(LambdaQueryWrapper<SysUser> wrapper, UserPageQueryDTO queryDTO) {
+        // 使用通用数据权限过滤方法
+        dataPermissionUtil.addCommonDataPermissionFilter(
+            wrapper,
+            // 学生：不需要过滤用户列表（学生不能查看其他用户信息）
+            studentId -> {
+                log.debug("学生用户查询用户列表，无权限过滤");
+            },
+            // 教师：只查看选择自己课题的学生
+            teacherId -> {
+                // 使用子查询过滤：只返回选择了该教师课题的学生
+                wrapper.inSql(SysUser::getId,
+                    "SELECT DISTINCT bs.user_id FROM biz_student bs " +
+                    "INNER JOIN biz_selection bsel ON bs.id = bsel.student_id " +
+                    "INNER JOIN biz_topic bt ON bsel.topic_id = bt.id " +
+                    "WHERE bt.teacher_id = " + teacherId + " AND bs.is_deleted = 0 AND bsel.is_deleted = 0 AND bt.is_deleted = 0"
+                );
+                log.info("教师查询用户列表，只显示选择自己课题的学生：teacherId={}", teacherId);
+            },
+            // 院系管理员：只返回该院系的学生和教师
+            departmentId -> addDepartmentFilter(wrapper, departmentId)
+        );
     }
 }

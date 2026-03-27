@@ -49,7 +49,7 @@ public class UserController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询用户列表")
-    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<IPage<UserListInfoVO>> getUserPage(UserPageQueryDTO queryDTO) {
         return Result.success(userService.getUserPage(queryDTO));
     }

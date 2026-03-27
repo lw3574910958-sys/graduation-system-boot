@@ -80,7 +80,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                 .eq(BizTopic::getIsDeleted, 0)
                 .orderByDesc(BizTopic::getCreatedAt);
 
-        // 2. 根据用户类型添加权限过滤
+        // 2. 根据用户类型添加权限过滤（使用通用方法）
         addPermissionFilter(wrapper, queryDTO);
 
         // 3. 执行分页查询
@@ -134,10 +134,9 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         Long currentUserId = StpUtil.getLoginIdAsLong();
         log.info("当前登录用户 ID: {}", currentUserId);
 
-        // 查询教师信息
-        LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
-        teacherWrapper.eq(BizTeacher::getUserId, currentUserId);
-        BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
+        // 查询教师信息（复用 DataPermissionUtil 工具方法）
+        Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(currentUserId);
+        BizTeacher teacher = bizTeacherMapper.selectById(teacherBizId);
 
         if (teacher == null) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "未找到教师信息");
@@ -459,7 +458,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     private TopicVO convertToTopicVO(BizTopic topic) {
         TopicVO vo = BeanMapperUtil.copyProperties(topic, TopicVO.class);
 
-        // 填充教师工号
+        // 填充教师工号和姓名
         if (topic.getTeacherId() != null) {
             LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
             teacherWrapper.eq(BizTeacher::getId, topic.getTeacherId());
@@ -467,11 +466,20 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
             if (teacher != null) {
                 vo.setTeacherNumber(teacher.getTeacherId());
 
-                // 填充院系名称（从教师表中获取）
+                // 通过 userId 查询教师真实姓名
+                if (teacher.getUserId() != null) {
+                    SysUser user = sysUserMapper.selectById(teacher.getUserId());
+                    if (user != null) {
+                        vo.setTeacherName(user.getRealName());
+                    }
+                }
+
+                // 填充院系名称和编码（从教师表中获取）
                 if (teacher.getDepartmentId() != null) {
                     SysDepartment department = sysDepartmentMapper.selectById(teacher.getDepartmentId());
                     if (department != null) {
                         vo.setDepartmentName(department.getName());
+                        vo.setDepartmentCode(department.getCode());
                     }
                 }
             }
@@ -489,77 +497,36 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     }
     
     /**
-     * 处理选题申请事件，更新题目状态
+     * 处理选题申请事件（仅记录日志，不再更新题目状态）
+     * 注意：学生选题时只更新选题表状态，不更新题目表状态
+     * 题目状态应保持为 OPEN（开放），直到所有申请处理完毕或达到人数上限
      *
-     * @param topicId 题目ID
+     * @param topicId 题目 ID
      */
-    @Transactional(rollbackFor = Exception.class)
     public void handleSelectionApplied(Long topicId) {
         BizTopic topic = getById(topicId);
         if (topic == null || topic.getIsDeleted() == 1) {
             return;
         }
-
-        // 如果题目是开放状态，则转为审核中
-        if (IEnum.getByCode(TopicStatus.class,topic.getStatus()) == TopicStatus.OPEN) {
-            // 通过内部服务更新状态，确保事务生效
-            topicInternalService.updateTopicStatus(topicId, TopicStatus.REVIEWING.getCode());
-            clearTopicCache(topicId); // 手动清除缓存
-            log.info("题目[{}] 操作完成: 因收到选题申请转为审核中状态", topicId);
-        }
+    
+        // 不再更新题目状态，只记录日志
+        log.info("收到题目 [{}] 的选题申请，题目状态保持为：{}", topicId, topic.getStatus());
     }
 
     /**
-     * 处理选题审核结果事件
+     * 处理选题审核结果事件（仅记录日志，不再更新题目状态）
+     * 注意：选题审核只更新选题表状态，不影响题目表的状态
+     * 题目状态由教师手动控制（开放/关闭），或达到人数上限时自动关闭
      *
-     * @param topicId 题目ID
+     * @param topicId 题目 ID
      * @param selectionApproved 审核是否通过
      */
-    @Transactional(rollbackFor = Exception.class)
     public void handleSelectionReviewed(Long topicId, boolean selectionApproved) {
-        BizTopic topic = getById(topicId);
-        if (topic == null || topic.getIsDeleted() == 1) {
-            return;
-        }
-
-        TopicStatus currentStatus = IEnum.getByCode(TopicStatus.class,topic.getStatus());
-
-        // 如果题目当前是审核中状态
-        if (currentStatus == TopicStatus.REVIEWING) {
-            // 审核通过时检查所有待处理和已通过的申请
-            // 审核驳回时只检查待审核的申请
-            java.util.function.Predicate<BizSelection> filter = selectionApproved ?
-                selection -> selection.isPendingReview() || selection.isApproved() :
-                BizSelection::isPendingReview;
-
-            handleTopicStatusRecovery(topicId, filter);
-        }
+        // 不再更新题目状态，只记录日志
+        log.info("题目 [{}] 的选题申请已审核（通过：{}），题目状态保持为：{}", 
+                topicId, selectionApproved, getById(topicId).getStatus());
     }
 
-    /**
-     * 处理题目状态恢复逻辑
-     *
-     * @param topicId 题目ID
-     * @param selectionFilter 选题过滤条件
-     */
-    private void handleTopicStatusRecovery(Long topicId, java.util.function.Predicate<BizSelection> selectionFilter) {
-        // 检查是否还有符合条件的申请
-        LambdaQueryWrapper<BizSelection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizSelection::getTopicId, topicId)
-               .eq(BizSelection::getIsDeleted, 0);
-
-        long pendingCount = bizSelectionMapper.selectList(wrapper).stream()
-                .filter(selectionFilter)
-                .count();
-
-        // 如果没有待处理的申请，恢复为开放状态
-        if (pendingCount == 0) {
-            // 通过内部服务更新状态，确保事务生效
-            topicInternalService.updateTopicStatus(topicId, TopicStatus.OPEN.getCode());
-            clearTopicCache(topicId); // 手动清除缓存
-            log.info("题目[{}] 操作完成: 所有申请处理完毕，恢复为开放状态", topicId);
-        }
-    }
 
     /**
      * 处理学生确认选题事件
@@ -653,37 +620,71 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     }
 
     /**
-     * 根据用户类型添加权限过滤条件
+     * 根据用户类型添加权限过滤条件（使用通用方法）
      * - 系统管理员：查看所有题目
-     * - 院系管理员：只查看本院系的题目
+     * - 院系管理员：只查看本院系的题目（排除草稿状态）
      * - 教师：只查看自己的题目
+     * - 学生：
+     *   - 未申请选题：只查看本院系教师开放的题目
+     *   - 已申请选题：只查看已申请的题目
      *
      * @param wrapper 查询条件
      * @param queryDTO 查询参数
      */
     private void addPermissionFilter(LambdaQueryWrapper<BizTopic> wrapper, TopicPageQueryDTO queryDTO) {
-        try {
-            // 判断是否为院系管理员
-            if (dataPermissionUtil.isCurrentLoginUserDepartmentAdmin()) {
-                // 院系管理员：只查看本院系的题目
-                Long departmentId = dataPermissionUtil.getCurrentUserDepartmentId();
-                if (departmentId != null) {
-                    wrapper.eq(BizTopic::getDepartmentId, departmentId);
-                    log.info("院系管理员查询题目，过滤本院系题目：departmentId={}", departmentId);
+        // 使用通用数据权限过滤方法
+        dataPermissionUtil.addCommonDataPermissionFilter(
+            wrapper,
+            // 学生：只查看本院系教师开放的题目 OR 已申请的题目
+            studentId -> {
+                Long studentDepartmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+                if (studentDepartmentId != null) {
+                    // 检查该学生是否已有选题申请（包括待审核、通过、驳回等所有状态的申请）
+                    LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
+                    selectionWrapper.eq(BizSelection::getStudentId, studentId)
+                                   .eq(BizSelection::getIsDeleted, 0);
+                    
+                    long selectionCount = bizSelectionMapper.selectCount(selectionWrapper);
+                    
+                    if (selectionCount > 0) {
+                        // 学生已申请选题，只查询该学生申请的题目
+                        List<Long> appliedTopicIds = bizSelectionMapper.selectList(selectionWrapper)
+                            .stream()
+                            .map(BizSelection::getTopicId)
+                            .toList();
+                        
+                        if (!appliedTopicIds.isEmpty()) {
+                            wrapper.in(BizTopic::getId, appliedTopicIds);
+                            log.info("学生已申请选题，只查询已申请的题目：studentId={}, appliedTopicIds={}", studentId, appliedTopicIds);
+                        } else {
+                            // 理论上不会出现，因为 selectionCount > 0
+                            wrapper.eq(BizTopic::getDepartmentId, studentDepartmentId);
+                            wrapper.eq(BizTopic::getStatus, TopicStatus.OPEN.getCode());
+                            log.info("学生未申请选题，过滤本院系开放题目：departmentId={}", studentDepartmentId);
+                        }
+                    } else {
+                        // 学生未申请选题，查询本院系开放的题目
+                        wrapper.eq(BizTopic::getDepartmentId, studentDepartmentId);
+                        wrapper.eq(BizTopic::getStatus, TopicStatus.OPEN.getCode());
+                        log.info("学生未申请选题，过滤本院系开放题目：departmentId={}", studentDepartmentId);
+                    }
+                } else {
+                    log.warn("学生用户未找到院系信息，无法过滤题目");
                 }
-            } else if (dataPermissionUtil.isCurrentLoginUserTeacher()) {
-                // 教师：只查看自己的题目
-                Long teacherId = dataPermissionUtil.getCurrentUserTeacherId();
-                if (teacherId != null) {
-                    wrapper.eq(BizTopic::getTeacherId, teacherId);
-                    log.info("教师查询题目，过滤本人题目：teacherId={}", teacherId);
-                }
+            },
+            // 教师：只查看自己的题目
+            teacherId -> {
+                wrapper.eq(BizTopic::getTeacherId, teacherId);
+                log.info("教师查询题目，过滤本人题目：teacherId={}", teacherId);
+            },
+            // 院系管理员：只查看本院系的题目（排除草稿状态）
+            departmentId -> {
+                wrapper.eq(BizTopic::getDepartmentId, departmentId);
+                // 排除草稿状态（0），只能看到审核中、开放、关闭状态的题目
+                wrapper.ne(BizTopic::getStatus, TopicStatus.DRAFT.getCode());
+                log.info("院系管理员查询题目，过滤本院系题目且排除草稿：departmentId={}", departmentId);
             }
-            // 系统管理员：不过滤，查看所有题目
-        } catch (Exception e) {
-            log.warn("添加题目权限过滤失败", e);
-            // 如果权限判断失败，不添加过滤条件，避免影响正常使用
-        }
+        );
     }
 
     private void clearTopicCache(Long topicId) {
