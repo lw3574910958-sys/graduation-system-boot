@@ -47,9 +47,15 @@ public class DashboardServiceImpl implements DashboardService {
     private final DataPermissionUtil dataPermissionUtil;
 
     @Override
-    public StudentDashboardVO getStudentDashboard(Long studentId) {
-        log.info("获取学生仪表盘信息，学生 ID: {}", studentId);
-        return calculateStudentDashboard(studentId);
+    public StudentDashboardVO getStudentDashboard(Long userId) {
+        log.info("获取学生仪表盘信息，用户 ID: {}", userId);
+        // 将用户 ID 转换为业务学生 ID
+        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
+        if (studentBizId == null) {
+            log.warn("未找到学生信息，用户 ID: {}", userId);
+            return new StudentDashboardVO(); // 返回空对象
+        }
+        return calculateStudentDashboard(studentBizId);
     }
 
     /**
@@ -136,9 +142,15 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public TeacherDashboardVO getTeacherDashboard(Long teacherId) {
-        log.info("获取教师仪表盘信息，教师 ID: {}", teacherId);
-        return calculateTeacherDashboard(teacherId);
+    public TeacherDashboardVO getTeacherDashboard(Long userId) {
+        log.info("获取教师仪表盘信息，用户 ID: {}", userId);
+        // 将用户 ID 转换为业务教师 ID
+        Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(userId);
+        if (teacherBizId == null) {
+            log.warn("未找到教师信息，用户 ID: {}", userId);
+            return new TeacherDashboardVO(); // 返回空对象
+        }
+        return calculateTeacherDashboard(teacherBizId);
     }
 
     /**
@@ -203,8 +215,9 @@ public class DashboardServiceImpl implements DashboardService {
      * 获取管理员仪表盘信息
      */
     @Override
-    public AdminDashboardVO getAdminDashboard(Long adminId) {
-        Long departmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+    public AdminDashboardVO getAdminDashboard(Long userId) {
+        // 将用户 ID 转换为院系 ID（管理员可能在教师表或管理员表中）
+        Long departmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         log.info("获取管理员仪表盘信息，院系 ID: {}", departmentId);
         return calculateAdminDashboard(departmentId);
     }

@@ -16,6 +16,7 @@ import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.common.util.CollectionUtils;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
@@ -57,6 +58,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
     private final SysUserMapper sysUserMapper;
     private final CacheHelper cacheHelper;
     private final FileStorageService fileStorageService;
+    private final DataPermissionUtil dataPermissionUtil;
 
     @Override
     public IPage<DocumentVO> getDocumentPage(DocumentPageQueryDTO queryDTO) {
@@ -154,6 +156,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         document.setStoredPath(storedPath);
         document.setFileSize(uploadDTO.getFile().getSize());
         document.setReviewStatus(ReviewStatus.PENDING.getCode());
+        document.setDescription(uploadDTO.getDescription());
         document.setUploadedAt(LocalDateTime.now());
 
         boolean saved = save(document);
@@ -186,12 +189,9 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 3. 下载文件
         try {
-            // 注意：这里需要根据具体的文件存储实现来获取InputStream
-            // 当前假设LocalFileStorageServiceImpl提供了相应的方法
-            // 实际使用时可能需要扩展FileStorageService接口
-            throw new UnsupportedOperationException("当前文件存储实现暂不支持直接返回InputStream");
+            return fileStorageService.download(document.getStoredPath());
         } catch (Exception e) {
-            log.error("文档下载失败: {}", documentId, e);
+            log.error("文档下载失败：{}", documentId, e);
             throw new BusinessException(ResponseCode.ERROR.getCode(), "文档下载失败");
         }
     }
@@ -369,14 +369,20 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
      * 验证上传权限
      */
     private void validateUploadPermission(Long userId, Long topicId) {
-        // 检查用户是否选择了该题目
+        // 1. 根据用户 ID 查询学生业务 ID（复用 DataPermissionUtil 工具方法）
+        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
+        if (studentBizId == null) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到学生信息");
+        }
+        
+        // 2. 检查用户是否已确认该题目
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
-        selectionWrapper.eq(BizSelection::getStudentId, userId)
+        selectionWrapper.eq(BizSelection::getStudentId, studentBizId)  // 使用业务学生 ID
                        .eq(BizSelection::getTopicId, topicId)
-                       .eq(BizSelection::getStatus, 1); // 已确认状态
+                       .eq(BizSelection::getStatus, 3); // 已确认状态
 
         if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权上传该题目的文档");
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "请先确认选题后再上传文档");
         }
     }
 
@@ -475,40 +481,28 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                         (existing, replacement) -> existing
                 ));
 
-        // 转换为VO列表
+        // 转换为 VO 列表
         return documents.stream().map(document -> {
-            DocumentVO vo = new DocumentVO();
-            vo.setId(document.getId());
-            vo.setUserId(document.getUserId());
-            vo.setTopicId(document.getTopicId());
-            vo.setFileType(document.getFileType());
-            vo.setOriginalFilename(document.getOriginalFilename());
-            vo.setFileSize(document.getFileSize());
-            vo.setReviewStatus(document.getReviewStatus());
-            vo.setReviewedAt(document.getReviewedAt());
-            vo.setReviewerId(document.getReviewerId());
-            vo.setFeedback(document.getFeedback());
-            vo.setUploadedAt(document.getUploadedAt());
-            vo.setCreatedAt(document.getCreatedAt());
-            vo.setUpdatedAt(document.getUpdatedAt());
-
+            // 使用 BeanMapperUtil 复用属性拷贝功能
+            DocumentVO vo = BeanMapperUtil.copyProperties(document, DocumentVO.class);
+                    
             // 填充扩展信息
             vo.setFileSizeDisplay(document.getFileSizeDisplay());
             vo.setFileExtension(document.getFileExtension());
-
+        
             // 填充文件类型描述
             com.lw.graduation.domain.enums.document.DocumentFileType fileType =
                         IEnum.getByCode(com.lw.graduation.domain.enums.document.DocumentFileType.class, document.getFileType());
             if (fileType != null) {
                 vo.setFileTypeDesc(fileType.getDescription());
             }
-
+        
             // 填充审核状态描述
             ReviewStatus reviewStatus = IEnum.getByCode(ReviewStatus.class, document.getReviewStatus());
             if (reviewStatus != null) {
                 vo.setReviewStatusDesc(reviewStatus.getDescription());
             }
-
+        
             // 从批量查询结果中获取关联信息
             Map<String, Object> detail = detailsMap.get(document.getId());
             if (detail != null) {
@@ -516,7 +510,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                 vo.setTopicTitle((String) detail.get("topic_title"));
                 vo.setReviewerName((String) detail.get("reviewer_name"));
             }
-
+        
             return vo;
         }).toList();
     }

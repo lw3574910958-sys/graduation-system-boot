@@ -21,6 +21,7 @@ import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.grade.service.calculator.GradeCalculatorService;
 import com.lw.graduation.grade.service.calculator.GradeDistribution;
@@ -29,6 +30,7 @@ import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
+import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -58,6 +60,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     private final BizTopicMapper bizTopicMapper;
     private final BizSelectionMapper bizSelectionMapper;
     private final SysUserMapper sysUserMapper;
+    private final BizDocumentMapper bizDocumentMapper;
     private final CacheHelper cacheHelper;
     private final GradeCalculatorService gradeCalculatorService;
     private final ObjectMapper objectMapper;
@@ -113,8 +116,8 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public GradeVO inputGrade(GradeInputDTO inputDTO, Long graderId) {
-        log.info("教师 {} 录入成绩: 学生={}, 题目={}, 成绩={}", 
-                graderId, inputDTO.getStudentId(), inputDTO.getTopicId(), inputDTO.getScore());
+        log.info("教师 {} 录入成绩：学生={}, 题目={}, 类型={}, 成绩={}", 
+                graderId, inputDTO.getStudentId(), inputDTO.getTopicId(), inputDTO.getGradeType(), inputDTO.getScore());
         
         // 1. 验证录入权限
         validateGradeInputPermission(inputDTO.getStudentId(), inputDTO.getTopicId(), graderId);
@@ -123,16 +126,16 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         LambdaQueryWrapper<BizGrade> existWrapper = new LambdaQueryWrapper<>();
         existWrapper.eq(BizGrade::getStudentId, inputDTO.getStudentId())
                    .eq(BizGrade::getTopicId, inputDTO.getTopicId())
-                   .eq(BizGrade::getGraderId, graderId)
+                   .eq(BizGrade::getGradeType, inputDTO.getGradeType())
                    .eq(BizGrade::getIsDeleted, 0);
         
         if (count(existWrapper) > 0) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型成绩已存在");
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型成绩已存在，请勿重复录入");
         }
         
         // 3. 如果是综合成绩，先尝试自动计算
         BigDecimal finalScore = inputDTO.getScore();
-        if (inputDTO.getGradeType() == 3) { // 综合成绩
+        if (inputDTO.getGradeType() != null && inputDTO.getGradeType() == 4) { // 综合成绩
             finalScore = calculateCompositeGrade(inputDTO.getStudentId(), inputDTO.getTopicId());
         }
         
@@ -140,20 +143,21 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         boolean isPassing = gradeCalculatorService.isPassing(finalScore);
         String gradeLevel = gradeCalculatorService.getGradeLevel(finalScore);
         
-        log.info("成绩验证 - 学生: {}, 题目: {}, 最终分数: {}, 及格: {}, 等级: {}", 
-                inputDTO.getStudentId(), inputDTO.getTopicId(), finalScore, isPassing, gradeLevel);
+        log.info("成绩验证 - 学生：{}, 题目：{}, 类型：{}, 最终分数：{}, 及格：{}, 等级：{}", 
+                inputDTO.getStudentId(), inputDTO.getTopicId(), inputDTO.getGradeType(), finalScore, isPassing, gradeLevel);
         
         // 4. 创建成绩记录
         BizGrade grade = new BizGrade();
         grade.setStudentId(inputDTO.getStudentId());
         grade.setTopicId(inputDTO.getTopicId());
+        grade.setGradeType(inputDTO.getGradeType());
         grade.setScore(finalScore);
         grade.setGraderId(graderId);
         grade.setComment(inputDTO.getComment());
         grade.setGradedAt(LocalDateTime.now());
         
-        log.info("成绩保存 - 学生ID: {}, 分数: {}, 等级: {}, 评分教师: {}", 
-                inputDTO.getStudentId(), finalScore, gradeLevel, graderId);
+        log.info("成绩保存 - 学生 ID: {}, 类型：{}, 分数：{}, 等级：{}, 评分教师：{}", 
+                inputDTO.getStudentId(), inputDTO.getGradeType(), finalScore, gradeLevel, graderId);
         
         boolean saved = save(grade);
         if (!saved) {
@@ -188,25 +192,35 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         }
         
         // 3. 按照不同类型的成绩进行加权计算
+        // 开题报告权重 0.3，中期报告权重 0.3，毕业论文权重 0.4
         List<BigDecimal> scores = new ArrayList<>();
         List<BigDecimal> weights = new ArrayList<>();
         
-        // 指导教师评分权重 0.4
+        // 开题报告评分权重 0.3
         grades.stream()
-                .filter(g -> g.getGraderId() != null && isAdvisorGrade(g.getGraderId(), topicId))
+                .filter(g -> g.getGradeType() != null && g.getGradeType() == 1) // 开题报告教师评分
                 .findFirst()
-                .ifPresent(advisorGrade -> {
-                    scores.add(advisorGrade.getScore());
-                    weights.add(new BigDecimal("0.4"));
+                .ifPresent(proposalGrade -> {
+                    scores.add(proposalGrade.getScore());
+                    weights.add(new BigDecimal("0.3"));
                 });
         
-        // 答辩评分权重 0.6
+        // 中期报告评分权重 0.3
         grades.stream()
-                .filter(g -> g.getGraderId() != null && !isAdvisorGrade(g.getGraderId(), topicId))
+                .filter(g -> g.getGradeType() != null && g.getGradeType() == 2) // 中期报告教师评分
                 .findFirst()
-                .ifPresent(defenseGrade -> {
-                    scores.add(defenseGrade.getScore());
-                    weights.add(new BigDecimal("0.6"));
+                .ifPresent(midtermGrade -> {
+                    scores.add(midtermGrade.getScore());
+                    weights.add(new BigDecimal("0.3"));
+                });
+        
+        // 毕业论文评分权重 0.4
+        grades.stream()
+                .filter(g -> g.getGradeType() != null && g.getGradeType() == 3) // 毕业论文教师评分
+                .findFirst()
+                .ifPresent(thesisGrade -> {
+                    scores.add(thesisGrade.getScore());
+                    weights.add(new BigDecimal("0.4"));
                 });
         
         // 4. 计算加权平均成绩
@@ -371,9 +385,9 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
      * 验证成绩录入权限
      * 检查教师是否具有对指定学生和题目的成绩录入权限
      * 
-     * @param studentId 学生ID
-     * @param topicId 题目ID  
-     * @param graderId 评分教师ID
+     * @param studentId 学生 ID
+     * @param topicId 题目 ID  
+     * @param graderId 评分教师 ID
      * @throws BusinessException 权限不足时抛出异常
      */
     private void validateGradeInputPermission(Long studentId, Long topicId, Long graderId) {
@@ -382,102 +396,101 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         selectionWrapper.eq(BizSelection::getStudentId, studentId)
                        .eq(BizSelection::getTopicId, topicId)
                        .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode()); // 已确认状态
-        
+            
         if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "该学生未选择此题目");
         }
-        
-        // 2. 检查教师是否有权限评分（指导教师或答辩教师）
+            
+        // 2. 检查题目是否存在
         BizTopic topic = bizTopicMapper.selectById(topicId);
         if (topic == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
-        
-        // 3. 指导教师可以直接评分
+            
+        // 3. 验证成绩录入时机：检查毕业论文是否已通过审核
+        validateGradeTiming(studentId, topicId);
+            
+        // 4. 指导教师可以直接评分
         if (topic.getTeacherId().equals(graderId)) {
             log.debug("指导教师 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
             return;  // 早期返回，避免执行后续复杂验证
         }
-        
-        // 4. 检查是否为答辩教师
-        if (isDefenseTeacher(graderId, topicId)) {
-            log.debug("答辩教师 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
-            return;
-        }
-        
+            
         // 5. 检查是否为院系管理员
         if (dataPermissionUtil.isDepartmentAdminInSpecificDepartment(graderId, topic.getDepartmentId())) {
             log.debug("院系管理员 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
             return;
         }
-        
-        // 6. 检查是否为系统管理员
-        if (isSystemAdmin(graderId)) {
-            log.debug("系统管理员 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
-            return;
-        }
-        
-        // 7. 如果以上权限都不满足，抛出权限异常
+            
+        // 6. 如果以上权限都不满足，抛出权限异常
         throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
                 String.format("教师 %d 无权对题目 %d 进行成绩录入", graderId, topicId));
     }
-
+    
     /**
-     * 判断是否为指导教师评分
+     * 验证成绩录入时机
+     * 确保只有在毕业论文通过审核后才允许录入成绩
+     * 
+     * @param studentId 学生 ID
+     * @param topicId 题目 ID
+     * @throws BusinessException 时机不当时抛出异常
      */
-    private boolean isAdvisorGrade(Long graderId, Long topicId) {
-        BizTopic topic = bizTopicMapper.selectById(topicId);
-        return topic != null && topic.getTeacherId().equals(graderId);
+    private void validateGradeTiming(Long studentId, Long topicId) {
+        // 查询该学生该题目的毕业论文文档
+        LambdaQueryWrapper<BizDocument> documentWrapper = new LambdaQueryWrapper<>();
+        documentWrapper.eq(BizDocument::getUserId, studentId)
+                      .eq(BizDocument::getTopicId, topicId)
+                      .eq(BizDocument::getFileType, 2) // 2-毕业论文
+                      .eq(BizDocument::getIsDeleted, 0);
+            
+        List<BizDocument> documents = bizDocumentMapper.selectList(documentWrapper);
+            
+        if (documents.isEmpty()) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
+                    "学生尚未提交毕业论文，暂不能录入成绩");
+        }
+            
+        // 检查是否有通过的毕业论文
+        boolean hasApprovedThesis = documents.stream()
+                .anyMatch(doc -> doc.getReviewStatus() != null && doc.getReviewStatus() == 1); // 1-通过
+            
+        if (!hasApprovedThesis) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
+                    "毕业论文尚未通过审核，暂不能录入成绩");
+        }
+            
+        log.debug("成绩录入时机验证通过 - 学生 {} 的毕业论文已通过审核", studentId);
     }
     
     /**
-     * 判断是否为答辩教师
-     * 通过检查教师是否在该题目的答辩小组中
-     * 
-     * @param graderId 评分教师ID
-     * @param topicId 题目ID
-     * @return 是否为答辩教师
-     */
-    @SuppressWarnings("unused")
-    private boolean isDefenseTeacher(Long graderId, Long topicId) {
-        // 这里可以实现具体的答辩教师检查逻辑
-        // 比如查询答辩安排表、答辩小组成员等
-        // 简化处理：暂时返回false，实际项目中需要实现具体逻辑
-        return false;
-    }
-    
-    /**
-     * 判断是否为系统管理员
-     * 检查教师是否具有系统级别的管理权限
-     * 
-     * @param graderId 评分教师ID
-     * @return 是否为系统管理员
-     */
-    @SuppressWarnings("unused")
-    private boolean isSystemAdmin(Long graderId) {
-        // 这里可以实现系统管理员检查逻辑
-        // 比如查询用户角色、权限表等
-        // 简化处理：暂时返回false，实际项目中需要实现具体逻辑
-        return false;
-    }
-
-    /**
-     * 转换成绩实体为VO
+     * 转换成绩实体为 VO
      */
     private GradeVO convertToGradeVO(BizGrade grade) {
         GradeVO vo = BeanMapperUtil.copyProperties(grade, GradeVO.class);
-        
+            
+        // 填充成绩类型描述
+        if (grade.getGradeType() != null) {
+            com.lw.graduation.domain.enums.grade.GradeType gradeType = 
+                com.lw.graduation.common.enums.IEnum.getByCode(
+                    com.lw.graduation.domain.enums.grade.GradeType.class, 
+                    grade.getGradeType()
+                );
+            if (gradeType != null) {
+                vo.setGradeTypeDesc(gradeType.getDescription());
+            }
+        }
+            
         // 填充扩展信息
         vo.setGradeLevel(grade.getGradeLevel());
         vo.setGpa(grade.getGPA());
         vo.setPassing(grade.isPass());
         vo.setExcellent(grade.isExcellent());
-        
+            
         // 填充学生信息
         if (grade.getStudentId() != null) {
             BizStudent student = bizStudentMapper.selectById(grade.getStudentId());
             if (student != null) {
-                // 通过用户ID获取学生姓名
+                // 通过用户 ID 获取学生姓名
                 SysUser studentUser = sysUserMapper.selectById(student.getUserId());
                 if (studentUser != null) {
                     vo.setStudentName(studentUser.getRealName());
@@ -485,7 +498,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 vo.setStudentNumber(student.getStudentId());
             }
         }
-        
+            
         // 填充题目信息
         if (grade.getTopicId() != null) {
             BizTopic topic = bizTopicMapper.selectById(grade.getTopicId());
@@ -493,7 +506,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 vo.setTopicTitle(topic.getTitle());
             }
         }
-        
+            
         // 填充评分教师信息
         if (grade.getGraderId() != null) {
             SysUser grader = sysUserMapper.selectById(grade.getGraderId());
@@ -501,7 +514,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 vo.setGraderName(grader.getRealName());
             }
         }
-        
+            
         return vo;
     }
 
@@ -530,25 +543,36 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                         (existing, replacement) -> existing
                 ));
         
-        // 转换为VO列表
+        // 转换为 VO 列表
         return grades.stream().map(grade -> {
             GradeVO vo = new GradeVO();
             vo.setId(grade.getId());
             vo.setStudentId(grade.getStudentId());
             vo.setTopicId(grade.getTopicId());
+            vo.setGradeType(grade.getGradeType());
             vo.setScore(grade.getScore());
             vo.setGraderId(grade.getGraderId());
             vo.setComment(grade.getComment());
             vo.setGradedAt(grade.getGradedAt());
             vo.setCreatedAt(grade.getCreatedAt());
             vo.setUpdatedAt(grade.getUpdatedAt());
-            
+                    
             // 填充扩展信息
             vo.setGradeLevel(grade.getGradeLevel());
             vo.setGpa(grade.getGPA());
             vo.setPassing(grade.isPass());
             vo.setExcellent(grade.isExcellent());
-            
+                    
+            // 填充成绩类型描述
+            com.lw.graduation.domain.enums.grade.GradeType gradeType = 
+                com.lw.graduation.common.enums.IEnum.getByCode(
+                    com.lw.graduation.domain.enums.grade.GradeType.class,
+                    grade.getGradeType()
+                );
+            if (gradeType != null) {
+                vo.setGradeTypeDesc(gradeType.getDescription());
+            }
+                    
             // 从批量查询结果中获取关联信息
             Map<String, Object> detail = detailsMap.get(grade.getId());
             if (detail != null) {
@@ -557,7 +581,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 vo.setTopicTitle((String) detail.get("topic_title"));
                 vo.setGraderName((String) detail.get("grader_name"));
             }
-            
+                    
             return vo;
         }).collect(Collectors.toList());
     }

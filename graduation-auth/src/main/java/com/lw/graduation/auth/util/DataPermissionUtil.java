@@ -232,7 +232,9 @@ public class DataPermissionUtil {
                    .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
             BizStudent student = bizStudentMapper.selectOne(wrapper);
-            return student != null ? student.getId() : null;
+            Long studentBizId = student != null ? student.getId() : null;
+            log.debug("获取学生 ID: userId={}, studentBizId={}", userId, studentBizId);
+            return studentBizId;
         } catch (Exception e) {
             log.warn("获取学生 ID 失败：userId={}", userId, e);
             return null;
@@ -428,10 +430,13 @@ public class DataPermissionUtil {
             // 学生
             else if (isCurrentLoginUserStudent()) {
                 Long studentId = getCurrentUserStudentId();
+                log.info("学生角色权限过滤：userType={}, studentId={}", getCurrentUserTypeString(), studentId);
                 if (studentId != null && studentFilter != null) {
                     studentFilter.accept(studentId);
-                    log.info("学生数据权限过滤：studentId={}", studentId);
+                    log.info("学生数据权限过滤成功：studentId={}", studentId);
                     return true;
+                } else {
+                    log.warn("学生数据权限过滤失败：studentId={}", studentId);
                 }
             }
             // 系统管理员或其他角色：不需要过滤

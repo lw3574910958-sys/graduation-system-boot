@@ -63,7 +63,9 @@ public class PermissionValidationService {
             
         // 学生只能访问自己的数据
         if (UserType.STUDENT.getCode().equals(role)) {
-            return userId.equals(studentId);
+            // 需要将 userId（用户 ID）转换为学生业务 ID 后再比较
+            Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
+            return studentBizId != null && studentBizId.equals(studentId);
         }
             
         return false;
@@ -230,6 +232,12 @@ public class PermissionValidationService {
      * 判断教师是否是学生的指导教师
      */
     private boolean isTeacherOfStudent(Long teacherId, Long studentId) {
+        // teacherId 是用户 ID，需要转换为业务教师 ID
+        Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(teacherId);
+        if (teacherBizId == null) {
+            return false;
+        }
+        
         // 通过选题关系判断师生关系
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStudentId, studentId)
@@ -239,7 +247,7 @@ public class PermissionValidationService {
         for (BizSelection selection : selections) {
             LambdaQueryWrapper<BizTopic> topicWrapper = new LambdaQueryWrapper<>();
             topicWrapper.eq(BizTopic::getId, selection.getTopicId())
-                       .eq(BizTopic::getTeacherId, teacherId)
+                       .eq(BizTopic::getTeacherId, teacherBizId)  // 使用业务教师 ID
                        .eq(BizTopic::getIsDeleted, 0);
             BizTopic topic = bizTopicMapper.selectOne(topicWrapper);
             if (topic != null) {
@@ -387,11 +395,9 @@ public class PermissionValidationService {
             return false;
         }
         
-        LambdaQueryWrapper<BizStudent> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizStudent::getId, selection.getStudentId())
-               .eq(BizStudent::getUserId, userId)
-               .eq(BizStudent::getIsDeleted, 0);
-        return bizStudentMapper.selectCount(wrapper) > 0;
+        // selection.getStudentId() 是业务学生 ID，需要与用户的业务学生 ID 比较
+        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
+        return studentBizId != null && studentBizId.equals(selection.getStudentId());
     }
     
     /**
@@ -452,12 +458,9 @@ public class PermissionValidationService {
             return false;
         }
         
-        // 通过成绩的 student_id 找到对应的用户 ID
-        LambdaQueryWrapper<BizStudent> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizStudent::getId, grade.getStudentId())
-               .eq(BizStudent::getUserId, userId)
-               .eq(BizStudent::getIsDeleted, 0);
-        return bizStudentMapper.selectCount(wrapper) > 0;
+        // grade.getStudentId() 是业务学生 ID，需要与用户的业务学生 ID 比较
+        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
+        return studentBizId != null && studentBizId.equals(grade.getStudentId());
     }
     
 }

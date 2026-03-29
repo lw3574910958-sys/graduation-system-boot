@@ -121,6 +121,12 @@ public class DocumentVO {
     private String feedback;
 
     /**
+     * 文档描述
+     */
+    @Schema(description = "文档描述")
+    private String description;
+
+    /**
      * 上传时间
      */
     @Schema(description = "上传时间")

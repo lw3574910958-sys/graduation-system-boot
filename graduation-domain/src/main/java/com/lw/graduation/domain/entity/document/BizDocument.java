@@ -91,6 +91,12 @@ public class BizDocument implements Serializable {
     private String feedback;
 
     /**
+     * 文档描述
+     */
+    @TableField("description")
+    private String description;
+
+    /**
      * 上传时间
      */
     @TableField("uploaded_at")

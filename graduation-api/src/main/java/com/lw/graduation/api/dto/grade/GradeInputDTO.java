@@ -53,24 +53,8 @@ public class GradeInputDTO implements Serializable {
     private String comment;
 
     /**
-     * 指导教师评分 (如果需要分别录入)
+     * 成绩类型 (1-开题报告教师评分，2-中期报告教师评分，3-毕业论文教师评分，4-综合成绩)
      */
-    @DecimalMin(value = "0.00", message = "指导教师评分不能小于0分")
-    @DecimalMax(value = "100.00", message = "指导教师评分不能大于100分")
-    @Schema(description = "指导教师评分")
-    private BigDecimal advisorScore;
-
-    /**
-     * 答辩评分 (如果需要分别录入)
-     */
-    @DecimalMin(value = "0.00", message = "答辩评分不能小于0分")
-    @DecimalMax(value = "100.00", message = "答辩评分不能大于100分")
-    @Schema(description = "答辩评分")
-    private BigDecimal defenseScore;
-
-    /**
-     * 成绩类型 (1-指导教师评分, 2-答辩评分, 3-综合成绩)
-     */
-    @Schema(description = "成绩类型: 1-指导教师评分, 2-答辩评分, 3-综合成绩")
-    private Integer gradeType = 3;
+    @Schema(description = "成绩类型：1-开题报告教师评分，2-中期报告教师评分，3-毕业论文教师评分，4-综合成绩")
+    private Integer gradeType = 4; // 默认为综合成绩
 }

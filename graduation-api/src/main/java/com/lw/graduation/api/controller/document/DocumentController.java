@@ -1,6 +1,7 @@
 package com.lw.graduation.api.controller.document;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.document.DocumentPageQueryDTO;
@@ -9,8 +10,8 @@ import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.service.document.DocumentService;
 import com.lw.graduation.api.vo.document.DocumentVO;
 import com.lw.graduation.common.response.Result;
+import com.lw.graduation.common.enums.FileFormatType;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -48,6 +48,7 @@ public class DocumentController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询文档列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<DocumentVO>> getDocumentPage(DocumentPageQueryDTO queryDTO) {
         // 不同角色看到不同的文档数据
         return Result.success(documentService.getDocumentPage(queryDTO));
@@ -69,26 +70,14 @@ public class DocumentController {
     /**
      * 上传文档
      *
-     * @param topicId 题目ID
-     * @param fileType 文件类型
-     * @param file 文件
+     * @param uploadDTO 上传参数
      * @return 上传结果
      */
     @PostMapping("/upload")
     @Operation(summary = "上传文档")
-    @SaCheckRole({"student", "teacher"})
-    public Result<DocumentVO> uploadDocument(
-            @Parameter(description = "题目ID") @RequestParam Long topicId,
-            @Parameter(description = "文件类型: 0-开题报告, 1-中期报告, 2-毕业论文, 3-外文翻译, 4-其他文档") @RequestParam Integer fileType,
-            @Parameter(description = "上传的文件") @RequestParam MultipartFile file) {
-        
+    @SaCheckRole({"student"})
+    public Result<DocumentVO> uploadDocument(@ModelAttribute DocumentUploadDTO uploadDTO) {
         Long userId = StpUtil.getLoginIdAsLong();
-        
-        DocumentUploadDTO uploadDTO = new DocumentUploadDTO();
-        uploadDTO.setTopicId(topicId);
-        uploadDTO.setFileType(fileType);
-        uploadDTO.setFile(file);
-        
         DocumentVO documentVO = documentService.uploadDocument(uploadDTO, userId);
         return Result.success(documentVO);
     }
@@ -96,40 +85,126 @@ public class DocumentController {
     /**
      * 下载文档
      *
-     * @param id 文档ID
+     * @param id 文档 ID
      * @return 文件下载响应
      */
     @GetMapping("/{id}/download")
     @Operation(summary = "下载文档")
-    @SaCheckRole({"student", "teacher", "admin"})
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
-        
+    
         try (InputStream inputStream = documentService.downloadDocument(id, userId)) {
             // 获取文档信息用于设置响应头
             DocumentVO document = documentService.getDocumentById(id);
             if (document == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+    
             // 读取文件内容
             byte[] bytes = inputStream.readAllBytes();
-            
+    
             // 设置响应头
             String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
             headers.setContentDispositionFormData("attachment", filename);
             headers.setContentLength(bytes.length);
-            
+    
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(bytes);
-                    
+    
         } catch (Exception e) {
-            log.error("文档下载失败: {}", id, e);
+            log.error("文档下载失败：{}", id, e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+    
+    /**
+     * 预览文档
+     *
+     * @param id 文档 ID
+     * @return 文件预览响应
+     */
+    @GetMapping("/{id}/preview")
+    @Operation(summary = "预览文档")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
+    public ResponseEntity<byte[]> previewDocument(@PathVariable Long id) {
+        Long userId = StpUtil.getLoginIdAsLong();
+    
+        try (InputStream inputStream = documentService.downloadDocument(id, userId)) {
+            // 获取文档信息用于设置响应头
+            DocumentVO document = documentService.getDocumentById(id);
+            if (document == null) {
+                return ResponseEntity.notFound().build();
+            }
+    
+            // 读取文件内容
+            byte[] bytes = inputStream.readAllBytes();
+    
+            // 设置响应头，使用 inline 以便浏览器预览
+            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8);
+            HttpHeaders headers = new HttpHeaders();
+            // 根据文件类型设置 Content-Type
+            String contentType = getContentType(document.getOriginalFilename());
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            // 使用 inline 让浏览器尝试预览而不是下载
+            headers.setContentDispositionFormData("inline", filename);
+            headers.setContentLength(bytes.length);
+    
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(bytes);
+    
+        } catch (Exception e) {
+            log.error("文档预览失败：{}", id, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    /**
+     * 根据文件名获取 Content-Type（复用 FileFormatType 枚举）
+     */
+    private String getContentType(String filename) {
+        if (filename == null) {
+            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+        
+        // 获取文件扩展名
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex >= filename.length() - 1) {
+            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+        
+        String extension = filename.substring(lastDotIndex + 1).toLowerCase();
+        
+        // 复用 FileFormatType 枚举获取 MIME 类型
+        FileFormatType fileType = FileFormatType.getByExtension(extension);
+        if (fileType != null) {
+            // 根据文件类别返回对应的 MIME 类型
+            return switch (fileType.getCategory()) {
+                case IMAGE -> switch (extension) {
+                    case "jpg", "jpeg" -> MediaType.IMAGE_JPEG_VALUE;
+                    case "png" -> MediaType.IMAGE_PNG_VALUE;
+                    case "gif" -> MediaType.IMAGE_GIF_VALUE;
+                    default -> MediaType.IMAGE_JPEG_VALUE;
+                };
+                case DOCUMENT -> switch (extension) {
+                    case "pdf" -> MediaType.APPLICATION_PDF_VALUE;
+                    case "txt", "md" -> MediaType.TEXT_PLAIN_VALUE;
+                    default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
+                };
+                default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
+            };
+        }
+        
+        // 特殊处理 CSV
+        if ("csv".equals(extension)) {
+            return "text/csv";
+        }
+        
+        return MediaType.APPLICATION_OCTET_STREAM_VALUE;
     }
 
     /**
@@ -155,7 +230,7 @@ public class DocumentController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除文档")
-    @SaCheckRole({"student", "teacher"})
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<Void> deleteDocument(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
         documentService.deleteDocument(id, userId);
@@ -170,7 +245,7 @@ public class DocumentController {
      */
     @GetMapping("/my")
     @Operation(summary = "获取当前用户文档列表")
-    @SaCheckRole({"student", "teacher"})
+    @SaCheckRole({"student"})
     public Result<IPage<DocumentVO>> getMyDocuments(DocumentPageQueryDTO queryDTO) {
         Long userId = StpUtil.getLoginIdAsLong();
         queryDTO.setUserId(userId);
@@ -186,7 +261,7 @@ public class DocumentController {
      */
     @GetMapping("/user/{userId}")
     @Operation(summary = "获取用户文档列表")
-    @SaCheckRole({"admin", "department_admin", "teacher"}) // 管理员、院系管理员、教师可查看
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<DocumentVO>> getDocumentsByUser(@PathVariable Long userId, DocumentPageQueryDTO queryDTO) {
         queryDTO.setUserId(userId);
         return Result.success(documentService.getDocumentPage(queryDTO));
@@ -201,6 +276,7 @@ public class DocumentController {
      */
     @GetMapping("/topic/{topicId}")
     @Operation(summary = "获取题目文档列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<DocumentVO>> getDocumentsByTopic(@PathVariable Long topicId, DocumentPageQueryDTO queryDTO) {
         // 需要验证用户是否有权限查看该题目的文档
         queryDTO.setTopicId(topicId);
@@ -216,6 +292,7 @@ public class DocumentController {
      */
     @GetMapping("/type/{fileType}")
     @Operation(summary = "获取指定类型文档列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<DocumentVO>> getDocumentsByType(@PathVariable Integer fileType, DocumentPageQueryDTO queryDTO) {
         queryDTO.setFileType(fileType);
         return Result.success(documentService.getDocumentPage(queryDTO));
@@ -230,6 +307,7 @@ public class DocumentController {
      */
     @GetMapping("/status/{reviewStatus}")
     @Operation(summary = "获取指定状态文档列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<DocumentVO>> getDocumentsByStatus(@PathVariable Integer reviewStatus, DocumentPageQueryDTO queryDTO) {
         queryDTO.setReviewStatus(reviewStatus);
         return Result.success(documentService.getDocumentPage(queryDTO));

@@ -49,6 +49,18 @@ public class GradeVO {
     private String topicTitle;
 
     /**
+     * 成绩类型：1-开题报告教师评分，2-中期报告教师评分，3-毕业论文教师评分，4-综合成绩
+     */
+    @Schema(description = "成绩类型：1-开题报告教师评分，2-中期报告教师评分，3-毕业论文教师评分，4-综合成绩")
+    private Integer gradeType;
+
+    /**
+     * 成绩类型描述
+     */
+    @Schema(description = "成绩类型描述")
+    private String gradeTypeDesc;
+
+    /**
      * 成绩 (0.00 ~ 100.00)
      */
     @Schema(description = "成绩 (0.00 ~ 100.00)")

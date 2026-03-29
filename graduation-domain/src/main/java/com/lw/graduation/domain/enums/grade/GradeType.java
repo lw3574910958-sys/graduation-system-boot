@@ -1,4 +1,4 @@
-package com.lw.graduation.domain.enums.grade;
+  package com.lw.graduation.domain.enums.grade;
 
 import com.lw.graduation.common.enums.IEnum;
 import lombok.AllArgsConstructor;
@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 /**
  * 成绩类型枚举
  * 定义毕业设计系统中不同类型的评分项目
+ * 评分基于学生提交的三类文档：开题报告、中期报告、毕业论文
  *
  * @author lw
  */
@@ -17,19 +18,19 @@ import java.math.BigDecimal;
 public enum GradeType implements IEnum<Integer> {
 
     /**
-     * 指导教师评分 40%
+     * 开题报告教师评分 30%
      */
-    ADVISOR_GRADE(1, "指导教师评分", new BigDecimal("0.4")),
+    PROPOSAL_GRADE(1, "开题报告教师评分", new BigDecimal("0.3")),
     
     /**
-     * 评阅教师评分 30%
+     * 中期报告教师评分 30%
      */
-    REVIEWER_GRADE(2, "评阅教师评分", new BigDecimal("0.3")),
+    MIDTERM_GRADE(2, "中期报告教师评分", new BigDecimal("0.3")),
     
     /**
-     * 答辩成绩 30%
+     * 毕业论文教师评分 40%
      */
-    DEFENSE_GRADE(3, "答辩成绩", new BigDecimal("0.3")),
+    THESIS_GRADE(3, "毕业论文教师评分", new BigDecimal("0.4")),
     
     /**
      * 综合成绩（自动计算）
@@ -66,6 +67,6 @@ public enum GradeType implements IEnum<Integer> {
      * @return 单项成绩返回 true
      */
     public boolean isSingleGrade() {
-        return this == ADVISOR_GRADE || this == REVIEWER_GRADE || this == DEFENSE_GRADE;
+        return this == PROPOSAL_GRADE || this == MIDTERM_GRADE || this == THESIS_GRADE;
     }
 }
