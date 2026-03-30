@@ -39,10 +39,4 @@ public class DocumentReviewDTO implements Serializable {
      */
     @Schema(description = "审核意见")
     private String feedback;
-
-    /**
-     * 审核建议（补充说明）
-     */
-    @Schema(description = "审核建议")
-    private String suggestion;
 }

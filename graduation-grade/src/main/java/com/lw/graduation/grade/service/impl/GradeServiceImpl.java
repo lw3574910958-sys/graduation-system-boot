@@ -10,6 +10,7 @@ import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.service.grade.GradeService;
 import com.lw.graduation.api.vo.grade.GradeVO;
+import com.lw.graduation.auth.service.PermissionValidationService;
 import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.ResponseCode;
@@ -22,6 +23,7 @@ import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.entity.document.BizDocument;
+import com.lw.graduation.domain.enums.grade.GradeType;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.grade.service.calculator.GradeCalculatorService;
 import com.lw.graduation.grade.service.calculator.GradeDistribution;
@@ -65,6 +67,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     private final GradeCalculatorService gradeCalculatorService;
     private final ObjectMapper objectMapper;
     private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
+    private final PermissionValidationService permissionValidationService;
 
     @Override
     public IPage<GradeVO> getGradePage(GradePageQueryDTO queryDTO) {
@@ -120,7 +123,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 graderId, inputDTO.getStudentId(), inputDTO.getTopicId(), inputDTO.getGradeType(), inputDTO.getScore());
         
         // 1. 验证录入权限
-        validateGradeInputPermission(inputDTO.getStudentId(), inputDTO.getTopicId(), graderId);
+        permissionValidationService.validateGradeInputPermission(inputDTO.getStudentId(), inputDTO.getTopicId(), graderId);
         
         // 2. 检查是否已存在相同类型的成绩
         LambdaQueryWrapper<BizGrade> existWrapper = new LambdaQueryWrapper<>();
@@ -356,18 +359,16 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteGrade(Long id, Long graderId) {
-        log.info("教师 {} 删除成绩: {}", graderId, id);
-        
+        log.info("教师 {} 删除成绩：{}", graderId, id);
+                
         // 1. 获取成绩信息
         BizGrade grade = getById(id);
         if (grade == null || grade.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "成绩不存在");
         }
-        
+                
         // 2. 验证删除权限
-        if (!grade.getGraderId().equals(graderId)) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权删除他人录入的成绩");
-        }
+        permissionValidationService.validateGradeDeletePermission(id, graderId, grade);
         
         // 3. 逻辑删除
         boolean removed = removeById(id);
@@ -382,87 +383,6 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     }
 
     /**
-     * 验证成绩录入权限
-     * 检查教师是否具有对指定学生和题目的成绩录入权限
-     * 
-     * @param studentId 学生 ID
-     * @param topicId 题目 ID  
-     * @param graderId 评分教师 ID
-     * @throws BusinessException 权限不足时抛出异常
-     */
-    private void validateGradeInputPermission(Long studentId, Long topicId, Long graderId) {
-        // 1. 检查学生是否选择了该题目
-        LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
-        selectionWrapper.eq(BizSelection::getStudentId, studentId)
-                       .eq(BizSelection::getTopicId, topicId)
-                       .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode()); // 已确认状态
-            
-        if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "该学生未选择此题目");
-        }
-            
-        // 2. 检查题目是否存在
-        BizTopic topic = bizTopicMapper.selectById(topicId);
-        if (topic == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
-        }
-            
-        // 3. 验证成绩录入时机：检查毕业论文是否已通过审核
-        validateGradeTiming(studentId, topicId);
-            
-        // 4. 指导教师可以直接评分
-        if (topic.getTeacherId().equals(graderId)) {
-            log.debug("指导教师 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
-            return;  // 早期返回，避免执行后续复杂验证
-        }
-            
-        // 5. 检查是否为院系管理员
-        if (dataPermissionUtil.isDepartmentAdminInSpecificDepartment(graderId, topic.getDepartmentId())) {
-            log.debug("院系管理员 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
-            return;
-        }
-            
-        // 6. 如果以上权限都不满足，抛出权限异常
-        throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
-                String.format("教师 %d 无权对题目 %d 进行成绩录入", graderId, topicId));
-    }
-    
-    /**
-     * 验证成绩录入时机
-     * 确保只有在毕业论文通过审核后才允许录入成绩
-     * 
-     * @param studentId 学生 ID
-     * @param topicId 题目 ID
-     * @throws BusinessException 时机不当时抛出异常
-     */
-    private void validateGradeTiming(Long studentId, Long topicId) {
-        // 查询该学生该题目的毕业论文文档
-        LambdaQueryWrapper<BizDocument> documentWrapper = new LambdaQueryWrapper<>();
-        documentWrapper.eq(BizDocument::getUserId, studentId)
-                      .eq(BizDocument::getTopicId, topicId)
-                      .eq(BizDocument::getFileType, 2) // 2-毕业论文
-                      .eq(BizDocument::getIsDeleted, 0);
-            
-        List<BizDocument> documents = bizDocumentMapper.selectList(documentWrapper);
-            
-        if (documents.isEmpty()) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
-                    "学生尚未提交毕业论文，暂不能录入成绩");
-        }
-            
-        // 检查是否有通过的毕业论文
-        boolean hasApprovedThesis = documents.stream()
-                .anyMatch(doc -> doc.getReviewStatus() != null && doc.getReviewStatus() == 1); // 1-通过
-            
-        if (!hasApprovedThesis) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
-                    "毕业论文尚未通过审核，暂不能录入成绩");
-        }
-            
-        log.debug("成绩录入时机验证通过 - 学生 {} 的毕业论文已通过审核", studentId);
-    }
-    
-    /**
      * 转换成绩实体为 VO
      */
     private GradeVO convertToGradeVO(BizGrade grade) {
@@ -470,9 +390,9 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             
         // 填充成绩类型描述
         if (grade.getGradeType() != null) {
-            com.lw.graduation.domain.enums.grade.GradeType gradeType = 
+            GradeType gradeType = 
                 com.lw.graduation.common.enums.IEnum.getByCode(
-                    com.lw.graduation.domain.enums.grade.GradeType.class, 
+                    GradeType.class, 
                     grade.getGradeType()
                 );
             if (gradeType != null) {
@@ -564,9 +484,9 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             vo.setExcellent(grade.isExcellent());
                     
             // 填充成绩类型描述
-            com.lw.graduation.domain.enums.grade.GradeType gradeType = 
+            GradeType gradeType = 
                 com.lw.graduation.common.enums.IEnum.getByCode(
-                    com.lw.graduation.domain.enums.grade.GradeType.class,
+                    GradeType.class,
                     grade.getGradeType()
                 );
             if (gradeType != null) {

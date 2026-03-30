@@ -9,6 +9,7 @@ import com.lw.graduation.api.dto.document.DocumentReviewDTO;
 import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.service.document.DocumentService;
 import com.lw.graduation.api.vo.document.DocumentVO;
+import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.response.Result;
 import com.lw.graduation.common.enums.FileFormatType;
 import io.swagger.v3.oas.annotations.Operation;
@@ -83,6 +84,22 @@ public class DocumentController {
     }
 
     /**
+     * 学生重新上传文档（驳回后）
+     *
+     * @param originalDocumentId 原文档 ID
+     * @param uploadDTO 上传参数
+     * @return 重新上传结果
+     */
+    @PostMapping("/{originalDocumentId}/reupload")
+    @Operation(summary = "重新上传文档")
+    @SaCheckRole({"student"})
+    public Result<DocumentVO> reuploadDocument(@PathVariable Long originalDocumentId, @ModelAttribute DocumentUploadDTO uploadDTO) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        DocumentVO documentVO = documentService.reuploadDocument(originalDocumentId, uploadDTO, userId);
+        return Result.success(documentVO);
+    }
+
+    /**
      * 下载文档
      *
      * @param id 文档 ID
@@ -104,17 +121,25 @@ public class DocumentController {
             // 读取文件内容
             byte[] bytes = inputStream.readAllBytes();
     
-            // 设置响应头
-            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8);
+            // 设置响应头，使用 RFC 5987 标准编码文件名
+            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDispositionFormData("attachment", filename);
+            // 根据文件类型设置 Content-Type
+            String contentType = getContentType(document.getOriginalFilename());
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            // 使用 Content-Disposition: attachment 强制下载
+            headers.setContentDispositionFormData("attachment", null);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename);
             headers.setContentLength(bytes.length);
     
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(bytes);
     
+        } catch (BusinessException e) {
+            // 权限验证失败，返回 403
+            log.warn("文档下载权限不足：文档 ID={}, 用户 ID={}, 原因：{}", id, userId, e.getMessage());
+            return ResponseEntity.status(403).build();
         } catch (Exception e) {
             log.error("文档下载失败：{}", id, e);
             return ResponseEntity.internalServerError().build();
@@ -144,19 +169,24 @@ public class DocumentController {
             byte[] bytes = inputStream.readAllBytes();
     
             // 设置响应头，使用 inline 以便浏览器预览
-            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8);
+            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
             HttpHeaders headers = new HttpHeaders();
             // 根据文件类型设置 Content-Type
             String contentType = getContentType(document.getOriginalFilename());
             headers.setContentType(MediaType.parseMediaType(contentType));
-            // 使用 inline 让浏览器尝试预览而不是下载
-            headers.setContentDispositionFormData("inline", filename);
+            // 使用 Content-Disposition: inline 让浏览器尝试预览而不是下载
+            headers.setContentDispositionFormData("inline", null);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + filename);
             headers.setContentLength(bytes.length);
     
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(bytes);
     
+        } catch (BusinessException e) {
+            // 权限验证失败，返回 403
+            log.warn("文档预览权限不足：文档 ID={}, 用户 ID={}, 原因：{}", id, userId, e.getMessage());
+            return ResponseEntity.status(403).build();
         } catch (Exception e) {
             log.error("文档预览失败：{}", id, e);
             return ResponseEntity.internalServerError().build();
@@ -193,6 +223,10 @@ public class DocumentController {
                 case DOCUMENT -> switch (extension) {
                     case "pdf" -> MediaType.APPLICATION_PDF_VALUE;
                     case "txt", "md" -> MediaType.TEXT_PLAIN_VALUE;
+                    case "doc" -> "application/msword";
+                    case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    case "xls" -> "application/vnd.ms-excel";
+                    case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
                     default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
                 };
                 default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
@@ -225,7 +259,7 @@ public class DocumentController {
     /**
      * 删除文档
      *
-     * @param id 文档ID
+     * @param id 文档 ID
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
@@ -234,6 +268,21 @@ public class DocumentController {
     public Result<Void> deleteDocument(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
         documentService.deleteDocument(id, userId);
+        return Result.success();
+    }
+        
+    /**
+     * 学生撤销文档申请（待审核状态）
+     *
+     * @param id 文档 ID
+     * @return 撤销结果
+     */
+    @DeleteMapping("/{id}/cancel")
+    @Operation(summary = "学生撤销文档申请")
+    @SaCheckRole("student")
+    public Result<Void> cancelDocument(@PathVariable Long id) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        documentService.cancelDocument(id, userId);
         return Result.success();
     }
 

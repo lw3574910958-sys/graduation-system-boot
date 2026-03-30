@@ -36,6 +36,12 @@ public class DocumentVO {
     private String userName;
 
     /**
+     * 上传人学号
+     */
+    @Schema(description = "上传人学号")
+    private String studentNumber;
+
+    /**
      * 关联题目ID
      */
     @Schema(description = "关联题目ID")
@@ -113,6 +119,12 @@ public class DocumentVO {
      */
     @Schema(description = "审核人姓名")
     private String reviewerName;
+
+    /**
+     * 审核人工号
+     */
+    @Schema(description = "审核人工号")
+    private String reviewerWorkNumber;
 
     /**
      * 审核意见

@@ -9,6 +9,7 @@ import com.lw.graduation.api.dto.selection.SelectionPageQueryDTO;
 import com.lw.graduation.api.dto.selection.SelectionReviewDTO;
 import com.lw.graduation.api.service.selection.SelectionService;
 import com.lw.graduation.api.vo.selection.SelectionVO;
+import com.lw.graduation.auth.service.PermissionValidationService;
 import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
@@ -57,6 +58,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     private final TopicServiceImpl topicService;
     private final CacheHelper cacheHelper;
     private final DataPermissionUtil dataPermissionUtil;
+    private final PermissionValidationService permissionValidationService;
 
     /**
      * 分页查询选题列表
@@ -250,28 +252,16 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
                 teacherId, reviewDTO.getSelectionId(),
                 SelectionStatus.APPROVED.getCode().equals(reviewDTO.getReviewResult()) ? "通过" : "驳回");
 
-        // 1. 获取选题申请信息
+        // 1. 验证审核权限
+        permissionValidationService.validateSelectionReviewPermission(reviewDTO.getSelectionId(), teacherId);
+
+        // 2. 获取选题申请信息
         BizSelection selection = getById(reviewDTO.getSelectionId());
         if (selection == null || selection.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题申请不存在");
         }
 
-        // 2. 验证审核权限（必须是该题目的指导教师）
-        // 注意：topic.getTeacherId() 返回的是业务教师 ID (biz_teacher.id)，不是用户 ID
-        // 需要通过用户 ID 查询业务教师 ID
-        BizTopic topic = bizTopicMapper.selectById(selection.getTopicId());
-        if (topic == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
-        }
-
-        // 通过用户 ID 查询业务教师 ID（复用 DataPermissionUtil 工具方法）
-        Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(teacherId);
-
-        if (teacherBizId == null || !topic.getTeacherId().equals(teacherBizId)) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权审核该选题申请");
-        }
-
-        // 3. 验证选题状态
+        // 3. 验证审核状态
         SelectionStatus currentStatus = IEnum.getByCode(SelectionStatus.class, selection.getStatus());
         if (currentStatus != null && currentStatus.isFinalStatus()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "选题状态不允许审核");
@@ -309,26 +299,18 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SelectionVO confirmSelection(Long selectionId, Long userId) {
-        log.info("学生用户 [{}] 确认选题，申请ID: {}", userId, selectionId);
-    
-        // 1. 根据用户 ID 查询学生业务 ID（复用 DataPermissionUtil 工具方法）
-        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
-        if (studentBizId == null) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到学生信息");
-        }
-    
+        log.info("学生用户 [{}] 确认选题，申请 ID: {}", userId, selectionId);
+            
+        // 1. 验证确认权限
+        permissionValidationService.validateSelectionConfirmPermission(selectionId, userId);
+            
         // 2. 获取选题信息
         BizSelection selection = getById(selectionId);
         if (selection == null || selection.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题不存在");
         }
     
-        // 3. 验证确认权限（使用业务学生 ID 进行比较）
-        if (!selection.getStudentId().equals(studentBizId)) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权确认他人选题");
-        }
-    
-        // 4. 验证选题状态
+        // 3. 验证选题状态
         if (!selection.isApproved()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有审核通过的选题才能确认");
         }

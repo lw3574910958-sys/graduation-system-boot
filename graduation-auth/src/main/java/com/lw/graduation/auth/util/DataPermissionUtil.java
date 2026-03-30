@@ -242,6 +242,31 @@ public class DataPermissionUtil {
     }
 
     /**
+     * 根据用户 ID 获取学生对象（针对学生用户）
+     *
+     * @param userId 用户 ID
+     * @return 学生对象
+     */
+    public BizStudent getStudentByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+
+        try {
+            LambdaQueryWrapper<BizStudent> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(BizStudent::getUserId, userId)
+                   .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
+            BizStudent student = bizStudentMapper.selectOne(wrapper);
+            log.debug("获取学生对象：userId={}, studentId={}", userId, student != null ? student.getStudentId() : null);
+            return student;
+        } catch (Exception e) {
+            log.warn("获取学生对象失败：userId={}", userId, e);
+            return null;
+        }
+    }
+
+    /**
      * 获取当前登录用户的学生 ID
      *
      * @return 学生 ID

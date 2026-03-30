@@ -52,8 +52,32 @@ public class DocumentPageQueryDTO extends BasePageQueryDTO {
     private String keyword;
 
     /**
-     * 院系ID（按院系查询）
+     * 上传人姓名（模糊查询）
      */
-    @Schema(description = "院系ID")
+    @Schema(description = "上传人姓名")
+    private String userName;
+
+    /**
+     * 学号（学生学号）
+     */
+    @Schema(description = "学号")
+    private String studentNumber;
+
+    /**
+     * 审核人姓名（模糊查询）
+     */
+    @Schema(description = "审核人姓名")
+    private String reviewerName;
+
+    /**
+     * 审核人工号（模糊查询）
+     */
+    @Schema(description = "审核人工号")
+    private String reviewerWorkNumber;
+
+    /**
+     * 院系 ID（按院系查询）
+     */
+    @Schema(description = "院系 ID")
     private Long departmentId;
 }
