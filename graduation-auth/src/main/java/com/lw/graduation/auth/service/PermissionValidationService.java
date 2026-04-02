@@ -426,21 +426,24 @@ public class PermissionValidationService {
     
     /**
      * 验证成绩删除权限
-     * 检查教师是否有权删除指定成绩
+     * 只有系统管理员有权删除成绩
      * 
      * @param gradeId 成绩 ID
-     * @param graderId 教师 ID
+     * @param userId 用户 ID
      * @param grade 成绩实体
      * @throws BusinessException 权限不足时抛出异常
      */
-    public void validateGradeDeletePermission(Long gradeId, Long graderId, BizGrade grade) {
+    public void validateGradeDeletePermission(Long gradeId, Long userId, BizGrade grade) {
         if (grade == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "成绩不存在");
         }
         
-        // 只有成绩录入者才能删除
-        if (!grade.getGraderId().equals(graderId)) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权删除他人录入的成绩");
+        // 获取用户类型
+        String userType = getUserTypeByUserId(userId);
+        
+        // 只有系统管理员才能删除成绩
+        if (!UserType.SYSTEM_ADMIN.getCode().equals(userType)) {
+            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "只有系统管理员有权删除成绩");
         }
     }
     

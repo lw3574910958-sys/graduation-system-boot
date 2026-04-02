@@ -34,12 +34,14 @@
             s.student_id as student_number,
             u.real_name as student_name,
             t.title as topic_title,
-            ug.real_name as grader_name
+            ug.real_name as grader_name,
+            ut.teacher_id as grader_work_number
         FROM biz_grade g
         LEFT JOIN biz_student s ON g.student_id = s.id
         LEFT JOIN sys_user u ON s.user_id = u.id
         LEFT JOIN biz_topic t ON g.topic_id = t.id
         LEFT JOIN sys_user ug ON g.grader_id = ug.id
+        LEFT JOIN biz_teacher ut ON g.grader_id = ut.user_id
         WHERE g.id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}

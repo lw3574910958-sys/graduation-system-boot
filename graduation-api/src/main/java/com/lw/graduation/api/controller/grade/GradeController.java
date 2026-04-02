@@ -61,13 +61,15 @@ public class GradeController {
     }
 
     /**
-     * 录入成绩
+     * 录入成绩（首次录入）
+     * 教师对已创建的成绩记录进行首次评分，仅允许填写分数和评语
+     * 每个学生的每个课题每种成绩类型只能录入一次，录入后不允许修改
      *
      * @param inputDTO 录入参数
      * @return 录入结果
      */
     @PostMapping("/input")
-    @Operation(summary = "录入成绩")
+    @Operation(summary = "录入成绩（首次录入）")
     @SaCheckRole("teacher")
     public Result<GradeVO> inputGrade(@Validated @RequestBody GradeInputDTO inputDTO) {
         Long graderId = StpUtil.getLoginIdAsLong();
@@ -95,15 +97,15 @@ public class GradeController {
     /**
      * 删除成绩
      *
-     * @param id 成绩ID
+     * @param id 成绩 ID
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除成绩")
-    @SaCheckRole("teacher")
+    @SaCheckRole("system_admin")
     public Result<Void> deleteGrade(@PathVariable Long id) {
-        Long graderId = StpUtil.getLoginIdAsLong();
-        gradeService.deleteGrade(id, graderId);
+        Long userId = StpUtil.getLoginIdAsLong();
+        gradeService.deleteGrade(id, userId);
         return Result.success();
     }
 

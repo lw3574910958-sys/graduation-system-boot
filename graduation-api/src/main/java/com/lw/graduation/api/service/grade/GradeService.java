@@ -34,22 +34,46 @@ public interface GradeService {
     GradeVO getGradeById(Long id);
 
     /**
-     * 录入成绩
+     * 录入成绩（首次录入）
+     * 教师对已创建的成绩记录进行首次评分，仅允许填写分数和评语
+     * 每个学生的每个课题每种成绩类型只能录入一次，录入后不允许修改
      *
-     * @param inputDTO 成绩录入DTO
-     * @param graderId 评分教师ID
-     * @return 录入的成绩VO
+     * @param inputDTO 成绩录入 DTO
+     * @param graderId 评分教师 ID
+     * @return 录入的成绩 VO
      */
     GradeVO inputGrade(GradeInputDTO inputDTO, Long graderId);
+    
+    /**
+     * 自动创建成绩记录（不设置评分时间）
+     * 用于文档审核通过后自动创建评分记录，由教师在正式评分时设置评分时间
+     *
+     * @param inputDTO 成绩录入 DTO
+     * @param graderId 评分教师 ID
+     * @return 录入的成绩 VO
+     */
+    GradeVO inputGradeForAutoCreate(GradeInputDTO inputDTO, Long graderId);
 
     /**
      * 自动计算综合成绩
      *
-     * @param studentId 学生ID
-     * @param topicId 题目ID
+     * @param studentId 学生 ID
+     * @param topicId 题目 ID
      * @return 计算后的综合成绩
      */
     BigDecimal calculateCompositeGrade(Long studentId, Long topicId);
+    
+    /**
+     * 尝试自动保存综合成绩（独立方法）
+     * 当开题、中期、毕业论文都已完成评分时，自动计算并保存综合成绩
+     * 该方法可独立调用，不依赖于成绩录入流程
+     *
+     * @param studentId 学生 ID
+     * @param topicId 题目 ID
+     * @param graderId 评分教师 ID（用于记录综合成绩的评分人）
+     * @return true-成功保存，false-条件不满足或已存在
+     */
+    boolean tryAutoSaveCompositeGrade(Long studentId, Long topicId, Long graderId);
 
     /**
      * 获取学生的所有成绩
@@ -77,9 +101,10 @@ public interface GradeService {
 
     /**
      * 删除成绩
+     * 只有系统管理员有权删除成绩
      *
-     * @param id 成绩ID
-     * @param graderId 教师ID
+     * @param id 成绩 ID
+     * @param userId 用户 ID
      */
-    void deleteGrade(Long id, Long graderId);
+    void deleteGrade(Long id, Long userId);
 }

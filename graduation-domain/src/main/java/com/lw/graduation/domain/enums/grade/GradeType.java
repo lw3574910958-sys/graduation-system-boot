@@ -20,22 +20,22 @@ public enum GradeType implements IEnum<Integer> {
     /**
      * 开题报告教师评分 30%
      */
-    PROPOSAL_GRADE(1, "开题报告教师评分", new BigDecimal("0.3")),
+    PROPOSAL_GRADE(0, "开题报告教师评分", new BigDecimal("0.3")),
     
     /**
      * 中期报告教师评分 30%
      */
-    MIDTERM_GRADE(2, "中期报告教师评分", new BigDecimal("0.3")),
+    MIDTERM_GRADE(1, "中期报告教师评分", new BigDecimal("0.3")),
     
     /**
      * 毕业论文教师评分 40%
      */
-    THESIS_GRADE(3, "毕业论文教师评分", new BigDecimal("0.4")),
+    THESIS_GRADE(2, "毕业论文教师评分", new BigDecimal("0.4")),
     
     /**
      * 综合成绩（自动计算）
      */
-    COMPOSITE_GRADE(4, "综合成绩", null);
+    COMPOSITE_GRADE(3, "综合成绩", null);
 
     /**
      * Code（数据库存储值）

@@ -27,17 +27,7 @@ public enum DocumentFileType implements IEnum<Integer> {
     /**
      * 毕业论文
      */
-    THESIS(2, "毕业论文"),
-    
-    /**
-     * 外文翻译
-     */
-    TRANSLATION(3, "外文翻译"),
-    
-    /**
-     * 其他文档
-     */
-    OTHER(4, "其他文档");
+    THESIS(2, "毕业论文");
 
     /**
      * Code（数据库存储值）

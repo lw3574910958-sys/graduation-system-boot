@@ -36,6 +36,12 @@ public class GradePageQueryDTO extends BasePageQueryDTO {
     private Long graderId;
 
     /**
+     * 成绩类型
+     */
+    @Schema(description = "成绩类型：0-开题报告，1-中期报告，2-毕业论文，3-综合成绩")
+    private Integer gradeType;
+
+    /**
      * 最低成绩
      */
     @Schema(description = "最低成绩")

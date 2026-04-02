@@ -49,9 +49,9 @@ public class GradeVO {
     private String topicTitle;
 
     /**
-     * 成绩类型：1-开题报告教师评分，2-中期报告教师评分，3-毕业论文教师评分，4-综合成绩
+     * 成绩类型：0-开题报告，1-中期报告，2-毕业论文，3-综合成绩
      */
-    @Schema(description = "成绩类型：1-开题报告教师评分，2-中期报告教师评分，3-毕业论文教师评分，4-综合成绩")
+    @Schema(description = "成绩类型：0-开题报告，1-中期报告，2-毕业论文，3-综合成绩")
     private Integer gradeType;
 
     /**
@@ -134,4 +134,10 @@ public class GradeVO {
      */
     @Schema(description = "评分教师姓名")
     private String graderName;
+
+    /**
+     * 评分教师工号
+     */
+    @Schema(description = "评分教师工号")
+    private String graderWorkNumber;
 }
