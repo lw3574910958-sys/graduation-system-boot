@@ -601,41 +601,15 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 log.info("排名分析 - 批次最高分: {}, 超越百分比: {}%", highestInBatch, batchPercentileRank);
             }
             
-            // 5. 转换为JSON字符串
+            // 5. 转换为 JSON 字符串
             return objectMapper.writeValueAsString(distribution);
-            
+                
         } catch (Exception e) {
             log.error("成绩统计失败", e);
             throw new BusinessException(ResponseCode.ERROR.getCode(), "成绩统计失败");
         }
     }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteGrade(Long id, Long userId) {
-        log.info("用户 {} 删除成绩：{}", userId, id);
-                
-        // 1. 获取成绩信息
-        BizGrade grade = getById(id);
-        if (grade == null || grade.getIsDeleted() == 1) {
-            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "成绩不存在");
-        }
-                
-        // 2. 验证删除权限
-        permissionValidationService.validateGradeDeletePermission(id, userId, grade);
-        
-        // 3. 逻辑删除
-        boolean removed = removeById(id);
-        if (!removed) {
-            throw new BusinessException(ResponseCode.ERROR.getCode(), "成绩删除失败");
-        }
-        
-        // 4. 清除缓存
-        clearGradeCache(id);
-        
-        log.info("成绩删除成功，ID: {}", id);
-    }
-
+    
     /**
      * 转换成绩实体为 VO
      */

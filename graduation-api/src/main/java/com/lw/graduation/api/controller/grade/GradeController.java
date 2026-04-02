@@ -95,21 +95,6 @@ public class GradeController {
     }
 
     /**
-     * 删除成绩
-     *
-     * @param id 成绩 ID
-     * @return 删除结果
-     */
-    @DeleteMapping("/{id}")
-    @Operation(summary = "删除成绩")
-    @SaCheckRole("system_admin")
-    public Result<Void> deleteGrade(@PathVariable Long id) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        gradeService.deleteGrade(id, userId);
-        return Result.success();
-    }
-
-    /**
      * 获取当前教师录入的成绩列表
      *
      * @param queryDTO 查询条件

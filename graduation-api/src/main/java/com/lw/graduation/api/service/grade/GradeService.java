@@ -95,16 +95,7 @@ public interface GradeService {
      * 获取成绩统计信息
      *
      * @param queryDTO 统计查询条件
-     * @return 成绩分布统计JSON字符串
+     * @return 成绩分布统计 JSON 字符串
      */
     String getGradeStatistics(GradeStatisticsQueryDTO queryDTO);
-
-    /**
-     * 删除成绩
-     * 只有系统管理员有权删除成绩
-     *
-     * @param id 成绩 ID
-     * @param userId 用户 ID
-     */
-    void deleteGrade(Long id, Long userId);
 }
