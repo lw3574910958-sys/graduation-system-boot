@@ -1,7 +1,9 @@
 package com.lw.graduation.api.controller.auth;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.annotation.SaIgnore;
+import cn.dev33.satoken.annotation.SaMode;
 import com.lw.graduation.api.vo.auth.CaptchaVO;
 import com.lw.graduation.api.dto.auth.LoginDTO;
 import com.lw.graduation.api.service.auth.AuthService;
@@ -111,8 +113,8 @@ public class AuthController {
      * @return 当前用户简易信息
      */
     @GetMapping("/me")
-    @SaCheckLogin // 需要登录才能获取用户信息
     @Operation(summary = "获取当前用户信息")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<LoginUserInfoVO> getCurrentUserSimpleInfo() {
         LoginUserInfoVO userVO = authService.getCurrentUserSimpleInfo();
         return Result.success(userVO);

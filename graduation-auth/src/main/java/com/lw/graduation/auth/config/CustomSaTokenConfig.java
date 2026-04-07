@@ -68,11 +68,8 @@ public class CustomSaTokenConfig implements StpInterface {
                 }
             }
             case "system_admin" -> {
-                // 开发阶段：系统管理员拥有所有角色权限
+                // 系统管理员只拥有自己的角色权限
                 roleList.add("system_admin");
-                roleList.add("department_admin");
-                roleList.add("teacher");
-                roleList.add("student");
             }
             case "department_admin" -> roleList.add("department_admin");
             case "teacher" -> {

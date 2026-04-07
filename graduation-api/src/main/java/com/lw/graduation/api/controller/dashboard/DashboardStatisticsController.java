@@ -1,5 +1,7 @@
 package com.lw.graduation.api.controller.dashboard;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import com.lw.graduation.api.dto.dashboard.GradeDistributionVO;
 import com.lw.graduation.api.dto.dashboard.TopicProgressVO;
 import com.lw.graduation.api.service.dashboard.DashboardStatisticsService;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 仪表盘统计控制器
@@ -30,6 +34,7 @@ public class DashboardStatisticsController {
      */
     @GetMapping("/grade/distribution")
     @Operation(summary = "获取成绩分布统计")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<GradeDistributionVO> getGradeDistribution(
             @RequestParam(required = false) Integer year) {
         GradeDistributionVO vo = dashboardStatisticsService.getGradeDistribution(year);
@@ -41,9 +46,21 @@ public class DashboardStatisticsController {
      */
     @GetMapping("/topic/progress")
     @Operation(summary = "获取选题进度统计")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<TopicProgressVO> getTopicProgress(
             @RequestParam(required = false) Long departmentId) {
         TopicProgressVO vo = dashboardStatisticsService.getTopicProgress(departmentId);
         return Result.success(vo);
+    }
+
+    /**
+     * 获取可用的成绩年份列表
+     */
+    @GetMapping("/grade/years")
+    @Operation(summary = "获取可用的成绩年份列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
+    public Result<List<Integer>> getAvailableGradeYears() {
+        List<Integer> years = dashboardStatisticsService.getAvailableGradeYears();
+        return Result.success(years);
     }
 }

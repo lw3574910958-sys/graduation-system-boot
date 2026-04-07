@@ -63,6 +63,7 @@ public class DocumentController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取文档详情")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<DocumentVO> getDocumentById(@PathVariable Long id) {
         // 需要验证用户是否有权限查看该文档
         return Result.success(documentService.getDocumentById(id));
@@ -110,17 +111,17 @@ public class DocumentController {
     @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
-    
+
         try (InputStream inputStream = documentService.downloadDocument(id, userId)) {
             // 获取文档信息用于设置响应头
             DocumentVO document = documentService.getDocumentById(id);
             if (document == null) {
                 return ResponseEntity.notFound().build();
             }
-    
+
             // 读取文件内容
             byte[] bytes = inputStream.readAllBytes();
-    
+
             // 设置响应头，使用 RFC 5987 标准编码文件名
             String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
             HttpHeaders headers = new HttpHeaders();
@@ -131,11 +132,11 @@ public class DocumentController {
             headers.setContentDispositionFormData("attachment", null);
             headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename);
             headers.setContentLength(bytes.length);
-    
+
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(bytes);
-    
+
         } catch (BusinessException e) {
             // 权限验证失败，返回 403
             log.warn("文档下载权限不足：文档 ID={}, 用户 ID={}, 原因：{}", id, userId, e.getMessage());
@@ -145,7 +146,7 @@ public class DocumentController {
             return ResponseEntity.internalServerError().build();
         }
     }
-    
+
     /**
      * 预览文档
      *
@@ -157,17 +158,17 @@ public class DocumentController {
     @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public ResponseEntity<byte[]> previewDocument(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
-    
+
         try (InputStream inputStream = documentService.downloadDocument(id, userId)) {
             // 获取文档信息用于设置响应头
             DocumentVO document = documentService.getDocumentById(id);
             if (document == null) {
                 return ResponseEntity.notFound().build();
             }
-    
+
             // 读取文件内容
             byte[] bytes = inputStream.readAllBytes();
-    
+
             // 设置响应头，使用 inline 以便浏览器预览
             String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
             HttpHeaders headers = new HttpHeaders();
@@ -178,11 +179,11 @@ public class DocumentController {
             headers.setContentDispositionFormData("inline", null);
             headers.set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + filename);
             headers.setContentLength(bytes.length);
-    
+
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(bytes);
-    
+
         } catch (BusinessException e) {
             // 权限验证失败，返回 403
             log.warn("文档预览权限不足：文档 ID={}, 用户 ID={}, 原因：{}", id, userId, e.getMessage());
@@ -192,7 +193,7 @@ public class DocumentController {
             return ResponseEntity.internalServerError().build();
         }
     }
-    
+
     /**
      * 根据文件名获取 Content-Type（复用 FileFormatType 枚举）
      */
@@ -200,15 +201,15 @@ public class DocumentController {
         if (filename == null) {
             return MediaType.APPLICATION_OCTET_STREAM_VALUE;
         }
-        
+
         // 获取文件扩展名
         int lastDotIndex = filename.lastIndexOf('.');
         if (lastDotIndex <= 0 || lastDotIndex >= filename.length() - 1) {
             return MediaType.APPLICATION_OCTET_STREAM_VALUE;
         }
-        
+
         String extension = filename.substring(lastDotIndex + 1).toLowerCase();
-        
+
         // 复用 FileFormatType 枚举获取 MIME 类型
         FileFormatType fileType = FileFormatType.getByExtension(extension);
         if (fileType != null) {
@@ -232,12 +233,12 @@ public class DocumentController {
                 default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
             };
         }
-        
+
         // 特殊处理 CSV
         if ("csv".equals(extension)) {
             return "text/csv";
         }
-        
+
         return MediaType.APPLICATION_OCTET_STREAM_VALUE;
     }
 
@@ -264,13 +265,13 @@ public class DocumentController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除文档")
-    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
+    @SaCheckRole(value = {"system_admin"})
     public Result<Void> deleteDocument(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
         documentService.deleteDocument(id, userId);
         return Result.success();
     }
-        
+
     /**
      * 学生撤销文档申请（待审核状态）
      *

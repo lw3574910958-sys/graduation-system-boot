@@ -1,6 +1,7 @@
 package com.lw.graduation.api.controller.topic;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.topic.TopicCreateDTO;
@@ -45,6 +46,7 @@ public class TopicController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询课题列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<TopicVO>> getTopicPage(TopicPageQueryDTO queryDTO) {
         // 学生只能看到已发布的课题，教师可以看到自己创建的课题
         return Result.success(topicService.getTopicPage(queryDTO));
@@ -58,6 +60,7 @@ public class TopicController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取课题详情")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<TopicVO> getTopicById(@PathVariable Long id) {
         // 需要验证用户是否有权限查看该课题
         return Result.success(topicService.getTopicById(id));
@@ -71,7 +74,7 @@ public class TopicController {
      */
     @PostMapping
     @Operation(summary = "创建课题")
-    @SaCheckRole("teacher") // 仅教师可创建课题
+    @SaCheckRole("teacher")
     public Result<Void> createTopic(@Validated @RequestBody TopicCreateDTO createDTO) {
         topicService.createTopic(createDTO);
         return Result.success();
@@ -85,7 +88,7 @@ public class TopicController {
      */
     @PostMapping("/{id}/submit")
     @Operation(summary = "教师提交题目审核")
-    @SaCheckRole("teacher") // 仅教师可提交审核
+    @SaCheckRole("teacher")
     public Result<Void> submitForReview(@PathVariable Long id) {
         topicService.submitForReview(id);
         return Result.success();
@@ -99,7 +102,7 @@ public class TopicController {
      */
     @PostMapping("/{id}/revoke")
     @Operation(summary = "撤销题目")
-    @SaCheckRole("teacher") // 仅教师可撤销题目
+    @SaCheckRole("teacher")
     public Result<Void> revokeTopic(@PathVariable Long id) {
         topicService.revokeTopic(id);
         return Result.success();
@@ -114,7 +117,7 @@ public class TopicController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新课题")
-    @SaCheckRole("teacher") // 仅教师可更新课题
+    @SaCheckRole("teacher")
     public Result<Void> updateTopic(@PathVariable Long id, @Validated @RequestBody TopicUpdateDTO updateDTO) {
         topicService.updateTopic(id, updateDTO);
         return Result.success();
@@ -128,7 +131,7 @@ public class TopicController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除课题")
-    @SaCheckRole("department_admin") // 仅院系管理员可删除课题
+    @SaCheckRole("department_admin")
     public Result<Void> deleteTopic(@PathVariable Long id) {
         topicService.deleteTopic(id);
         return Result.success();
@@ -142,7 +145,7 @@ public class TopicController {
      */
     @PostMapping("/review")
     @Operation(summary = "审核题目（院系管理员）")
-    @SaCheckRole({"department_admin"}) // 仅院系管理员可审核题目
+    @SaCheckRole({"department_admin"})
     public Result<Void> reviewTopic(@Validated @RequestBody TopicReviewDTO reviewDTO) {
         Long reviewerId = StpUtil.getLoginIdAsLong();
         topicService.reviewTopic(reviewDTO, reviewerId);
@@ -157,7 +160,7 @@ public class TopicController {
      */
     @PostMapping("/{id}/open")
     @Operation(summary = "开放课题")
-    @SaCheckRole("teacher") // 仅教师可开放课题
+    @SaCheckRole("teacher")
     public Result<Void> openTopic(@PathVariable Long id) {
         topicService.openTopic(id);
         return Result.success();

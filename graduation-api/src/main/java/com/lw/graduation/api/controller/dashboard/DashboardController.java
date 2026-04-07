@@ -1,5 +1,7 @@
 package com.lw.graduation.api.controller.dashboard;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpUtil;
 import com.lw.graduation.api.dto.dashboard.AdminDashboardVO;
 import com.lw.graduation.api.dto.dashboard.StudentDashboardVO;
@@ -31,6 +33,7 @@ public class DashboardController {
      */
     @GetMapping("/student")
     @Operation(summary = "获取学生仪表盘信息")
+    @SaCheckRole(value = "student")
     public Result<StudentDashboardVO> getStudentDashboard() {
         Long studentId = StpUtil.getLoginIdAsLong();
         StudentDashboardVO vo = dashboardService.getStudentDashboard(studentId);
@@ -42,6 +45,7 @@ public class DashboardController {
      */
     @GetMapping("/teacher")
     @Operation(summary = "获取教师仪表盘信息")
+    @SaCheckRole(value = "teacher")
     public Result<TeacherDashboardVO> getTeacherDashboard() {
         Long teacherId = StpUtil.getLoginIdAsLong();
         TeacherDashboardVO vo = dashboardService.getTeacherDashboard(teacherId);
@@ -53,6 +57,7 @@ public class DashboardController {
      */
     @GetMapping("/admin")
     @Operation(summary = "获取管理员仪表盘信息")
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
     public Result<AdminDashboardVO> getAdminDashboard() {
         Long adminId = StpUtil.getLoginIdAsLong();
         AdminDashboardVO vo = dashboardService.getAdminDashboard(adminId);

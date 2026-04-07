@@ -1,6 +1,7 @@
 package com.lw.graduation.api.controller.selection;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.selection.SelectionApplyDTO;
@@ -41,6 +42,7 @@ public class SelectionController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询选题列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<SelectionVO>> getSelectionPage(SelectionPageQueryDTO queryDTO) {
         // 不同角色看到不同的数据：学生只能看到自己的申请，教师看到指导学生的申请
         return Result.success(selectionService.getSelectionPage(queryDTO));
@@ -54,6 +56,7 @@ public class SelectionController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取选题详情")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<SelectionVO> getSelectionById(@PathVariable Long id) {
         // 需要验证用户是否有权限查看该选题详情
         return Result.success(selectionService.getSelectionById(id));
@@ -103,7 +106,7 @@ public class SelectionController {
         SelectionVO selectionVO = selectionService.confirmSelection(id, studentId);
         return Result.success(selectionVO);
     }
-    
+
     /**
      * 学生重新申请选题（审核驳回后）
      *
@@ -143,7 +146,7 @@ public class SelectionController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除选题记录")
-    @SaCheckRole({"admin", "department_admin"}) // 管理员和院系管理员可删除选题记录
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
     public Result<Void> deleteSelection(@PathVariable Long id) {
         Long userId = StpUtil.getLoginIdAsLong();
         selectionService.deleteSelection(id, userId);
@@ -171,7 +174,7 @@ public class SelectionController {
      */
     @GetMapping("/student/{studentId}")
     @Operation(summary = "获取学生选题申请列表")
-    @SaCheckRole({"admin", "department_admin", "teacher"}) // 管理员、院系管理员、教师可查看
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<List<SelectionVO>> getSelectionsByStudent(@PathVariable Long studentId) {
         return Result.success(selectionService.getSelectionsByStudent(studentId));
     }
@@ -197,7 +200,7 @@ public class SelectionController {
      */
     @GetMapping("/teacher/{teacherId}/for-review")
     @Operation(summary = "获取教师待审核选题列表")
-    @SaCheckRole({"admin", "department_admin"}) // 管理员和院系管理员可查看其他教师的审核列表
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
     public Result<List<SelectionVO>> getSelectionsForReview(@PathVariable Long teacherId) {
         return Result.success(selectionService.getSelectionsForReview(teacherId));
     }
@@ -211,8 +214,9 @@ public class SelectionController {
      */
     @GetMapping("/topic/{topicId}")
     @Operation(summary = "获取题目选题申请列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<SelectionVO>> getSelectionsByTopic(
-            @PathVariable Long topicId, 
+            @PathVariable Long topicId,
             SelectionPageQueryDTO queryDTO) {
         queryDTO.setTopicId(topicId);
         return Result.success(selectionService.getSelectionPage(queryDTO));
@@ -227,6 +231,7 @@ public class SelectionController {
      */
     @GetMapping("/status/{status}")
     @Operation(summary = "获取指定状态选题列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<SelectionVO>> getSelectionsByStatus(
             @PathVariable Integer status,
             SelectionPageQueryDTO queryDTO) {

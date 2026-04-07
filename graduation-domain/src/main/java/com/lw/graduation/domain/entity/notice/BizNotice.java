@@ -103,6 +103,12 @@ public class BizNotice implements Serializable {
     private Integer targetScope;
 
     /**
+     * 院系 ID（院系管理员发布时使用，用于限定本院系范围）
+     */
+    @TableField("department_id")
+    private Long departmentId;
+
+    /**
      * 附件URL
      */
     @TableField("attachment_url")
@@ -200,22 +206,22 @@ public class BizNotice implements Serializable {
      */
     public boolean isEffective() {
         LocalDateTime now = LocalDateTime.now();
-            
+
         // 如果都没有设置，认为始终有效
         if (this.startTime == null && this.endTime == null) {
             return true;
         }
-            
+
         // 如果只有开始时间，当前时间必须 >= startTime
         if (this.startTime != null && this.endTime == null) {
             return !now.isBefore(this.startTime);
         }
-            
+
         // 如果只有结束时间，当前时间必须 <= endTime
         if (this.startTime == null && this.endTime != null) {
             return !now.isAfter(this.endTime);
         }
-            
+
         // 两者都有，需要在范围内
         return !now.isBefore(this.startTime) && !now.isAfter(this.endTime);
     }

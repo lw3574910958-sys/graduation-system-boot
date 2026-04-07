@@ -80,14 +80,17 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                 .eq(BizTopic::getIsDeleted, 0)
                 .orderByDesc(BizTopic::getCreatedAt);
 
-        // 2. 根据用户类型添加权限过滤（使用通用方法）
+        // 2. 处理审核状态筛选
+        applyReviewStatusFilter(wrapper, queryDTO);
+
+        // 3. 根据用户类型添加权限过滤（使用通用方法）
         addPermissionFilter(wrapper, queryDTO);
 
-        // 3. 执行分页查询
+        // 4. 执行分页查询
         IPage<BizTopic> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<BizTopic> topicPage = bizTopicMapper.selectPage(page, wrapper);
 
-        // 4. 转换为 VO
+        // 5. 转换为 VO
         IPage<TopicVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(topicPage.getRecords().stream()
                 .map(this::convertToTopicVO)
@@ -613,6 +616,42 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         clearTopicCache(id);
 
         log.info("课题状态{}成功：ID={}", action, id);
+    }
+
+    /**
+     * 应用审核状态筛选
+     *
+     * @param wrapper 查询条件
+     * @param queryDTO 查询参数
+     */
+    private void applyReviewStatusFilter(LambdaQueryWrapper<BizTopic> wrapper, TopicPageQueryDTO queryDTO) {
+        if (queryDTO.getReviewStatus() == null || queryDTO.getReviewStatus().trim().isEmpty()) {
+            return; // 没有指定审核状态，不筛选
+        }
+
+        String reviewStatus = queryDTO.getReviewStatus();
+
+        // 教师视角：1-审核通过，2-审核驳回
+        if ("1".equals(reviewStatus)) {
+            // 审核通过：status 为 OPEN(2) 或 CLOSED(3)
+            wrapper.in(BizTopic::getStatus, TopicStatus.OPEN.getCode(), TopicStatus.CLOSED.getCode());
+            log.info("教师查询审核通过的题目");
+        } else if ("2".equals(reviewStatus)) {
+            // 审核驳回：status 为 DRAFT(0) 且 last_review_outcome 为 2
+            wrapper.eq(BizTopic::getStatus, TopicStatus.DRAFT.getCode())
+                   .eq(BizTopic::getLastReviewOutcome, 2);
+            log.info("教师查询审核驳回的题目");
+        }
+        // 管理员视角：pending-待审核，reviewed-已审核
+        else if ("pending".equals(reviewStatus)) {
+            // 待审核：last_review_outcome 为 NULL
+            wrapper.isNull(BizTopic::getLastReviewOutcome);
+            log.info("管理员查询待审核的题目");
+        } else if ("reviewed".equals(reviewStatus)) {
+            // 已审核：last_review_outcome 不为 NULL（包括通过和驳回）
+            wrapper.isNotNull(BizTopic::getLastReviewOutcome);
+            log.info("管理员查询已审核的题目");
+        }
     }
 
     /**

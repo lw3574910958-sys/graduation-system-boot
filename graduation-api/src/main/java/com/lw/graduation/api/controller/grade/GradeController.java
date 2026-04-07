@@ -1,12 +1,14 @@
 package com.lw.graduation.api.controller.grade;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.grade.GradeInputDTO;
 import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.service.grade.GradeService;
+import com.lw.graduation.api.vo.grade.GradeExportVO;
 import com.lw.graduation.api.vo.grade.GradeVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,7 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -42,6 +48,7 @@ public class GradeController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询成绩列表")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<IPage<GradeVO>> getGradePage(GradePageQueryDTO queryDTO) {
         // 不同角色看到不同的成绩数据
         return Result.success(gradeService.getGradePage(queryDTO));
@@ -55,6 +62,7 @@ public class GradeController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取成绩详情")
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public Result<GradeVO> getGradeById(@PathVariable Long id) {
         // 需要验证用户是否有权限查看该成绩
         return Result.success(gradeService.getGradeById(id));
@@ -117,7 +125,7 @@ public class GradeController {
      */
     @GetMapping("/student/{studentId}")
     @Operation(summary = "获取学生成绩列表")
-    @SaCheckRole({"admin", "department_admin", "teacher"}) // 管理员、院系管理员、教师可查看
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<List<GradeVO>> getGradesByStudent(@PathVariable Long studentId) {
         return Result.success(gradeService.getGradesByStudent(studentId));
     }
@@ -143,7 +151,7 @@ public class GradeController {
      */
     @GetMapping("/teacher/{teacherId}")
     @Operation(summary = "获取教师指导学生成绩列表")
-    @SaCheckRole({"admin", "department_admin"}) // 管理员和院系管理员可查看其他教师成绩
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
     public Result<List<GradeVO>> getGradesByTeacher(@PathVariable Long teacherId) {
         return Result.success(gradeService.getGradesByTeacher(teacherId));
     }
@@ -169,7 +177,7 @@ public class GradeController {
      */
     @GetMapping("/statistics")
     @Operation(summary = "获取成绩统计信息")
-    @SaCheckRole({"teacher", "admin"})
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<String> getGradeStatistics(GradeStatisticsQueryDTO queryDTO) {
         String statistics = gradeService.getGradeStatistics(queryDTO);
         return Result.success(statistics);
@@ -183,7 +191,7 @@ public class GradeController {
      */
     @GetMapping("/topic/{topicId}/distribution")
     @Operation(summary = "获取题目成绩分布")
-    @SaCheckRole({"teacher", "admin"})
+    @SaCheckRole(value = {"system_admin", "department_admin", "teacher"}, mode = SaMode.OR)
     public Result<String> getTopicGradeDistribution(@PathVariable Long topicId) {
         GradeStatisticsQueryDTO queryDTO = new GradeStatisticsQueryDTO();
         queryDTO.setTopicId(topicId);
@@ -199,11 +207,40 @@ public class GradeController {
      */
     @GetMapping("/department/{departmentId}/statistics")
     @Operation(summary = "获取院系成绩统计")
-    @SaCheckRole({"teacher", "admin"})
+    @SaCheckRole(value = {"system_admin"})
     public Result<String> getDepartmentGradeStatistics(@PathVariable Long departmentId) {
         GradeStatisticsQueryDTO queryDTO = new GradeStatisticsQueryDTO();
         queryDTO.setDepartmentId(departmentId);
         String statistics = gradeService.getGradeStatistics(queryDTO);
         return Result.success(statistics);
+    }
+
+    /**
+     * 导出成绩数据为 Excel
+     *
+     * @param queryDTO 查询条件
+     * @param response HTTP 响应
+     */
+    @GetMapping("/export")
+    @Operation(summary = "导出成绩报表")
+    @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
+    public void exportGrades(GradePageQueryDTO queryDTO, HttpServletResponse response) {
+        try {
+            List<GradeExportVO> dataList = gradeService.exportGrades(queryDTO);
+            
+            // 设置响应头
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("utf-8");
+            String fileName = URLEncoder.encode("成绩报表_" + System.currentTimeMillis(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+            
+            // 使用 EasyExcel 写入
+            com.alibaba.excel.EasyExcel.write(response.getOutputStream(), GradeExportVO.class)
+                    .sheet("成绩列表")
+                    .doWrite(dataList);
+        } catch (IOException e) {
+            log.error("成绩导出失败", e);
+            throw new RuntimeException("成绩导出失败");
+        }
     }
 }

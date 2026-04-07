@@ -74,13 +74,19 @@ public class NoticeCreateDTO implements Serializable {
     /**
      * 目标范围
      */
-    @Schema(description = "目标范围: 0-全体, 1-学生, 2-教师, 3-管理员")
+    @Schema(description = "目标范围：0-全体，1-学生，2-教师，3-管理员")
     private Integer targetScope;
 
     /**
-     * 附件URL
+     * 院系 ID（院系管理员发布时使用）
      */
-    @Schema(description = "附件URL")
+    @Schema(description = "院系 ID（院系管理员发布时使用）")
+    private Long departmentId;
+
+    /**
+     * 附件 URL
+     */
+    @Schema(description = "附件 URL")
     private String attachmentUrl;
 
     /**

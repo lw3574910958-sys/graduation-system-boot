@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import cn.dev33.satoken.stp.StpUtil;
 import com.lw.graduation.api.dto.notice.NoticeCreateDTO;
 import com.lw.graduation.api.dto.notice.NoticePageQueryDTO;
 import com.lw.graduation.api.dto.notice.NoticeUpdateDTO;
@@ -14,13 +15,16 @@ import com.lw.graduation.common.constant.CacheConstants;
 import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
-import com.lw.graduation.common.service.WebSocketMessageService;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
+import com.lw.graduation.domain.entity.admin.BizAdmin;
+import com.lw.graduation.domain.entity.department.SysDepartment;
 import com.lw.graduation.domain.entity.notice.BizNotice;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.notice.NoticeStatus;
 import com.lw.graduation.domain.enums.notice.NoticeType;
+import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
+import com.lw.graduation.infrastructure.mapper.department.SysDepartmentMapper;
 import com.lw.graduation.infrastructure.mapper.notice.BizNoticeMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -44,8 +48,9 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
 
     private final BizNoticeMapper bizNoticeMapper;
     private final SysUserMapper sysUserMapper;
+    private final BizAdminMapper bizAdminMapper;
+    private final SysDepartmentMapper sysDepartmentMapper;
     private final CacheHelper cacheHelper;
-    private final WebSocketMessageService webSocketMessageService;
     private final DataPermissionUtil dataPermissionUtil;
 
     @Override
@@ -59,6 +64,8 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
                 .eq(queryDTO.getPriority() != null, BizNotice::getPriority, queryDTO.getPriority())
                 .eq(queryDTO.getStatus() != null, BizNotice::getStatus, queryDTO.getStatus())
                 .eq(queryDTO.getIsSticky() != null, BizNotice::getIsSticky, queryDTO.getIsSticky())
+                .eq(queryDTO.getTargetScope() != null, BizNotice::getTargetScope, queryDTO.getTargetScope())
+                .eq(queryDTO.getDepartmentId() != null, BizNotice::getDepartmentId, queryDTO.getDepartmentId())
                 .eq(BizNotice::getIsDeleted, 0)
                 .orderByDesc(BizNotice::getIsSticky)
                 .orderByAsc(BizNotice::getCreatedAt);
@@ -69,10 +76,11 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         // 3. 执行分页查询
         IPage<BizNotice> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         IPage<BizNotice> noticePage = bizNoticeMapper.selectPage(page, wrapper);
-    
-        // 4. 转换为 VO 并过滤生效时间（内存过滤保留，因为时间过滤较复杂）
+            
+        // 4. 转换为 VO 并过滤生效时间（内存过滤保留，因为时间过滤复杂）
         IPage<NoticeVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(noticePage.getRecords().stream()
+                .filter(notice -> autoWithdrawExpiredNotice(notice)) // 自动撤回过期公告
                 .filter(notice -> filterByEffectiveTime(notice, queryDTO.getEffectiveStatus()))
                 .map(this::convertToNoticeVO)
                 .toList());
@@ -109,13 +117,11 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     public NoticeVO createNotice(NoticeCreateDTO createDTO, Long publisherId) {
         log.info("用户 {} 创建通知：{}", publisherId, createDTO.getTitle());
     
-        // 验证生效时间逻辑
-        if (createDTO.getStartTime() != null && createDTO.getEndTime() != null) {
-            if (createDTO.getStartTime().isAfter(createDTO.getEndTime())) {
-                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
-                    "生效开始时间不能晚于结束时间");
-            }
-        }
+        // 1. 验证目标范围和院系的匹配关系
+        validateTargetScopeAndDepartment(createDTO, publisherId);
+    
+        // 2. 验证生效时间逻辑
+        validateEffectiveTime(createDTO.getStartTime(), createDTO.getEndTime());
     
         BizNotice notice = new BizNotice();
         notice.setTitle(createDTO.getTitle());
@@ -127,6 +133,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         notice.setEndTime(createDTO.getEndTime());
         notice.setIsSticky(createDTO.getIsSticky() != null ? createDTO.getIsSticky() : 0);
         notice.setTargetScope(createDTO.getTargetScope() != null ? createDTO.getTargetScope() : 0);
+        notice.setDepartmentId(createDTO.getDepartmentId()); // 设置院系 ID
         notice.setAttachmentUrl(createDTO.getAttachmentUrl());
         notice.setReadCount(0);
     
@@ -152,11 +159,6 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     
         clearNoticeCache(notice.getId());
             
-        // 如果立即发布，发送 WebSocket 通知
-        if (Boolean.TRUE.equals(createDTO.getPublishNow())) {
-            sendNoticeWebSocket(notice, publisherId);
-        }
-            
         return convertToNoticeVO(notice);
     }
 
@@ -178,13 +180,11 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有草稿状态的通知才能编辑");
         }
     
-        // 验证生效时间逻辑
-        if (updateDTO.getStartTime() != null && updateDTO.getEndTime() != null) {
-            if (updateDTO.getStartTime().isAfter(updateDTO.getEndTime())) {
-                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
-                    "生效开始时间不能晚于结束时间");
-            }
-        }
+        // 1. 验证目标范围和院系的匹配关系
+        validateTargetScopeAndDepartment(updateDTO, updaterId);
+    
+        // 2. 验证生效时间逻辑
+        validateEffectiveTime(updateDTO.getStartTime(), updateDTO.getEndTime());
     
         notice.setTitle(updateDTO.getTitle());
         notice.setContent(updateDTO.getContent());
@@ -194,6 +194,7 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         notice.setEndTime(updateDTO.getEndTime());
         notice.setIsSticky(updateDTO.getIsSticky());
         notice.setTargetScope(updateDTO.getTargetScope());
+        notice.setDepartmentId(updateDTO.getDepartmentId()); // 更新院系 ID
         notice.setAttachmentUrl(updateDTO.getAttachmentUrl());
     
         boolean updated = updateById(notice);
@@ -228,13 +229,6 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
         }
     
         clearNoticeCache(id);
-            
-        // 只有在生效时间已到或没有设置生效时间时，才发送 WebSocket 通知
-        if (notice.isEffective()) {
-            sendNoticeWebSocket(notice, publisherId);
-        } else {
-            log.info("通知 {} 已发布但尚未到生效时间，暂不发送 WebSocket 通知", id);
-        }
     }
 
     @Override
@@ -265,53 +259,87 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteNotice(Long id, Long userId) {
-        log.info("用户 {} 删除通知: {}", userId, id);
-
+        log.info("用户 {} 删除通知：{}", userId, id);
+    
         BizNotice notice = getById(id);
         if (notice == null || notice.getIsDeleted() == 1) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "通知不存在");
         }
-
-        // 统一使用BizNotice实体类的状态检查方法 - 已发布的通知不能直接删除
-        if (notice.isFinalStatus()) {
-            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "已发布的通知不能直接删除，请先撤回");
+    
+        // 只有已撤回状态的通知才能删除
+        if (notice.getStatus() != NoticeStatus.WITHDRAWN.getCode()) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有已撤回的通知才能删除");
         }
-
+    
         boolean removed = removeById(id);
         if (!removed) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "通知删除失败");
         }
-
+    
         clearNoticeCache(id);
-
+    
         log.info("通知删除成功，ID: {}", id);
     }
 
     @Override
     public List<NoticeVO> getStickyNotices(Integer targetScope) {
+        log.info("获取置顶通知列表，targetScope={}", targetScope);
+            
+        // 1. 获取当前用户类型和院系 ID
+        Integer currentUserType = dataPermissionUtil.getCurrentUserTypeCode();
+        Long currentDepartmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+            
+        // 2. 如果是系统管理员，不显示任何公告（系统管理员不再接收通知）
+        if (currentUserType != null && currentUserType == 2) {
+            log.info("系统管理员不接收公告通知，返回空列表");
+            return List.of();
+        }
+            
+        // 3. 构建查询条件
         LambdaQueryWrapper<BizNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getCode())
-                .eq(targetScope != null, BizNotice::getTargetScope, targetScope)
-                .eq(BizNotice::getIsDeleted, 0)
+        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getCode()) // 已发布
+                .eq(BizNotice::getIsDeleted, 0) // 未删除
                 .orderByDesc(BizNotice::getPublishedAt);
-
+            
+        // 4. 使用新的目标范围和院系双重过滤逻辑
+        addTargetScopeAndDepartmentFilter(wrapper, currentUserType, currentDepartmentId);
+            
+        // 5. 执行查询并过滤
         return list(wrapper).stream()
-                .filter(BizNotice::isSticky)  // 使用实体类的isSticky()方法
-                .filter(BizNotice::isEffective) // 使用实体类的isEffective()方法
+                .filter(BizNotice::isSticky)  // 使用实体类的 isSticky() 方法
+                .filter(notice -> autoWithdrawExpiredNotice(notice)) // 自动撤回过期公告
+                .filter(BizNotice::isEffective) // 使用实体类的 isEffective() 方法
                 .map(this::convertToNoticeVO)
                 .toList();
     }
 
     @Override
     public List<NoticeVO> getLatestNotices(Integer targetScope, Integer size) {
+        log.info("获取最新通知列表，targetScope={}, size={}", targetScope, size);
+            
+        // 1. 获取当前用户类型和院系 ID
+        Integer currentUserType = dataPermissionUtil.getCurrentUserTypeCode();
+        Long currentDepartmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+                
+        // 2. 如果是系统管理员，不显示任何公告（系统管理员不再接收通知）
+        if (currentUserType != null && currentUserType == 2) {
+            log.info("系统管理员不接收公告通知，返回空列表");
+            return List.of();
+        }
+            
+        // 3. 构建查询条件
         LambdaQueryWrapper<BizNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getCode())
-                .eq(targetScope != null, BizNotice::getTargetScope, targetScope)
-                .eq(BizNotice::getIsDeleted, 0)
+        wrapper.eq(BizNotice::getStatus, NoticeStatus.PUBLISHED.getCode()) // 已发布
+                .eq(BizNotice::getIsDeleted, 0) // 未删除
                 .orderByDesc(BizNotice::getPublishedAt);
-
+            
+        // 4. 使用新的目标范围和院系双重过滤逻辑
+        addTargetScopeAndDepartmentFilter(wrapper, currentUserType, currentDepartmentId);
+            
+        // 5. 执行查询并过滤生效时间
         return list(wrapper).stream()
-                .filter(BizNotice::isEffective) // 使用实体类的isEffective()方法
+                .filter(notice -> autoWithdrawExpiredNotice(notice)) // 自动撤回过期公告
+                .filter(BizNotice::isEffective) // 只返回生效中的公告
                 .limit(size != null && size > 0 ? size : Long.MAX_VALUE)
                 .map(this::convertToNoticeVO)
                 .toList();
@@ -335,41 +363,163 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
 
     /**
      * 根据用户类型添加权限过滤条件（使用通用方法）
-     * - 系统管理员：查看所有通知
-     * - 院系管理员：查看所有通知
-     * - 教师：只查看目标范围为全体、教师的通知
-     * - 学生：只查看目标范围为全体、学生的通知
+     * - 系统管理员：可以查看所有公告
+     * - 院系管理员：只查看自己发布的公告
+     * - 教师：无法查看公告列表
+     * - 学生：无法查看公告列表
      *
      * @param wrapper 查询条件
      * @param queryDTO 查询参数
      */
     private void addPermissionFilter(LambdaQueryWrapper<BizNotice> wrapper, NoticePageQueryDTO queryDTO) {
+        // 获取当前用户 ID（直接从 StpUtil 获取）
+        Long currentUserId = StpUtil.getLoginIdAsLong();
+        
         // 使用通用数据权限过滤方法
         dataPermissionUtil.addCommonDataPermissionFilter(
             wrapper,
-            // 学生：只查看目标范围为全体、学生的通知
+            // 学生：无法查看公告列表（已在 Controller 层通过@SaCheckRole 拦截）
             studentId -> {
-                wrapper.and(w -> w
-                    .isNull(BizNotice::getTargetScope)
-                    .or().eq(BizNotice::getTargetScope, 0) // 全体
-                    .or().eq(BizNotice::getTargetScope, 1) // 学生
-                );
-                log.info("学生查询通知，过滤目标范围");
+                log.warn("学生用户尝试访问公告列表，此处理论上不会执行");
+                wrapper.eq(BizNotice::getId, -1L); // 返回空结果
             },
-            // 教师：只查看目标范围为全体、教师的通知
+            // 教师：无法查看公告列表（已在 Controller 层通过@SaCheckRole 拦截）
             teacherId -> {
-                wrapper.and(w -> w
-                    .isNull(BizNotice::getTargetScope)
-                    .or().eq(BizNotice::getTargetScope, 0) // 全体
-                    .or().eq(BizNotice::getTargetScope, 2) // 教师
-                );
-                log.info("教师查询通知，过滤目标范围");
+                log.warn("教师用户尝试访问公告列表，此处理论上不会执行");
+                wrapper.eq(BizNotice::getId, -1L); // 返回空结果
             },
-            // 院系管理员：查看所有通知
-            departmentId -> {
-                log.debug("院系管理员查询通知，无需目标范围过滤");
+            // 院系管理员：只能查看自己发布的公告
+            departmentAdminDepartmentId -> {
+                wrapper.eq(BizNotice::getPublisherId, currentUserId);
+                log.info("院系管理员 {} 查询公告列表，仅查看自己发布的公告", currentUserId);
             }
         );
+    }
+
+    /**
+     * 为前端用户（学生/教师）添加目标范围和院系的双重过滤
+     * 确保院系管理员发布的 targetScope=0 的公告只对本学院可见
+     *
+     * @param wrapper 查询条件
+     * @param currentUserType 当前用户类型
+     * @param currentDepartmentId 当前用户院系 ID
+     */
+    /**
+     * 根据目标范围和院系双重过滤逻辑添加查询条件
+     * 优化后的仪表盘通知公告过滤规则：
+     * 
+     * 核心判断逻辑：
+     * - 通过 publisher_id 关联 sys_user 表获取 user_type 来判断发布者类型
+     * - user_type = 'system_admin' → 系统管理员发布
+     * - user_type = 'department_admin' → 院系管理员发布
+     * 
+     * 1. 院系管理员看到：
+     *    1.1 系统管理员发布的全体公告（user_type='system_admin', targetScope=0）
+     *    1.2 系统管理员发布的院系管理员公告且院系一致（user_type='system_admin', targetScope=3, departmentId=自己的院系）
+     * 
+     * 2. 教师看到：
+     *    2.1 系统管理员发布的全体公告（user_type='system_admin', targetScope=0）
+     *    2.2 系统管理员发布的教师公告（无论是否选择院系）
+     *        - user_type='system_admin', targetScope=2, departmentId=null → 发给全体教师
+     *        - user_type='system_admin', targetScope=2, departmentId!=null → 发给特定院系的教师
+     *    2.3 院系管理员发布的本院系全体公告（user_type='department_admin', targetScope=0, departmentId=自己的院系）
+     *    2.4 院系管理员发布的本院系教师公告（user_type='department_admin', targetScope=2, departmentId=自己的院系）
+     * 
+     * 3. 学生看到：
+     *    3.1 系统管理员发布的全体公告（user_type='system_admin', targetScope=0）
+     *    3.2 系统管理员发布的学生公告（无论是否选择院系）
+     *        - user_type='system_admin', targetScope=1, departmentId=null → 发给全体学生
+     *        - user_type='system_admin', targetScope=1, departmentId!=null → 发给特定院系的学生
+     *    3.3 院系管理员发布的本院系全体公告（user_type='department_admin', targetScope=0, departmentId=自己的院系）
+     *    3.4 院系管理员发布的本院系学生公告（user_type='department_admin', targetScope=1, departmentId=自己的院系）
+     *
+     * @param wrapper 查询条件包装器
+     * @param currentUserType 当前用户类型（0-学生，1-教师，2-系统管理员，3-院系管理员）
+     * @param currentDepartmentId 当前用户所属院系ID
+     */
+    private void addTargetScopeAndDepartmentFilter(LambdaQueryWrapper<BizNotice> wrapper, Integer currentUserType, Long currentDepartmentId) {
+        if (currentUserType == null) {
+            // 未登录用户，只查看全体公告（且没有院系限制的）
+            wrapper.and(w -> w
+                .eq(BizNotice::getTargetScope, 0) // 全体
+            );
+            // 排除有院系限制的公告
+            wrapper.isNull(BizNotice::getDepartmentId);
+        } else if (currentUserType == 0) {
+            // 学生：查看系统管理员发布的全体/学生公告 + 院系管理员发布的本院系全体/学生公告
+            wrapper.and(w -> {
+                // 情况1：系统管理员发布的全体公告（user_type='system_admin', targetScope=0）
+                w.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'system_admin'")
+                 .eq(BizNotice::getTargetScope, 0)
+                 .isNull(BizNotice::getDepartmentId)
+                // 情况2：系统管理员发布的学生公告（无论是否有院系限制）
+                .or(subW -> subW
+                    .exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'system_admin'")
+                    .eq(BizNotice::getTargetScope, 1)
+                )
+                // 情况3：院系管理员发布的本院系全体公告（user_type='department_admin', targetScope=0, departmentId=自己的院系）
+                .or(subW -> {
+                    if (currentDepartmentId != null) {
+                        subW.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'department_admin'")
+                             .eq(BizNotice::getTargetScope, 0)
+                             .eq(BizNotice::getDepartmentId, currentDepartmentId);
+                    }
+                })
+                // 情况4：院系管理员发布的本院系学生公告（user_type='department_admin', targetScope=1, departmentId=自己的院系）
+                .or(subW -> {
+                    if (currentDepartmentId != null) {
+                        subW.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'department_admin'")
+                             .eq(BizNotice::getTargetScope, 1)
+                             .eq(BizNotice::getDepartmentId, currentDepartmentId);
+                    }
+                });
+            });
+        } else if (currentUserType == 1) {
+            // 教师：查看系统管理员发布的全体/教师公告 + 院系管理员发布的本院系全体/教师公告
+            wrapper.and(w -> {
+                // 情况1：系统管理员发布的全体公告（user_type='system_admin', targetScope=0）
+                w.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'system_admin'")
+                 .eq(BizNotice::getTargetScope, 0)
+                 .isNull(BizNotice::getDepartmentId)
+                // 情况2：系统管理员发布的教师公告（无论是否有院系限制）
+                .or(subW -> subW
+                    .exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'system_admin'")
+                    .eq(BizNotice::getTargetScope, 2)
+                )
+                // 情况3：院系管理员发布的本院系全体公告（user_type='department_admin', targetScope=0, departmentId=自己的院系）
+                .or(subW -> {
+                    if (currentDepartmentId != null) {
+                        subW.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'department_admin'")
+                             .eq(BizNotice::getTargetScope, 0)
+                             .eq(BizNotice::getDepartmentId, currentDepartmentId);
+                    }
+                })
+                // 情况4：院系管理员发布的本院系教师公告（user_type='department_admin', targetScope=2, departmentId=自己的院系）
+                .or(subW -> {
+                    if (currentDepartmentId != null) {
+                        subW.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'department_admin'")
+                             .eq(BizNotice::getTargetScope, 2)
+                             .eq(BizNotice::getDepartmentId, currentDepartmentId);
+                    }
+                });
+            });
+        } else if (currentUserType == 3) {
+            // 院系管理员：查看系统管理员发布的全体公告 + 系统管理员发布的本院系管理员公告
+            wrapper.and(w -> {
+                // 情况1：系统管理员发布的全体公告（user_type='system_admin', targetScope=0）
+                w.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'system_admin'")
+                 .eq(BizNotice::getTargetScope, 0)
+                 .isNull(BizNotice::getDepartmentId)
+                // 情况2：系统管理员发布的院系管理员公告且院系一致（user_type='system_admin', targetScope=3, departmentId=自己的院系）
+                .or(subW -> {
+                    if (currentDepartmentId != null) {
+                        subW.exists("SELECT 1 FROM sys_user u WHERE u.id = biz_notice.publisher_id AND u.user_type = 'system_admin'")
+                             .eq(BizNotice::getTargetScope, 3)
+                             .eq(BizNotice::getDepartmentId, currentDepartmentId);
+                    }
+                });
+            });
+        }
     }
 
     /**
@@ -468,6 +618,21 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
             SysUser publisher = sysUserMapper.selectById(notice.getPublisherId());
             if (publisher != null) {
                 vo.setPublisherName(publisher.getRealName());
+                // 查询管理员编号
+                BizAdmin admin = bizAdminMapper.selectOne(new LambdaQueryWrapper<BizAdmin>()
+                    .eq(BizAdmin::getUserId, notice.getPublisherId()));
+                if (admin != null) {
+                    vo.setPublisherAdminId(admin.getAdminId());
+                }
+            }
+        }
+    
+        // 填充院系信息
+        if (notice.getDepartmentId() != null) {
+            SysDepartment department = sysDepartmentMapper.selectById(notice.getDepartmentId());
+            if (department != null) {
+                vo.setDepartmentName(department.getName());
+                vo.setDepartmentCode(department.getCode());
             }
         }
     
@@ -485,25 +650,140 @@ public class NoticeServiceImpl extends ServiceImpl<BizNoticeMapper, BizNotice> i
     }
 
     /**
-     * 发送 WebSocket 通知
+     * 验证目标范围和院系的匹配关系
+     * - 系统管理员：可以选择任意目标范围，选择非全体时必须指定院系
+     * - 院系管理员：只能选择本院系相关的目标范围，自动关联自己的院系
+     *
+     * @param createDTO 创建 DTO
+     * @param publisherId 发布者 ID
      */
-    private void sendNoticeWebSocket(BizNotice notice, Long publisherId) {
-        try {
-            // 获取发布者信息
-            SysUser publisher = sysUserMapper.selectById(publisherId);
-            String publisherName = publisher != null ? publisher.getRealName() : "未知用户";
-            
-            // 发送 WebSocket 通知
-            webSocketMessageService.sendNoticeNotification(
-                notice.getId(),
-                notice.getTitle(),
-                notice.getType(),
-                notice.getTargetScope(),
-                publisherName
-            );
-        } catch (Exception e) {
-            log.error("发送 WebSocket 通知失败：{}", e.getMessage(), e);
-            // WebSocket 发送失败不影响主业务流程
+    private void validateTargetScopeAndDepartment(NoticeCreateDTO createDTO, Long publisherId) {
+        Integer currentUserType = dataPermissionUtil.getCurrentUserTypeCode();
+        Long currentDepartmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+        
+        if (currentUserType == null) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "用户类型未知");
         }
+        
+        // 系统管理员验证
+        if (currentUserType == 2) { // system_admin
+            // 选择非全体目标范围时，必须指定院系
+            if (createDTO.getTargetScope() != null && createDTO.getTargetScope() != 0) {
+                if (createDTO.getDepartmentId() == null) {
+                    log.info("系统管理员发布目标范围={}，未指定院系，默认为全体", createDTO.getTargetScope());
+                    // 不指定院系代表发布给全体
+                }
+            }
+        }
+        // 院系管理员验证
+        else if (currentUserType == 3) { // department_admin
+            if (currentDepartmentId == null) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "院系管理员未找到所属院系");
+            }
+            
+            // 强制设置为当前用户的院系 ID
+            if (!currentDepartmentId.equals(createDTO.getDepartmentId())) {
+                log.warn("院系管理员尝试跨院系发布公告，已自动修正为本院系：departmentId={}", createDTO.getDepartmentId());
+            }
+            createDTO.setDepartmentId(currentDepartmentId);
+            
+            // 院系管理员不能发布给全体（跨院系），如果选择全体则改为本院系范围
+            if (createDTO.getTargetScope() != null && createDTO.getTargetScope() == 0) {
+                log.info("院系管理员发布全体公告，实际范围为本院系，将 targetScope 从 0 调整为保留 0 但通过 departmentId 限制");
+                // 注意：这里保持 targetScope=0，但在查询时会通过 departmentId 进行过滤
+            }
+        }
+    }
+
+    /**
+     * 验证目标范围和院系的匹配关系（更新时使用）
+     */
+    private void validateTargetScopeAndDepartment(NoticeUpdateDTO updateDTO, Long updaterId) {
+        Integer currentUserType = dataPermissionUtil.getCurrentUserTypeCode();
+        Long currentDepartmentId = dataPermissionUtil.getCurrentUserDepartmentId();
+        
+        if (currentUserType == null) {
+            throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "用户类型未知");
+        }
+        
+        // 系统管理员验证
+        if (currentUserType == 2) { // system_admin
+            // 选择非全体目标范围时，必须指定院系
+            if (updateDTO.getTargetScope() != null && updateDTO.getTargetScope() != 0) {
+                if (updateDTO.getDepartmentId() == null) {
+                    log.info("系统管理员更新目标范围={}，未指定院系，默认为全体", updateDTO.getTargetScope());
+                    // 不指定院系代表发布给全体
+                }
+            }
+        }
+        // 院系管理员验证
+        else if (currentUserType == 3) { // department_admin
+            if (currentDepartmentId == null) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "院系管理员未找到所属院系");
+            }
+            
+            // 强制设置为当前用户的院系 ID
+            if (!currentDepartmentId.equals(updateDTO.getDepartmentId())) {
+                log.warn("院系管理员尝试跨院系更新公告，已自动修正为本院系：departmentId={}", updateDTO.getDepartmentId());
+            }
+            updateDTO.setDepartmentId(currentDepartmentId);
+        }
+    }
+
+    /**
+     * 验证生效时间逻辑
+     * - 不填写时间代表无期限（永久生效）
+     * - 开始时间必须在结束时间之前
+     * - 结束时间必须在未来
+     *
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     */
+    private void validateEffectiveTime(LocalDateTime startTime, LocalDateTime endTime) {
+        // 1. 都不为空时，验证开始时间必须在结束时间之前
+        if (startTime != null && endTime != null) {
+            if (startTime.isAfter(endTime)) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
+                    "生效开始时间不能晚于结束时间");
+            }
+        }
+        
+        // 2. 结束时间必须在未来
+        if (endTime != null) {
+            if (endTime.isBefore(LocalDateTime.now()) || endTime.isEqual(LocalDateTime.now())) {
+                throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), 
+                    "结束时间必须在未来");
+            }
+        }
+    }
+
+    /**
+     * 自动撤回已过期的公告
+     * 当公告超过结束时间后，自动将其状态改为已撤回
+     *
+     * @param notice 通知公告
+     * @return 如果公告有效返回 true，已被撤回返回 false
+     */
+    private boolean autoWithdrawExpiredNotice(BizNotice notice) {
+        // 只有已发布的公告才需要检查
+        if (notice.getStatus() == null || notice.getStatus() != NoticeStatus.PUBLISHED.getCode()) {
+            return true;
+        }
+        
+        // 如果没有设置结束时间，认为不会过期
+        if (notice.getEndTime() == null) {
+            return true;
+        }
+        
+        // 检查是否已过期
+        if (LocalDateTime.now().isAfter(notice.getEndTime())) {
+            log.info("公告 {} 已超过结束时间，自动撤回", notice.getId());
+            notice.setStatus(NoticeStatus.WITHDRAWN.getCode());
+            updateById(notice);
+            clearNoticeCache(notice.getId());
+            return false;
+        }
+        
+        return true;
     }
 }

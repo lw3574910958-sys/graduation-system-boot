@@ -95,6 +95,24 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
         return calculateTopicProgress(departmentId);
     }
 
+    @Override
+    public List<Integer> getAvailableGradeYears() {
+        log.info("获取可用的成绩年份列表");
+        // 1. 查询所有成绩记录，按年份分组
+        LambdaQueryWrapper<BizGrade> gradeWrapper = new LambdaQueryWrapper<>();
+        gradeWrapper.select(BizGrade::getCreatedAt)
+                   .eq(BizGrade::getIsDeleted, 0);
+        
+        List<BizGrade> grades = bizGradeMapper.selectList(gradeWrapper);
+        
+        // 2. 提取年份并去重
+        return grades.stream()
+            .map(grade -> grade.getCreatedAt().getYear())
+            .distinct()
+            .sorted((a, b) -> b - a) // 降序排列，最近的年份在前
+            .toList();
+    }
+
     /**
      * 计算选题进度数据
      */
@@ -105,18 +123,18 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
             topicWrapper.eq(BizTopic::getDepartmentId, departmentId);
         }
         topicWrapper.eq(BizTopic::getIsDeleted, 0);
-
+    
         List<BizTopic> allTopics = bizTopicMapper.selectList(topicWrapper);
-
+    
         // 2. 统计各状态题目数量
         long open = allTopics.stream()
             .filter(t -> t.getStatus().equals(TopicStatus.OPEN.getCode()))
             .count();
-
+    
         long reviewing = allTopics.stream()
             .filter(t -> t.getStatus().equals(TopicStatus.REVIEWING.getCode()))
             .count();
-
+    
         long selected = allTopics.stream()
             .filter(t -> {
                 // 检查该题目是否有已确认的选题
@@ -127,13 +145,13 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
                 return bizSelectionMapper.selectCount(selectionWrapper) > 0;
             })
             .count();
-
+    
         long closed = allTopics.stream()
             .filter(t -> t.getStatus().equals(TopicStatus.CLOSED.getCode()))
             .count();
-
+    
         long total = allTopics.size();
-
+    
         return TopicProgressVO.builder()
             .open((int) open)
             .reviewing((int) reviewing)

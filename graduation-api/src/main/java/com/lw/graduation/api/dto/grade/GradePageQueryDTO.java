@@ -24,6 +24,18 @@ public class GradePageQueryDTO extends BasePageQueryDTO {
     private Long studentId;
 
     /**
+     * 学生姓名（模糊查询）
+     */
+    @Schema(description = "学生姓名")
+    private String studentName;
+
+    /**
+     * 学生学号（模糊查询）
+     */
+    @Schema(description = "学生学号")
+    private String studentNumber;
+
+    /**
      * 课题ID
      */
     @Schema(description = "课题ID")
@@ -34,6 +46,18 @@ public class GradePageQueryDTO extends BasePageQueryDTO {
      */
     @Schema(description = "评分教师ID")
     private Long graderId;
+
+    /**
+     * 评分教师姓名（模糊查询）
+     */
+    @Schema(description = "评分教师姓名")
+    private String graderName;
+
+    /**
+     * 评分教师工号（模糊查询）
+     */
+    @Schema(description = "评分教师工号")
+    private String graderWorkNumber;
 
     /**
      * 成绩类型
@@ -52,4 +76,16 @@ public class GradePageQueryDTO extends BasePageQueryDTO {
      */
     @Schema(description = "最高成绩")
     private BigDecimal maxScore;
+
+    /**
+     * 成绩等级（精确匹配）
+     */
+    @Schema(description = "成绩等级：优秀、良好、中等、及格、不及格")
+    private String gradeLevel;
+
+    /**
+     * 绩点（精确匹配）
+     */
+    @Schema(description = "绩点：4.0、3.0、2.0、1.0、0.0")
+    private BigDecimal gpa;
 }

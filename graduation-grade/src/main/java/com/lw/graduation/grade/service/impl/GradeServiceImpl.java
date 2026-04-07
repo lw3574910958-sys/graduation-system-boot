@@ -9,6 +9,7 @@ import com.lw.graduation.api.dto.grade.GradeInputDTO;
 import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.service.grade.GradeService;
+import com.lw.graduation.api.vo.grade.GradeExportVO;
 import com.lw.graduation.api.vo.grade.GradeVO;
 import com.lw.graduation.auth.service.PermissionValidationService;
 import com.lw.graduation.auth.util.DataPermissionUtil;
@@ -26,12 +27,10 @@ import com.lw.graduation.domain.enums.grade.GradeType;
 import com.lw.graduation.grade.service.calculator.GradeCalculatorService;
 import com.lw.graduation.grade.service.calculator.GradeDistribution;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
-import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
 import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
-import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -65,24 +64,23 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     private final GradeCalculatorService gradeCalculatorService;
     private final ObjectMapper objectMapper;
     private final PermissionValidationService permissionValidationService;
+    private final DataPermissionUtil dataPermissionUtil;
 
     @Override
     public IPage<GradeVO> getGradePage(GradePageQueryDTO queryDTO) {
-        log.info("分页查询成绩列表 - 当前页: {}, 每页大小: {}, 学生ID: {}, 题目ID: {}, 教师ID: {}, 分数范围: {}-{}", 
+        log.info("分页查询成绩列表 - 当前页: {}, 每页大小: {}, 学生ID: {}, 学生姓名: {}, 学生学号: {}, 题目ID: {}, 教师ID: {}, 教师姓名: {}, 教师工号: {}, 分数范围: {}-{}, 成绩等级: {}, 绩点: {}", 
                 queryDTO.getCurrent(), queryDTO.getSize(), 
-                queryDTO.getStudentId(), queryDTO.getTopicId(), queryDTO.getGraderId(),
-                queryDTO.getMinScore(), queryDTO.getMaxScore());
+                queryDTO.getStudentId(), queryDTO.getStudentName(), queryDTO.getStudentNumber(),
+                queryDTO.getTopicId(), queryDTO.getGraderId(), queryDTO.getGraderName(), queryDTO.getGraderWorkNumber(),
+                queryDTO.getMinScore(), queryDTO.getMaxScore(),
+                queryDTO.getGradeLevel(), queryDTO.getGpa());
         
         // 1. 构建查询条件
-        LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(queryDTO.getStudentId() != null, BizGrade::getStudentId, queryDTO.getStudentId())
-                .eq(queryDTO.getTopicId() != null, BizGrade::getTopicId, queryDTO.getTopicId())
-                .eq(queryDTO.getGraderId() != null, BizGrade::getGraderId, queryDTO.getGraderId())
-                .eq(queryDTO.getGradeType() != null, BizGrade::getGradeType, queryDTO.getGradeType())
-                .ge(queryDTO.getMinScore() != null, BizGrade::getScore, queryDTO.getMinScore())
-                .le(queryDTO.getMaxScore() != null, BizGrade::getScore, queryDTO.getMaxScore())
-                .eq(BizGrade::getIsDeleted, 0)
-                .orderByDesc(BizGrade::getGradedAt);
+        LambdaQueryWrapper<BizGrade> wrapper = buildGradeQueryWrapper(queryDTO);
+        if (wrapper == null) {
+            // 子查询无结果，返回空页面
+            return createEmptyPage(queryDTO.getCurrent(), queryDTO.getSize());
+        }
 
         // 2. 执行分页查询
         IPage<BizGrade> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
@@ -90,6 +88,10 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
 
         // 3. 转换为VO并批量填充关联信息（优化N+1查询）
         List<GradeVO> voList = convertToGradeVOListOptimized(gradePage.getRecords());
+        
+        // 4. 过滤计算字段（成绩等级和绩点）
+        voList = filterByCalculatedFields(voList, queryDTO.getGradeLevel(), queryDTO.getGpa());
+        
         IPage<GradeVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         voPage.setRecords(voList);
         voPage.setTotal(gradePage.getTotal());
@@ -609,6 +611,55 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             throw new BusinessException(ResponseCode.ERROR.getCode(), "成绩统计失败");
         }
     }
+
+    @Override
+    public List<GradeExportVO> exportGrades(GradePageQueryDTO queryDTO) {
+        log.info("导出成绩列表 - 学生ID: {}, 学生姓名: {}, 学生学号: {}, 题目ID: {}, 教师ID: {}, 教师姓名: {}, 教师工号: {}, 分数范围: {}-{}, 成绩等级: {}, 绩点: {}", 
+                queryDTO.getStudentId(), queryDTO.getStudentName(), queryDTO.getStudentNumber(),
+                queryDTO.getTopicId(), queryDTO.getGraderId(), queryDTO.getGraderName(), queryDTO.getGraderWorkNumber(),
+                queryDTO.getMinScore(), queryDTO.getMaxScore(),
+                queryDTO.getGradeLevel(), queryDTO.getGpa());
+        
+        // 1. 构建查询条件（与分页查询保持一致，但不分页）
+        LambdaQueryWrapper<BizGrade> wrapper = buildGradeQueryWrapper(queryDTO);
+        if (wrapper == null) {
+            return new ArrayList<>(); // 子查询无结果
+        }
+
+        // 2. 查询所有符合条件的数据
+        List<BizGrade> grades = list(wrapper);
+        
+        // 3. 批量填充关联信息并转换为 VO
+        List<GradeVO> voList = convertToGradeVOListOptimized(grades);
+        
+        // 4. 过滤计算字段（成绩等级和绩点）
+        voList = filterByCalculatedFields(voList, queryDTO.getGradeLevel(), queryDTO.getGpa());
+        
+        // 5. 转换为导出 VO
+        return voList.stream().map(vo -> {
+            GradeExportVO exportVO = new GradeExportVO();
+            exportVO.setStudentName(vo.getStudentName());
+            exportVO.setStudentNumber(vo.getStudentNumber());
+            exportVO.setTopicTitle(vo.getTopicTitle());
+            exportVO.setGradeTypeDesc(vo.getGradeTypeDesc());
+            exportVO.setScore(vo.getScore() != null ? vo.getScore().doubleValue() : null);
+            exportVO.setGradeLevel(vo.getGradeLevel());
+            exportVO.setGpa(vo.getGpa() != null ? vo.getGpa().doubleValue() : null);
+            
+            // 组装评分教师显示：姓名 - 工号
+            if (vo.getGraderName() != null && vo.getGraderWorkNumber() != null) {
+                exportVO.setGraderDisplay(vo.getGraderName() + " - " + vo.getGraderWorkNumber());
+            } else if (vo.getGraderName() != null) {
+                exportVO.setGraderDisplay(vo.getGraderName());
+            } else {
+                exportVO.setGraderDisplay(vo.getGraderWorkNumber());
+            }
+            
+            exportVO.setGradedAt(vo.getGradedAt() != null ? vo.getGradedAt().toString() : null);
+            exportVO.setComment(vo.getComment());
+            return exportVO;
+        }).collect(Collectors.toList());
+    }
     
     /**
      * 转换成绩实体为 VO
@@ -749,4 +800,111 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         String cacheKey = CacheConstants.KeyPrefix.GRADE_INFO + gradeId;
         cacheHelper.evictCache(cacheKey);
     }
+
+    /**
+     * 构建成绩查询条件包装器
+     * 
+     * @param queryDTO 查询参数
+     * @return 查询条件包装器，如果子查询无结果则返回 null
+     */
+    private LambdaQueryWrapper<BizGrade> buildGradeQueryWrapper(GradePageQueryDTO queryDTO) {
+        LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
+        
+        // 基本字段查询
+        wrapper.eq(queryDTO.getStudentId() != null, BizGrade::getStudentId, queryDTO.getStudentId())
+                .eq(queryDTO.getTopicId() != null, BizGrade::getTopicId, queryDTO.getTopicId())
+                .eq(queryDTO.getGraderId() != null, BizGrade::getGraderId, queryDTO.getGraderId())
+                .eq(queryDTO.getGradeType() != null, BizGrade::getGradeType, queryDTO.getGradeType())
+                .ge(queryDTO.getMinScore() != null, BizGrade::getScore, queryDTO.getMinScore())
+                .le(queryDTO.getMaxScore() != null, BizGrade::getScore, queryDTO.getMaxScore())
+                .eq(BizGrade::getIsDeleted, 0);
+        
+        // 学生姓名模糊查询（通过子查询）
+        if (queryDTO.getStudentName() != null && !queryDTO.getStudentName().trim().isEmpty()) {
+            List<Long> studentIds = dataPermissionUtil.findStudentIdsByName(queryDTO.getStudentName());
+            if (studentIds.isEmpty()) {
+                return null; // 无匹配结果
+            }
+            wrapper.in(BizGrade::getStudentId, studentIds);
+        }
+        
+        // 学生学号模糊查询（通过子查询）
+        if (queryDTO.getStudentNumber() != null && !queryDTO.getStudentNumber().trim().isEmpty()) {
+            List<Long> studentIds = dataPermissionUtil.findStudentIdsByNumber(queryDTO.getStudentNumber());
+            if (studentIds.isEmpty()) {
+                return null; // 无匹配结果
+            }
+            wrapper.in(BizGrade::getStudentId, studentIds);
+        }
+        
+        // 教师姓名模糊查询（通过子查询）
+        if (queryDTO.getGraderName() != null && !queryDTO.getGraderName().trim().isEmpty()) {
+            List<Long> graderIds = dataPermissionUtil.findTeacherUserIdsByName(queryDTO.getGraderName());
+            if (graderIds.isEmpty()) {
+                return null; // 无匹配结果
+            }
+            wrapper.in(BizGrade::getGraderId, graderIds);
+        }
+        
+        // 教师工号模糊查询（通过子查询）
+        if (queryDTO.getGraderWorkNumber() != null && !queryDTO.getGraderWorkNumber().trim().isEmpty()) {
+            List<Long> graderIds = dataPermissionUtil.findTeacherUserIdsByWorkNumber(queryDTO.getGraderWorkNumber());
+            if (graderIds.isEmpty()) {
+                return null; // 无匹配结果
+            }
+            wrapper.in(BizGrade::getGraderId, graderIds);
+        }
+        
+        // 排序
+        wrapper.orderByDesc(BizGrade::getGradedAt);
+        
+        return wrapper;
+    }
+
+    /**
+     * 创建空分页结果
+     * 
+     * @param current 当前页
+     * @param size 每页大小
+     * @return 空分页对象
+     */
+    private <T> IPage<T> createEmptyPage(Integer current, Integer size) {
+        IPage<T> emptyPage = new Page<>(current, size);
+        emptyPage.setRecords(new ArrayList<>());
+        emptyPage.setTotal(0);
+        return emptyPage;
+    }
+
+    /**
+     * 根据计算字段过滤列表（成绩等级和绩点）
+     * 
+     * @param voList VO列表
+     * @param gradeLevel 成绩等级
+     * @param gpa 绩点
+     * @return 过滤后的列表
+     */
+    private List<GradeVO> filterByCalculatedFields(List<GradeVO> voList, String gradeLevel, BigDecimal gpa) {
+        if (gradeLevel == null && gpa == null) {
+            return voList; // 无需过滤
+        }
+        
+        return voList.stream()
+                .filter(vo -> {
+                    // 过滤成绩等级
+                    if (gradeLevel != null && !gradeLevel.equals(vo.getGradeLevel())) {
+                        return false;
+                    }
+                    // 过滤绩点
+                    if (gpa != null) {
+                        if (vo.getGpa() == null) {
+                            return false;
+                        }
+                        // 使用 compareTo 进行精确比较
+                        return gpa.compareTo(vo.getGpa()) == 0;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
+    }
+
 }

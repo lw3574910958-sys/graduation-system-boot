@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.lw.graduation.api.dto.grade.GradeInputDTO;
 import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
+import com.lw.graduation.api.vo.grade.GradeExportVO;
 import com.lw.graduation.api.vo.grade.GradeVO;
 
 import java.math.BigDecimal;
@@ -98,4 +99,12 @@ public interface GradeService {
      * @return 成绩分布统计 JSON 字符串
      */
     String getGradeStatistics(GradeStatisticsQueryDTO queryDTO);
+
+    /**
+     * 导出成绩数据为 Excel
+     *
+     * @param queryDTO 查询条件
+     * @return 导出数据列表
+     */
+    List<GradeExportVO> exportGrades(GradePageQueryDTO queryDTO);
 }

@@ -60,16 +60,22 @@ public class NoticeVO {
     private String priorityDesc;
 
     /**
-     * 发布者ID
+     * 发布者 ID
      */
-    @Schema(description = "发布者ID")
+    @Schema(description = "发布者 ID")
     private Long publisherId;
-
+    
     /**
      * 发布者姓名
      */
     @Schema(description = "发布者姓名")
     private String publisherName;
+    
+    /**
+     * 发布者编号（管理员编号）
+     */
+    @Schema(description = "发布者编号")
+    private String publisherAdminId;
 
     /**
      * 发布时间
@@ -129,9 +135,27 @@ public class NoticeVO {
     private String targetScopeDesc;
 
     /**
-     * 附件URL
+     * 院系 ID
      */
-    @Schema(description = "附件URL")
+    @Schema(description = "院系 ID")
+    private Long departmentId;
+
+    /**
+     * 院系名称
+     */
+    @Schema(description = "院系名称")
+    private String departmentName;
+
+    /**
+     * 院系编码
+     */
+    @Schema(description = "院系编码")
+    private String departmentCode;
+
+    /**
+     * 附件 URL
+     */
+    @Schema(description = "附件 URL")
     private String attachmentUrl;
 
     /**

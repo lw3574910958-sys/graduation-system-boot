@@ -61,4 +61,12 @@ public class TopicPageQueryDTO extends BasePageQueryDTO {
      */
     @Schema(description = "预计工作量")
     private Integer workload;
+
+    /**
+     * 审核状态（前端传递的特殊值）
+     * - 教师：1-审核通过，2-审核驳回
+     * - 管理员：pending-待审核，reviewed-已审核
+     */
+    @Schema(description = "审核状态")
+    private String reviewStatus;
 }

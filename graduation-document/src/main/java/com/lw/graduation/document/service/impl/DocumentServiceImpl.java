@@ -23,12 +23,14 @@ import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.document.BizDocument;
 import com.lw.graduation.domain.entity.grade.BizGrade;
 import com.lw.graduation.domain.entity.student.BizStudent;
+import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.document.DocumentFileType;
 import com.lw.graduation.domain.enums.grade.GradeType;
 import com.lw.graduation.domain.enums.status.ReviewStatus;
 import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
+import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import com.lw.graduation.infrastructure.storage.FileStorageService;
@@ -57,6 +59,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     private final BizDocumentMapper bizDocumentMapper;
     private final BizTopicMapper bizTopicMapper;
+    private final BizTeacherMapper bizTeacherMapper;
     private final SysUserMapper sysUserMapper;
     private final CacheHelper cacheHelper;
     private final FileStorageService fileStorageService;
@@ -296,6 +299,22 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型文档已存在，请先删除原文件");
         }
 
+        // 3.5 查询题目发布教师对应的 sys_user.id（用于设置审核人）
+        Long reviewerUserId = null;
+        if (uploadDTO.getTopicId() != null) {
+            BizTopic topic = bizTopicMapper.selectById(uploadDTO.getTopicId());
+            if (topic != null && topic.getTeacherId() != null) {
+                LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
+                teacherWrapper.eq(BizTeacher::getId, topic.getTeacherId())
+                             .eq(BizTeacher::getIsDeleted, 0);
+                BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
+                if (teacher != null) {
+                    reviewerUserId = teacher.getUserId();
+                    log.info("查询到题目发布教师对应的 sys_user.id: {}", reviewerUserId);
+                }
+            }
+        }
+
         // 4. 上传文件到存储服务
         String folder = "documents/" + fileType.name().toLowerCase();
         String storedPath;
@@ -315,6 +334,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         document.setStoredPath(storedPath);
         document.setFileSize(uploadDTO.getFile().getSize());
         document.setReviewStatus(ReviewStatus.PENDING.getCode());
+        document.setReviewerId(reviewerUserId); // 设置审核教师为题目发布教师对应的 sys_user.id
         document.setDescription(uploadDTO.getDescription());
         document.setUploadedAt(LocalDateTime.now());
 

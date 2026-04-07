@@ -16,7 +16,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * 数据权限工具类
@@ -375,7 +378,7 @@ public class DataPermissionUtil {
     /**
      * 获取当前登录用户的类型编码
      *
-     * @return 0-学生，1-教师，2-管理员，null-获取失败
+     * @return 0-学生，1-教师，2-系统管理员，3-院系管理员，null-获取失败
      */
     public Integer getCurrentUserTypeCode() {
         try {
@@ -386,12 +389,15 @@ public class DataPermissionUtil {
                 SysUser user = sysUserMapper.selectOne(wrapper);
                 if (user != null && user.getUserType() != null) {
                     String userType = user.getUserType();
+                    // 按照 UserType 枚举映射：0-学生，1-教师，2-系统管理员，3-院系管理员
                     if ("student".equals(userType)) {
                         return 0;
                     } else if ("teacher".equals(userType)) {
                         return 1;
-                    } else if ("admin".equals(userType)) {
+                    } else if ("system_admin".equals(userType)) {
                         return 2;
+                    } else if ("department_admin".equals(userType)) {
+                        return 3;
                     }
                 }
             }
@@ -519,5 +525,128 @@ public class DataPermissionUtil {
             log.warn("添加 user_id 列数据权限过滤失败", e);
         }
         return false;
+    }
+
+    /**
+     * 根据学生姓名模糊查询学生业务 ID 列表（biz_student.id）
+     * 用于跨表关联查询场景
+     *
+     * @param studentName 学生姓名（支持模糊匹配）
+     * @return 学生业务 ID 列表（biz_student.id）
+     */
+    public List<Long> findStudentIdsByName(String studentName) {
+        if (studentName == null || studentName.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        try {
+            // 先通过用户表查询姓名匹配的学生用户
+            LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<>();
+            userWrapper.like(SysUser::getRealName, studentName)
+                       .eq(SysUser::getUserType, "student"); // 只查询学生类型
+            
+            List<SysUser> matchedUsers = sysUserMapper.selectList(userWrapper);
+            if (matchedUsers.isEmpty()) {
+                return new ArrayList<>();
+            }
+            
+            // 获取这些用户的ID
+            List<Long> userIds = matchedUsers.stream()
+                    .map(SysUser::getId)
+                    .toList();
+            
+            // 通过学生表查询对应的 biz_student.id
+            LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
+            studentWrapper.in(BizStudent::getUserId, userIds);
+            
+            List<BizStudent> students = bizStudentMapper.selectList(studentWrapper);
+            // 返回 biz_student.id（不是 user_id）
+            return students.stream()
+                    .map(BizStudent::getId)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("根据学生姓名查询学生业务 ID 失败：studentName={}", studentName, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 根据学生学号模糊查询学生业务 ID 列表（biz_student.id）
+     * 用于跨表关联查询场景
+     *
+     * @param studentNumber 学生学号（支持模糊匹配）
+     * @return 学生业务 ID 列表（biz_student.id）
+     */
+    public List<Long> findStudentIdsByNumber(String studentNumber) {
+        if (studentNumber == null || studentNumber.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        try {
+            LambdaQueryWrapper<BizStudent> wrapper = new LambdaQueryWrapper<>();
+            wrapper.like(BizStudent::getStudentId, studentNumber);
+            
+            List<BizStudent> students = bizStudentMapper.selectList(wrapper);
+            // 返回 biz_student.id（不是 user_id）
+            return students.stream()
+                    .map(BizStudent::getId)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("根据学生学号查询学生业务 ID 失败：studentNumber={}", studentNumber, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 根据教师姓名模糊查询教师用户 ID 列表
+     * 用于跨表关联查询场景
+     *
+     * @param teacherName 教师姓名（支持模糊匹配）
+     * @return 教师用户 ID 列表
+     */
+    public List<Long> findTeacherUserIdsByName(String teacherName) {
+        if (teacherName == null || teacherName.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        try {
+            LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+            wrapper.like(SysUser::getRealName, teacherName)
+                   .eq(SysUser::getUserType, "teacher"); // 只查询教师类型
+            
+            List<SysUser> users = sysUserMapper.selectList(wrapper);
+            return users.stream()
+                    .map(SysUser::getId)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("根据教师姓名查询用户 ID 失败：teacherName={}", teacherName, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 根据教师工号模糊查询教师用户 ID 列表
+     * 用于跨表关联查询场景
+     *
+     * @param workNumber 教师工号（支持模糊匹配）
+     * @return 教师用户 ID 列表
+     */
+    public List<Long> findTeacherUserIdsByWorkNumber(String workNumber) {
+        if (workNumber == null || workNumber.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        try {
+            LambdaQueryWrapper<BizTeacher> wrapper = new LambdaQueryWrapper<>();
+            wrapper.like(BizTeacher::getTeacherId, workNumber);
+            
+            List<BizTeacher> teachers = bizTeacherMapper.selectList(wrapper);
+            return teachers.stream()
+                    .map(BizTeacher::getUserId)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("根据教师工号查询用户 ID 失败：workNumber={}", workNumber, e);
+            return new ArrayList<>();
+        }
     }
 }

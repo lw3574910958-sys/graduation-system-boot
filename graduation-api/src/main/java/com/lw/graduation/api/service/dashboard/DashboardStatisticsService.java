@@ -3,6 +3,8 @@ package com.lw.graduation.api.service.dashboard;
 import com.lw.graduation.api.dto.dashboard.GradeDistributionVO;
 import com.lw.graduation.api.dto.dashboard.TopicProgressVO;
 
+import java.util.List;
+
 /**
  * 仪表盘统计服务接口（图表相关）
  *
@@ -25,4 +27,11 @@ public interface DashboardStatisticsService {
      * @return 选题进度统计
      */
     TopicProgressVO getTopicProgress(Long departmentId);
+
+    /**
+     * 获取可用的成绩年份列表
+     *
+     * @return 年份列表
+     */
+    List<Integer> getAvailableGradeYears();
 }

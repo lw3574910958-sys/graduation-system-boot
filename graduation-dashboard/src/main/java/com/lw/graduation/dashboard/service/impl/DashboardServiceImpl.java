@@ -55,13 +55,17 @@ public class DashboardServiceImpl implements DashboardService {
             log.warn("未找到学生信息，用户 ID: {}", userId);
             return new StudentDashboardVO(); // 返回空对象
         }
-        return calculateStudentDashboard(studentBizId);
+        return calculateStudentDashboard(studentBizId, userId);  // 同时传递 studentBizId 和 userId
     }
 
     /**
      * 计算学生仪表盘数据
+     *
+     * @param studentId 业务学生 ID (biz_student.id)
+     * @param userId    系统用户 ID (sys_user.id)，用于查询文档
      */
-    private StudentDashboardVO calculateStudentDashboard(Long studentId) {
+    private StudentDashboardVO calculateStudentDashboard(Long studentId, Long userId) {
+        log.info("计算学生仪表盘数据，学生 ID: {}, 用户 ID: {}", studentId, userId);
 
         // 1. 查询学生的选题状态
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
@@ -72,7 +76,6 @@ public class DashboardServiceImpl implements DashboardService {
         // 2. 计算当前流程步骤
         int currentStep = 0; // 0-未选题
         String topicTitle = null;
-        Long teacherId = null;
 
         if (!selections.isEmpty()) {
             // 找到已确认的选题
@@ -84,12 +87,13 @@ public class DashboardServiceImpl implements DashboardService {
             if (confirmedSelection != null) {
                 currentStep = 1; // 1-已选题
                 topicTitle = confirmedSelection.getTopicTitle();
-                teacherId = confirmedSelection.getReviewerId();
 
                 // 3. 检查文档提交情况，确定流程步骤
+                // 注意：biz_document.user_id 存储的是 sys_user.id，不是 biz_student.id
                 LambdaQueryWrapper<BizDocument> docWrapper = new LambdaQueryWrapper<>();
-                docWrapper.eq(BizDocument::getUserId, studentId)
-                         .eq(BizDocument::getReviewStatus, ReviewStatus.APPROVED.getCode());
+                docWrapper.eq(BizDocument::getUserId, userId)  // 使用 userId (sys_user.id)
+                         .eq(BizDocument::getReviewStatus, ReviewStatus.APPROVED.getCode())
+                         .eq(BizDocument::getIsDeleted, 0);
                 List<BizDocument> approvedDocs = bizDocumentMapper.selectList(docWrapper);
 
                 // 根据通过的文档确定步骤
@@ -105,39 +109,9 @@ public class DashboardServiceImpl implements DashboardService {
             }
         }
 
-        // 4. 统计文档数量
-        LambdaQueryWrapper<BizDocument> allDocsWrapper = new LambdaQueryWrapper<>();
-        allDocsWrapper.eq(BizDocument::getUserId, studentId)
-                     .eq(BizDocument::getIsDeleted, 0);
-        List<BizDocument> allDocs = bizDocumentMapper.selectList(allDocsWrapper);
-
-        long pendingDocs = allDocs.stream()
-            .filter(d -> d.getReviewStatus().equals(ReviewStatus.PENDING.getCode()))
-            .count();
-        long submittedDocs = allDocs.size();
-        long approvedDocsCount = allDocs.stream()
-            .filter(d -> d.getReviewStatus().equals(ReviewStatus.APPROVED.getCode()))
-            .count();
-
-        // 5. 获取指导教师姓名
-        String teacherName = null;
-        if (teacherId != null) {
-            LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
-            teacherWrapper.eq(BizTeacher::getUserId, teacherId);
-            BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
-            if (teacher != null) {
-                teacherName = teacher.getEmail(); // 这里应该关联 sys_user 获取真实姓名
-            }
-        }
-
         return StudentDashboardVO.builder()
-            .pendingDocuments((int) pendingDocs)
-            .submittedDocuments((int) submittedDocs)
-            .approvedDocuments((int) approvedDocsCount)
             .currentStep(currentStep)
             .topicTitle(topicTitle)
-            .teacherName(teacherName)
-            .totalDocuments((int) submittedDocs)
             .build();
     }
 
@@ -150,14 +124,14 @@ public class DashboardServiceImpl implements DashboardService {
             log.warn("未找到教师信息，用户 ID: {}", userId);
             return new TeacherDashboardVO(); // 返回空对象
         }
-        return calculateTeacherDashboard(teacherBizId);
+        return calculateTeacherDashboard(teacherBizId, userId);  // 同时传递 teacherBizId 和 userId
     }
 
     /**
      * 计算教师仪表盘数据
      */
-    private TeacherDashboardVO calculateTeacherDashboard(Long teacherId) {
-        log.info("获取教师仪表盘信息，教师 ID: {}", teacherId);
+    private TeacherDashboardVO calculateTeacherDashboard(Long teacherId, Long userId) {
+        log.info("获取教师仪表盘信息，教师 ID: {}, 用户 ID: {}", teacherId, userId);
 
         // 1. 统计题目数量
         LambdaQueryWrapper<BizTopic> topicWrapper = new LambdaQueryWrapper<>();
@@ -170,16 +144,16 @@ public class DashboardServiceImpl implements DashboardService {
             .filter(t -> t.getStatus().equals(TopicStatus.REVIEWING.getCode()))
             .count();
 
-        // 2. 统计待审核选题申请
+        // 2. 统计待审核选题申请（reviewerId 存储的是 sys_user.id）
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
-        selectionWrapper.eq(BizSelection::getReviewerId, teacherId)
+        selectionWrapper.eq(BizSelection::getReviewerId, userId)  // 使用 userId (sys_user.id) 而不是 teacherBizId
                        .eq(BizSelection::getStatus, SelectionStatus.PENDING_REVIEW)
                        .eq(BizSelection::getIsDeleted, 0);
         long pendingSelections = bizSelectionMapper.selectCount(selectionWrapper);
 
         // 3. 统计待审核文档
         LambdaQueryWrapper<BizDocument> docWrapper = new LambdaQueryWrapper<>();
-        docWrapper.eq(BizDocument::getReviewerId, teacherId)
+        docWrapper.eq(BizDocument::getReviewerId, userId)  // 使用 userId (sys_user.id)
                  .eq(BizDocument::getReviewStatus, ReviewStatus.PENDING.getCode())
                  .eq(BizDocument::getIsDeleted, 0);
         long pendingDocuments = bizDocumentMapper.selectCount(docWrapper);

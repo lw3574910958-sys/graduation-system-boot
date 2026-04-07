@@ -209,6 +209,19 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
                 log.info("题目 [{}] 已达到选题人数上限，自动关闭", topic.getId());
             }
         }
+        
+        // 4.3 查询题目发布教师对应的 sys_user.id（用于设置审核人）
+        Long reviewerUserId = null;
+        if (topic.getTeacherId() != null) {
+            LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
+            teacherWrapper.eq(BizTeacher::getId, topic.getTeacherId())
+                         .eq(BizTeacher::getIsDeleted, 0);
+            BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
+            if (teacher != null) {
+                reviewerUserId = teacher.getUserId();
+                log.info("查询到题目发布教师对应的 sys_user.id: {}", reviewerUserId);
+            }
+        }
 
         // 5. 创建选题申请记录
         BizSelection selection = new BizSelection();
@@ -216,6 +229,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         selection.setTopicId(applyDTO.getTopicId());
         selection.setTopicTitle(topic.getTitle());
         selection.setStatus(SelectionStatus.PENDING_REVIEW.getCode()); // 待审核状态
+        selection.setReviewerId(reviewerUserId); // 设置审核教师为题目发布教师对应的 sys_user.id
 
         // 保存申请理由、能力说明和预期目标
         selection.setApplyReason(applyDTO.getApplyReason());

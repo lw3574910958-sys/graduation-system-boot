@@ -1,5 +1,7 @@
 package com.lw.graduation.api.dto.notice;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.lw.graduation.common.constant.CommonConstants;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -52,12 +54,14 @@ public class NoticeUpdateDTO implements Serializable {
     /**
      * 生效开始时间
      */
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     @Schema(description = "生效开始时间")
     private LocalDateTime startTime;
 
     /**
      * 生效结束时间
      */
+    @JsonFormat(pattern = CommonConstants.DateTimeFormat.STANDARD)
     @Schema(description = "生效结束时间")
     private LocalDateTime endTime;
 
@@ -70,12 +74,18 @@ public class NoticeUpdateDTO implements Serializable {
     /**
      * 目标范围
      */
-    @Schema(description = "目标范围: 0-全体, 1-学生, 2-教师, 3-管理员")
+    @Schema(description = "目标范围：0-全体，1-学生，2-教师，3-管理员")
     private Integer targetScope;
 
     /**
-     * 附件URL
+     * 院系 ID（院系管理员更新时使用）
      */
-    @Schema(description = "附件URL")
+    @Schema(description = "院系 ID（院系管理员更新时使用）")
+    private Long departmentId;
+
+    /**
+     * 附件 URL
+     */
+    @Schema(description = "附件 URL")
     private String attachmentUrl;
 }

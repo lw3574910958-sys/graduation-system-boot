@@ -58,6 +58,12 @@ public class NoticePageQueryDTO extends BasePageQueryDTO {
     private Integer targetScope;
 
     /**
+     * 院系 ID（用于按院系筛选）
+     */
+    @Schema(description = "院系 ID")
+    private Long departmentId;
+
+    /**
      * 发布者 ID
      */
     @Schema(description = "发布者 ID")
