@@ -227,11 +227,38 @@ public class DashboardServiceImpl implements DashboardService {
         }
         long totalTeachers = bizTeacherMapper.selectCount(teacherWrapper);
 
-        // 3. 统计选题情况
-        LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
-        selectionWrapper.eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
-                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
-        long selectedStudents = bizSelectionMapper.selectCount(selectionWrapper);
+        // 3. 统计选题情况（需要通过关联学生表来按院系过滤）
+        long selectedStudents;
+        if (departmentId == null) {
+            // 系统管理员：统计全局已确认选题
+            LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
+            selectionWrapper.eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
+                           .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+            selectedStudents = bizSelectionMapper.selectCount(selectionWrapper);
+        } else {
+            // 院系管理员：需要通过学生表关联过滤本院系
+            // 先查询本院系所有学生
+            LambdaQueryWrapper<BizStudent> deptStudentWrapper = new LambdaQueryWrapper<>();
+            deptStudentWrapper.eq(BizStudent::getDepartmentId, departmentId)
+                         .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+            List<BizStudent> deptStudents = bizStudentMapper.selectList(deptStudentWrapper);
+            
+            if (deptStudents.isEmpty()) {
+                selectedStudents = 0;
+            } else {
+                // 提取学生 ID 列表
+                List<Long> studentIds = deptStudents.stream()
+                    .map(BizStudent::getId)
+                    .toList();
+                
+                // 统计这些学生中已确认选题的数量
+                LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
+                selectionWrapper.in(BizSelection::getStudentId, studentIds)
+                               .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
+                               .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+                selectedStudents = bizSelectionMapper.selectCount(selectionWrapper);
+            }
+        }
 
         long unselectedStudents = totalStudents - selectedStudents;
 

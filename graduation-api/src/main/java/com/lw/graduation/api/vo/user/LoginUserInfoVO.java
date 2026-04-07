@@ -38,4 +38,10 @@ public class LoginUserInfoVO {
     @Schema(description = "头像 URL")
     private String avatar;
 
+    /**
+     * 院系 ID（学生/教师/院系管理员有值，系统管理员为 null）
+     */
+    @Schema(description = "院系 ID")
+    private Long departmentId;
+
 }

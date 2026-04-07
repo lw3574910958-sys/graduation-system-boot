@@ -1,17 +1,21 @@
 package com.lw.graduation.dashboard.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lw.graduation.api.dto.dashboard.GradeDistributionVO;
 import com.lw.graduation.api.dto.dashboard.TopicProgressVO;
 import com.lw.graduation.api.service.dashboard.DashboardStatisticsService;
+import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.domain.entity.grade.BizGrade;
 import com.lw.graduation.domain.entity.selection.BizSelection;
+import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
+import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,18 +38,27 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
     private final BizGradeMapper bizGradeMapper;
     private final BizTopicMapper bizTopicMapper;
     private final BizSelectionMapper bizSelectionMapper;
+    private final BizStudentMapper bizStudentMapper;
+    private final DataPermissionUtil dataPermissionUtil;
 
     @Override
     public GradeDistributionVO getGradeDistribution(Integer year) {
         log.info("获取成绩分布统计，年份：{}", year);
-        return calculateGradeDistribution(year);
+        
+        // 获取当前登录用户的院系 ID（用于院系管理员数据隔离）
+        Long departmentId = getCurrentUserDepartmentId();
+        
+        return calculateGradeDistribution(year, departmentId);
     }
 
     /**
      * 计算成绩分布数据
+     *
+     * @param year 年份
+     * @param departmentId 院系 ID（null 表示全局统计）
      */
-    private GradeDistributionVO calculateGradeDistribution(Integer year) {
-        // 1. 查询指定年份的所有成绩记录
+    private GradeDistributionVO calculateGradeDistribution(Integer year, Long departmentId) {
+        // 1. 查询指定年份的所有成绩记录（根据院系 ID 过滤）
         LambdaQueryWrapper<BizGrade> gradeWrapper = new LambdaQueryWrapper<>();
         if (year != null) {
             LocalDateTime startTime = LocalDateTime.of(year, 1, 1, 0, 0, 0);
@@ -53,6 +66,35 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
             gradeWrapper.between(BizGrade::getCreatedAt, startTime, endTime);
         }
         gradeWrapper.eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
+        // 如果是院系管理员，需要通过学生表关联过滤本院系
+        if (departmentId != null) {
+            // 先查询本院系所有学生 ID
+            LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
+            studentWrapper.eq(BizStudent::getDepartmentId, departmentId)
+                         .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+            List<BizStudent> deptStudents = bizStudentMapper.selectList(studentWrapper);
+            
+            if (deptStudents.isEmpty()) {
+                // 本院系没有学生，直接返回空统计
+                return GradeDistributionVO.builder()
+                    .excellent(0)
+                    .good(0)
+                    .medium(0)
+                    .pass(0)
+                    .fail(0)
+                    .total(0)
+                    .build();
+            }
+            
+            // 提取学生 ID 列表
+            List<Long> studentIds = deptStudents.stream()
+                .map(BizStudent::getId)
+                .toList();
+            
+            // 只统计这些学生的成绩
+            gradeWrapper.in(BizGrade::getStudentId, studentIds);
+        }
 
         List<BizGrade> grades = bizGradeMapper.selectList(gradeWrapper);
 
@@ -92,17 +134,48 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
 
     @Override
     public TopicProgressVO getTopicProgress(Long departmentId) {
-        log.info("获取选题进度统计，院系 ID: {}", departmentId);
-        return calculateTopicProgress(departmentId);
+        log.info("获取选题进度统计，传入院系 ID: {}", departmentId);
+        
+        // 获取当前登录用户的院系 ID（用于院系管理员数据隔离）
+        Long currentUserDeptId = getCurrentUserDepartmentId();
+        
+        // 如果是院系管理员，强制使用其本院系 ID，忽略传入的参数
+        // 系统管理员使用传入的参数（支持前端下拉选择过滤）
+        Long effectiveDeptId = (currentUserDeptId != null) ? currentUserDeptId : departmentId;
+        
+        log.info("实际使用院系 ID: {}", effectiveDeptId);
+        return calculateTopicProgress(effectiveDeptId);
     }
 
     @Override
     public List<Integer> getAvailableGradeYears() {
         log.info("获取可用的成绩年份列表");
+        
+        // 获取当前登录用户的院系 ID（用于院系管理员数据隔离）
+        Long departmentId = getCurrentUserDepartmentId();
+        
         // 1. 查询所有成绩记录，按年份分组
         LambdaQueryWrapper<BizGrade> gradeWrapper = new LambdaQueryWrapper<>();
         gradeWrapper.select(BizGrade::getCreatedAt)
                    .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+        
+        // 如果是院系管理员，需要通过学生表关联过滤本院系
+        if (departmentId != null) {
+            LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
+            studentWrapper.eq(BizStudent::getDepartmentId, departmentId)
+                         .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+            List<BizStudent> deptStudents = bizStudentMapper.selectList(studentWrapper);
+            
+            if (deptStudents.isEmpty()) {
+                return List.of();
+            }
+            
+            List<Long> studentIds = deptStudents.stream()
+                .map(BizStudent::getId)
+                .toList();
+            
+            gradeWrapper.in(BizGrade::getStudentId, studentIds);
+        }
         
         List<BizGrade> grades = bizGradeMapper.selectList(gradeWrapper);
         
@@ -160,5 +233,17 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
             .closed((int) closed)
             .total((int) total)
             .build();
+    }
+
+    /**
+     * 获取当前登录用户的院系 ID（用于院系管理员数据隔离）
+     * 系统管理员返回 null（全局统计）
+     */
+    private Long getCurrentUserDepartmentId() {
+        if (!StpUtil.isLogin()) {
+            return null;
+        }
+        Long userId = StpUtil.getLoginIdAsLong();
+        return dataPermissionUtil.getDepartmentIdByUserId(userId);
     }
 }

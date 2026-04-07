@@ -80,6 +80,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                 .eq(queryDTO.getNature() != null, BizTopic::getNature, queryDTO.getNature())
                 .eq(queryDTO.getDifficulty() != null, BizTopic::getDifficulty, queryDTO.getDifficulty())
                 .eq(queryDTO.getWorkload() != null, BizTopic::getWorkload, queryDTO.getWorkload())
+                .eq(queryDTO.getDepartmentId() != null, BizTopic::getDepartmentId, queryDTO.getDepartmentId())
                 .eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                 .orderByDesc(BizTopic::getCreatedAt);
 

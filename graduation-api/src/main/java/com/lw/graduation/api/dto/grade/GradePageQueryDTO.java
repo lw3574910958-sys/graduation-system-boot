@@ -88,4 +88,10 @@ public class GradePageQueryDTO extends BasePageQueryDTO {
      */
     @Schema(description = "绩点：4.0、3.0、2.0、1.0、0.0")
     private BigDecimal gpa;
+
+    /**
+     * 院系 ID（用于系统管理员按院系筛选成绩）
+     */
+    @Schema(description = "院系 ID")
+    private Long departmentId;
 }

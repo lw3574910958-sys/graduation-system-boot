@@ -18,9 +18,15 @@ import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.common.util.EnumUtils;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.entity.student.BizStudent;
+import com.lw.graduation.domain.entity.teacher.BizTeacher;
+import com.lw.graduation.domain.entity.admin.BizAdmin;
 import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.domain.enums.user.UserType;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
+import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
+import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
+import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +53,9 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     private final CacheHelper cacheHelper;
     private final SaTokenProperties saTokenProperties;
     private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
+    private final BizStudentMapper bizStudentMapper; // 注入学生 Mapper
+    private final BizTeacherMapper bizTeacherMapper; // 注入教师 Mapper
+    private final BizAdminMapper bizAdminMapper; // 注入管理员 Mapper
 
 
     /**
@@ -237,7 +246,14 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
             normalizeUserType(user);
 
-            return BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
+            // 构建 LoginUserInfoVO
+            LoginUserInfoVO userInfoVO = BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
+            
+            // 根据用户类型，从对应的业务表中获取 departmentId
+            Long departmentId = getDepartmentIdByUserType(userId, user.getUserType());
+            userInfoVO.setDepartmentId(departmentId);
+
+            return userInfoVO;
         }, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
     }
 
@@ -275,8 +291,13 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     
                 String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
                 LoginUserInfoVO userInfo = BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
+                
+                // 根据用户类型获取 departmentId
+                Long departmentId = getDepartmentIdByUserType(userId, user.getUserType());
+                userInfo.setDepartmentId(departmentId);
+                
                 cacheHelper.putToCache(cacheKey, userInfo, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
-                log.debug("预热当前用户缓存：{}, userType={}", cacheKey, userInfo.getUserType());
+                log.debug("预热当前用户缓存：{}, userType={}, departmentId={}", cacheKey, userInfo.getUserType(), departmentId);
             }
         }
     }
@@ -299,6 +320,52 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             // 教师兼任院系管理员时，使用院系管理员角色
             user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
         }
+    }
+
+    /**
+     * 根据用户类型获取院系 ID
+     * 从对应的业务表中查询 departmentId
+     *
+     * @param userId 用户 ID
+     * @param userType 用户类型
+     * @return 院系 ID，系统管理员返回 null
+     */
+    private Long getDepartmentIdByUserType(Long userId, String userType) {
+        if (userId == null || userType == null) {
+            return null;
+        }
+
+        try {
+            // 学生：从 biz_student 表获取
+            if (UserType.STUDENT.getCode().equals(userType)) {
+                BizStudent student = bizStudentMapper.selectOne(
+                    new LambdaQueryWrapper<BizStudent>().eq(BizStudent::getUserId, userId)
+                );
+                return student != null ? student.getDepartmentId() : null;
+            }
+            // 教师：从 biz_teacher 表获取
+            else if (UserType.TEACHER.getCode().equals(userType)) {
+                BizTeacher teacher = bizTeacherMapper.selectOne(
+                    new LambdaQueryWrapper<BizTeacher>().eq(BizTeacher::getUserId, userId)
+                );
+                return teacher != null ? teacher.getDepartmentId() : null;
+            }
+            // 院系管理员：从 biz_admin 表获取
+            else if (UserType.DEPARTMENT_ADMIN.getCode().equals(userType)) {
+                BizAdmin admin = bizAdminMapper.selectOne(
+                    new LambdaQueryWrapper<BizAdmin>().eq(BizAdmin::getUserId, userId)
+                );
+                return admin != null ? admin.getDepartmentId() : null;
+            }
+            // 系统管理员：没有院系 ID
+            else if (UserType.SYSTEM_ADMIN.getCode().equals(userType)) {
+                return null;
+            }
+        } catch (Exception e) {
+            log.warn("获取用户 {} 的 departmentId 失败: {}", userId, e.getMessage());
+        }
+
+        return null;
     }
 
 }

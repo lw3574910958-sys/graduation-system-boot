@@ -69,4 +69,10 @@ public class TopicPageQueryDTO extends BasePageQueryDTO {
      */
     @Schema(description = "审核状态")
     private String reviewStatus;
+
+    /**
+     * 院系 ID（用于系统管理员按院系筛选题目）
+     */
+    @Schema(description = "院系 ID")
+    private Long departmentId;
 }

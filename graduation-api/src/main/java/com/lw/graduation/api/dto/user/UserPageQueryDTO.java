@@ -38,4 +38,10 @@ public class UserPageQueryDTO extends BasePageQueryDTO {
      */
     @Schema(description = "状态 (1-启用, 0-禁用)")
     private Integer status;
+
+    /**
+     * 院系 ID（用于系统管理员按院系筛选用户）
+     */
+    @Schema(description = "院系 ID")
+    private Long departmentId;
 }
