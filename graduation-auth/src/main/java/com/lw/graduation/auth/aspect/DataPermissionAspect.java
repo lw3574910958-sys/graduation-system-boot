@@ -9,10 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
-
-import java.lang.reflect.Method;
 
 /**
  * 数据权限切面
@@ -48,9 +45,7 @@ public class DataPermissionAspect {
         // 获取用户角色（需要根据实际的SaToken配置调整）
         String role = getUserRole();
 
-        // 获取方法签名和参数
-        MethodSignature signature = (MethodSignature) point.getSignature();
-        Method method = signature.getMethod();
+        // 获取方法参数
         Object[] args = point.getArgs();
 
         // 根据权限类型进行不同的验证
@@ -127,8 +122,7 @@ public class DataPermissionAspect {
 
         // 检查参数中的学生ID是否为当前教师指导的学生
         for (Object arg : args) {
-            if (arg instanceof Long) {
-                Long studentId = (Long) arg;
+            if (arg instanceof Long studentId) {
                 if (permissionValidationService.canAccessStudentData(userId, studentId, role)) {
                     return true;
                 }
@@ -155,8 +149,7 @@ public class DataPermissionAspect {
         if ("teacher".equals(role) || "student".equals(role)) {
             // 检查参数中的院系ID是否为用户所属院系
             for (Object arg : args) {
-                if (arg instanceof Long) {
-                    Long departmentId = (Long) arg;
+                if (arg instanceof Long departmentId) {
                     if (permissionValidationService.canAccessDepartmentData(userId, departmentId, role)) {
                         return true;
                     }
@@ -175,18 +168,6 @@ public class DataPermissionAspect {
     private boolean validateAdminAccess(String role) {
         // 只有系统管理员才能访问全部数据
         return "admin".equals(role);
-    }
-
-    /**
-     * 获取方法上的DataPermission注解
-     *
-     * @param point 切点
-     * @return DataPermission注解
-     */
-    private DataPermission getDataPermissionAnnotation(ProceedingJoinPoint point) {
-        MethodSignature signature = (MethodSignature) point.getSignature();
-        Method method = signature.getMethod();
-        return method.getAnnotation(DataPermission.class);
     }
 
     /**

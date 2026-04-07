@@ -22,6 +22,7 @@ import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.auth.util.DataPermissionUtil;
 import com.lw.graduation.topic.service.impl.TopicServiceImpl;
@@ -74,7 +75,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         LambdaQueryWrapper<BizSelection> wrapper = new LambdaQueryWrapper<>();
 
         // 2. 添加通用数据权限过滤（包含逻辑删除过滤）
-        addPermissionFilter(wrapper, queryDTO);
+        addPermissionFilter(wrapper);
 
         // 3. 其他查询条件
         wrapper.eq(queryDTO.getStudentId() != null, BizSelection::getStudentId, queryDTO.getStudentId())
@@ -122,7 +123,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
 
         return cacheHelper.getFromCache(cacheKey, SelectionVO.class, () -> {
             BizSelection selection = bizSelectionMapper.selectById(id);
-            if (selection == null || selection.getIsDeleted() == 1) {
+            if (selection == null || selection.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
                 return null;
             }
             return convertToSelectionVO(selection);
@@ -144,7 +145,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         // 1. 根据用户 ID 查询学生业务信息
         LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
         studentWrapper.eq(BizStudent::getUserId, userId)
-                     .eq(BizStudent::getIsDeleted, 0);
+                     .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
         BizStudent student = bizStudentMapper.selectOne(studentWrapper);
         if (student == null) {
@@ -166,8 +167,8 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         LambdaQueryWrapper<BizSelection> existWrapper = new LambdaQueryWrapper<>();
         existWrapper.eq(BizSelection::getStudentId, student.getId())  // 使用学生业务 ID
                    .eq(BizSelection::getTopicId, applyDTO.getTopicId())
-                   .eq(BizSelection::getIsDeleted, 0);
-                    
+                   .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
         List<BizSelection> existingApplications = list(existWrapper);
         for (BizSelection existing : existingApplications) {
             SelectionStatus existingStatus = IEnum.getByCode(SelectionStatus.class, existing.getStatus());
@@ -175,15 +176,15 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "您已提交过该题目的申请，请勿重复申请");
             }
         }
-                
+
         // 3.1 检查学生是否有待审核的选题申请（一个学生同时只能有一个待审核申请）
         // 注意：这里只限制待审核状态，不限制已审核通过的选题
         // 因为可能存在学生有多个选题申请但只有一个能通过审核的场景
         LambdaQueryWrapper<BizSelection> pendingWrapper = new LambdaQueryWrapper<>();
         pendingWrapper.eq(BizSelection::getStudentId, student.getId())
-                     .eq(BizSelection::getIsDeleted, 0)
+                     .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                      .eq(BizSelection::getStatus, SelectionStatus.PENDING_REVIEW.getCode());
-                
+
         long pendingSelectionCount = count(pendingWrapper);
         if (pendingSelectionCount > 0) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "您有待审核的选题申请，请先等待审核完成或撤销后再申请");
@@ -197,9 +198,9 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         // 4.1 预占选题名额：增加题目的已选人数
         topic.setSelectedCount(topic.getSelectedCount() + 1);
         bizTopicMapper.updateById(topic);
-        log.info("学生 [{}] 申请选题 [{}]，预占名额，当前已选人数：{}/{}", 
+        log.info("学生 [{}] 申请选题 [{}]，预占名额，当前已选人数：{}/{}",
                 student.getId(), topic.getId(), topic.getSelectedCount(), topic.getMaxSelections());
-        
+
         // 4.2 检查是否达到人数上限，若达到则自动关闭题目
         if (topic.getSelectedCount() >= topic.getMaxSelections()) {
             TopicStatus currentStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
@@ -209,13 +210,13 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
                 log.info("题目 [{}] 已达到选题人数上限，自动关闭", topic.getId());
             }
         }
-        
+
         // 4.3 查询题目发布教师对应的 sys_user.id（用于设置审核人）
         Long reviewerUserId = null;
         if (topic.getTeacherId() != null) {
             LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
             teacherWrapper.eq(BizTeacher::getId, topic.getTeacherId())
-                         .eq(BizTeacher::getIsDeleted, 0);
+                         .eq(BizTeacher::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
             if (teacher != null) {
                 reviewerUserId = teacher.getUserId();
@@ -243,7 +244,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
 
         // 5. 触发题目状态变更检查（仅记录日志）
         topicService.handleSelectionApplied(applyDTO.getTopicId());
-        
+
         // 6. 清除相关缓存
         clearSelectionCache(selection.getId());
         clearTopicCache(selection.getTopicId());
@@ -271,7 +272,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
 
         // 2. 获取选题申请信息
         BizSelection selection = getById(reviewDTO.getSelectionId());
-        if (selection == null || selection.getIsDeleted() == 1) {
+        if (selection == null || selection.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题申请不存在");
         }
 
@@ -307,48 +308,48 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
      * 确认选题
      *
      * @param selectionId 选题 ID
-     * @param studentId   学生 ID
+     * @param userId   用户 ID
      * @return 选题确认信息
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SelectionVO confirmSelection(Long selectionId, Long userId) {
         log.info("学生用户 [{}] 确认选题，申请 ID: {}", userId, selectionId);
-            
+
         // 1. 验证确认权限
         permissionValidationService.validateSelectionConfirmPermission(selectionId, userId);
-            
+
         // 2. 获取选题信息
         BizSelection selection = getById(selectionId);
-        if (selection == null || selection.getIsDeleted() == 1) {
+        if (selection == null || selection.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题不存在");
         }
-    
+
         // 3. 验证选题状态
         if (!selection.isApproved()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有审核通过的选题才能确认");
         }
-    
+
         // 5. 更新确认状态
         selection.setStatus(SelectionStatus.CONFIRMED.getCode());
         LocalDateTime now = LocalDateTime.now();
         selection.setConfirmedAt(now);
-        
+
         log.debug("准备更新选题确认状态，ID: {}, 确认时间：{}", selectionId, now);
-        
+
         boolean updated = updateById(selection);
         if (!updated) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "选题确认失败");
         }
-        
+
         log.debug("选题更新结果，ID: {}, 更新结果：{}", selectionId, updated);
-    
+
         // 6. 触发题目状态变更
         topicService.handleSelectionConfirmed(selection.getTopicId());
-    
+
         // 7. 清除缓存
         clearSelectionCache(selectionId);
-    
+
         log.info("选题确认成功，ID: {}", selectionId);
         return convertToSelectionVO(selection);
     }
@@ -363,7 +364,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     public List<SelectionVO> getSelectionsByStudent(Long studentId) {
         LambdaQueryWrapper<BizSelection> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizSelection::getStudentId, studentId)
-               .eq(BizSelection::getIsDeleted, 0)
+               .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                .orderByDesc(BizSelection::getCreatedAt);
 
         return list(wrapper).stream()
@@ -396,7 +397,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.in(BizSelection::getTopicId, topicIds)
                        .eq(BizSelection::getStatus, SelectionStatus.PENDING_REVIEW.getCode())
-                       .eq(BizSelection::getIsDeleted, 0)
+                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                        .orderByAsc(BizSelection::getCreatedAt);
 
         return list(selectionWrapper).stream()
@@ -414,41 +415,41 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     @Transactional(rollbackFor = Exception.class)
     public void cancelSelection(Long selectionId, Long userId) {
         log.info("学生用户 [{}] 撤销选题申请，申请 ID: {}", userId, selectionId);
-        
+
         // 1. 根据用户 ID 查询学生业务 ID（复用 DataPermissionUtil 工具方法）
         Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
         if (studentBizId == null) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到学生信息");
         }
-        
+
         // 2. 获取选题信息
         BizSelection selection = getById(selectionId);
-        if (selection == null || selection.getIsDeleted() == 1) {
+        if (selection == null || selection.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题申请不存在");
         }
-        
+
         // 3. 验证撤销权限（使用业务学生 ID 进行比较）
         if (!selection.getStudentId().equals(studentBizId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权撤销他人选题申请");
         }
-        
+
         // 4. 验证选题状态（只能撤销待审核状态的申请）
         SelectionStatus status = IEnum.getByCode(SelectionStatus.class, selection.getStatus());
-        if (status == null || status != SelectionStatus.PENDING_REVIEW) {
+        if (!SelectionStatus.PENDING_REVIEW.equals(status)) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只有待审核状态的选题才能撤销");
         }
-        
+
         Long topicId = selection.getTopicId();
-        
+
         // 5. 减少题目选中人数（因为在申请时已预占名额）
         BizTopic topic = bizTopicMapper.selectById(topicId);
         if (topic != null && topic.getSelectedCount() > 0) {
             topic.setSelectedCount(topic.getSelectedCount() - 1);
             bizTopicMapper.updateById(topic);
-            log.info("学生 [{}] 撤销选题申请 [{}]，释放名额，当前已选人数：{}/{}", 
+            log.info("学生 [{}] 撤销选题申请 [{}]，释放名额，当前已选人数：{}/{}",
                     studentBizId, selectionId, topic.getSelectedCount(), topic.getMaxSelections());
         }
-        
+
         // 6. 检查是否需要重新开放题目
         if (topic != null && topic.getSelectedCount() < topic.getMaxSelections()) {
             TopicStatus topicStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
@@ -459,19 +460,19 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
                 log.info("题目 [{}] 因学生撤销申请且还有名额，自动重新开放", topicId);
             }
         }
-        
+
         // 7. 逻辑删除选题申请
         boolean removed = removeById(selectionId);
         if (!removed) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "选题撤销失败");
         }
-        
+
         // 7. 触发题目状态变更检查（仅记录日志）
         topicService.handleSelectionReviewed(topicId, false);
-        
+
         // 8. 清除缓存
         clearSelectionCache(selectionId);
-        
+
         log.info("选题撤销成功，ID: {}", selectionId);
     }
 
@@ -487,89 +488,103 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
     @Transactional(rollbackFor = Exception.class)
     public SelectionVO resubmitSelection(Long selectionId, Long userId, SelectionApplyDTO applyDTO) {
         log.info("学生用户 [{}] 重新申请选题，原申请 ID: {}", userId, selectionId);
-        
+
         // 1. 根据用户 ID 查询学生业务 ID（复用 DataPermissionUtil 工具方法）
         Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
         if (studentBizId == null) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到学生信息");
         }
-        
+
         // 2. 获取原选题信息
         BizSelection originalSelection = getById(selectionId);
-        if (originalSelection == null || originalSelection.getIsDeleted() == 1) {
+        if (originalSelection == null || originalSelection.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "原选题申请不存在");
         }
-        
+
         // 3. 验证权限和状态（使用业务学生 ID 进行比较）
         if (!originalSelection.getStudentId().equals(studentBizId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权重新申请他人选题");
         }
-        
+
         SelectionStatus originalStatus = IEnum.getByCode(SelectionStatus.class, originalSelection.getStatus());
         if (originalStatus == null || !originalStatus.canResubmit()) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该选题状态不允许重新申请");
         }
-        
+
         // 4. 验证题目是否仍然可选
         BizTopic topic = bizTopicMapper.selectById(originalSelection.getTopicId());
         if (topic == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "原题目不存在");
         }
-        
+
         TopicStatus topicStatus = IEnum.getByCode(TopicStatus.class, topic.getStatus());
         if (topicStatus == null || !topicStatus.isSelectable()) { // 非可选状态
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "原题目当前不可选择");
         }
-        
+
         // 5. 重新申请不检查名额限制（因为是替换原申请，不改变 selected_count）
-        
+
         // 6. 检查是否已达到最大申请次数（防止无限循环）
         LambdaQueryWrapper<BizSelection> countWrapper = new LambdaQueryWrapper<>();
         countWrapper.eq(BizSelection::getStudentId, studentBizId)
                    .eq(BizSelection::getTopicId, originalSelection.getTopicId())
-                   .eq(BizSelection::getIsDeleted, 0);
-        
+                   .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
         long applicationCount = count(countWrapper);
         if (applicationCount >= 3) { // 最多允许 3 次申请
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该题目的申请次数已达上限");
         }
-        
+
         // 6. 创建新的选题申请记录
-        BizSelection newSelection = new BizSelection();
-        newSelection.setStudentId(studentBizId);
-        newSelection.setTopicId(originalSelection.getTopicId());
-        newSelection.setTopicTitle(originalSelection.getTopicTitle());
-        newSelection.setStatus(SelectionStatus.PENDING_REVIEW.getCode()); // 重新设置为待审核状态
-            
-        // 保存申请理由、能力说明和预期目标
-        newSelection.setApplyReason(applyDTO.getApplyReason());
-        newSelection.setStudentAbility(applyDTO.getStudentAbility());
-        newSelection.setExpectedGoal(applyDTO.getExpectedGoal());
-        
+        BizSelection newSelection = createNewSelection(studentBizId, originalSelection, applyDTO);
+
         boolean saved = save(newSelection);
         if (!saved) {
             throw new BusinessException(ResponseCode.ERROR.getCode(), "重新申请失败");
         }
-        
+
         // 7. 逻辑删除原有的选题记录（避免数据冗余）
         // 使用 removeById 方法，MyBatis-Plus 会自动处理 @TableLogic 字段
         boolean removed = removeById(selectionId);
         if (!removed) {
             log.warn("逻辑删除原选题记录失败，原记录 ID: {}", selectionId);
         }
-        
+
         // 注意：重新申请是替换原申请，不改变 selected_count
         // 原申请的 selected_count 已在首次申请时增加，无需额外操作
-        
+
         // 8. 触发题目状态变更检查（仅记录日志）
         topicService.handleSelectionApplied(originalSelection.getTopicId());
-        
+
         // 9. 清除相关缓存
         clearSelectionCache(newSelection.getId());
         clearTopicCache(originalSelection.getTopicId());
-        
+
         log.info("选题重新申请成功，新 ID: {}", newSelection.getId());
         return convertToSelectionVO(newSelection);
+    }
+
+    /**
+     * 创建新的选题申请记录
+     *
+     * @param studentBizId 学生业务ID
+     * @param originalSelection 原始选题记录
+     * @param applyDTO 申请DTO
+     * @return 新的选题记录
+     */
+    private BizSelection createNewSelection(Long studentBizId, BizSelection originalSelection, SelectionApplyDTO applyDTO) {
+        BizSelection newSelection = new BizSelection();
+        newSelection.setStudentId(studentBizId);
+        newSelection.setTopicId(originalSelection.getTopicId());
+        newSelection.setTopicTitle(originalSelection.getTopicTitle());
+        newSelection.setStatus(SelectionStatus.PENDING_REVIEW.getCode()); // 重新设置为待审核状态
+
+        // 保存申请理由、能力说明和预期目标
+        newSelection.setApplyReason(applyDTO.getApplyReason());
+        newSelection.setStudentAbility(applyDTO.getStudentAbility());
+        newSelection.setExpectedGoal(applyDTO.getExpectedGoal());
+        
+        return newSelection;
     }
 
     /**
@@ -585,7 +600,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
 
         // 1. 获取选题信息
         BizSelection selection = getById(id);
-        if (selection == null || selection.getIsDeleted() == 1) {
+        if (selection == null || selection.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题记录不存在");
         }
 
@@ -644,7 +659,7 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
             // 查询教师工号
             LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
             teacherWrapper.eq(BizTeacher::getUserId, selection.getReviewerId())
-                         .eq(BizTeacher::getIsDeleted, 0);
+                         .eq(BizTeacher::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
             if (teacher != null) {
                 vo.setReviewerNumber(teacher.getTeacherId());
@@ -680,21 +695,18 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
 
     /**
      * 根据用户类型添加权限过滤条件（使用通用方法）
-     * 
      * 技术说明：
      * MyBatis-Plus 的逻辑删除自动注入机制：
      * - 若实体配置了 @TableLogic，所有通过 BaseMapper 生成的 SQL 都会自动追加 is_deleted = 0
      * - 使用 apply() 方法直接拼接 SQL 可以绕过自动注入
      * - 但 apply() 必须在 wrapper 构建的最开始就调用，否则会被后续的自动注入覆盖
-     * 
      * 角色策略：
      * - 学生：不写 isDeleted 条件，由 MP 自动注入 is_deleted = 0
      * - 教师/管理员：使用 apply() 在 wrapper 最开始就指定 is_deleted IN (0,1)
      *
      * @param wrapper 查询条件
-     * @param queryDTO 查询参数
      */
-    private void addPermissionFilter(LambdaQueryWrapper<BizSelection> wrapper, SelectionPageQueryDTO queryDTO) {
+    private void addPermissionFilter(LambdaQueryWrapper<BizSelection> wrapper) {
         String userType = dataPermissionUtil.getCurrentUserTypeString();
         boolean isStudent = "student".equals(userType);
 
@@ -702,15 +714,14 @@ public class SelectionServiceImpl extends ServiceImpl<BizSelectionMapper, BizSel
         // 这样可以阻止 MyBatis-Plus 后续自动注入 is_deleted = 0
         if (!isStudent) {
             // 非学生角色：查询所有数据（包括已删除和未删除）
-            wrapper.in(BizSelection::getIsDeleted, 0, 1);
+            wrapper.in(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode(), IsDelete.DELETED.getCode());
         } else {
             // 学生角色：只查询未删除数据
-            wrapper.eq(BizSelection::getIsDeleted, 0);
+            wrapper.eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         }
 
         // 数据权限过滤（保持不变）
         dataPermissionUtil.addCommonDataPermissionFilter(
-            wrapper,
             studentId -> wrapper.eq(BizSelection::getStudentId, studentId),
             teacherId -> wrapper.in(BizSelection::getTopicId,
                 bizTopicMapper.selectList(

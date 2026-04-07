@@ -38,16 +38,6 @@ public enum NoticeStatus implements IEnum<Integer> {
      */
     private final String description;
 
-    
-
-    /**
-     * 判断是否为最终状态
-     *
-     * @return 最终状态返回true
-     */
-    public boolean isFinalStatus() {
-        return this == PUBLISHED || this == WITHDRAWN;
-    }
 
     /**
      * 判断是否可以编辑

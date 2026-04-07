@@ -2,19 +2,17 @@ package com.lw.graduation.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lw.graduation.auth.util.DataPermissionUtil;
-import com.lw.graduation.common.enums.IEnum;
 import com.lw.graduation.common.enums.ResponseCode;
 import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.domain.entity.document.BizDocument;
-import com.lw.graduation.domain.entity.grade.BizGrade;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
-import com.lw.graduation.domain.enums.status.TopicStatus;
+import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.domain.enums.user.UserType;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
-import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
@@ -38,7 +36,6 @@ public class PermissionValidationService {
     private final BizTopicMapper bizTopicMapper;
     private final BizDocumentMapper bizDocumentMapper;
     private final BizSelectionMapper bizSelectionMapper;
-    private final BizGradeMapper bizGradeMapper;
     private final SysUserMapper sysUserMapper;
     private final DataPermissionUtil dataPermissionUtil; // 注入数据权限工具
 
@@ -55,59 +52,27 @@ public class PermissionValidationService {
         if (UserType.SYSTEM_ADMIN.getCode().equals(role)) {
             return true;
         }
-            
+
         // 院系管理员可以访问本院系学生数据
         if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
             return dataPermissionUtil.isSameDepartment(userId, studentId);
         }
-            
+
         // 教师可以访问自己指导的学生数据
         if (UserType.TEACHER.getCode().equals(role)) {
             return isTeacherOfStudent(userId, studentId);
         }
-            
+
         // 学生只能访问自己的数据
         if (UserType.STUDENT.getCode().equals(role)) {
             // 需要将 userId（用户 ID）转换为学生业务 ID 后再比较
             Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
             return studentBizId != null && studentBizId.equals(studentId);
         }
-            
+
         return false;
     }
-    
-    /**
-     * 验证用户是否有权限操作指定课题
-     *
-     * @param userId 当前用户 ID
-     * @param topicId 课题 ID
-     * @param role 用户角色
-     * @return true 表示有权限，false 表示无权限
-     */
-    public boolean canAccessTopicData(Long userId, Long topicId, String role) {
-        // 系统管理员可以访问所有课题
-        if (UserType.SYSTEM_ADMIN.getCode().equals(role)) {
-            return true;
-        }
-            
-        // 院系管理员可以访问本院系课题
-        if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
-            return isTopicInDepartment(userId, topicId);
-        }
-            
-        // 教师可以访问自己创建的课题
-        if (UserType.TEACHER.getCode().equals(role)) {
-            return isTeacherTopic(userId, topicId);
-        }
-            
-        // 学生可以查看已发布的课题
-        if (UserType.STUDENT.getCode().equals(role)) {
-            return isTopicPublished(topicId);
-        }
-            
-        return false;
-    }
-    
+
     /**
      * 验证用户是否有权限操作指定文档
      *
@@ -121,25 +86,25 @@ public class PermissionValidationService {
         if (UserType.SYSTEM_ADMIN.getCode().equals(role)) {
             return true;
         }
-            
+
         // 院系管理员可以访问本院系文档
         if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
             return isDocumentInDepartment(userId, documentId);
         }
-            
+
         // 教师可以访问自己指导学生上传的文档
         if (UserType.TEACHER.getCode().equals(role)) {
             return isTeacherStudentDocument(userId, documentId);
         }
-            
+
         // 学生只能访问自己的文档
         if (UserType.STUDENT.getCode().equals(role)) {
             return isOwnDocument(userId, documentId);
         }
-            
+
         return false;
     }
-    
+
     /**
      * 验证用户是否有权限操作指定院系数据
      *
@@ -153,85 +118,20 @@ public class PermissionValidationService {
         if (UserType.SYSTEM_ADMIN.getCode().equals(role)) {
             return true;
         }
-            
+
         // 院系管理员只能访问自己所属院系
         if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
             return isUserInDepartment(userId, departmentId);
         }
-            
+
         // 教师和学生只能查看自己所属院系
         if (UserType.TEACHER.getCode().equals(role) || UserType.STUDENT.getCode().equals(role)) {
             return isUserInDepartment(userId, departmentId);
         }
-            
+
         return false;
     }
-    
-    /**
-     * 验证用户是否有权限操作指定选题
-     *
-     * @param userId 当前用户 ID
-     * @param selectionId 选题 ID
-     * @param role 用户角色
-     * @return true 表示有权限，false 表示无权限
-     */
-    public boolean canAccessSelectionData(Long userId, Long selectionId, String role) {
-        // 系统管理员可以访问所有选题数据
-        if (UserType.SYSTEM_ADMIN.getCode().equals(role)) {
-            return true;
-        }
-            
-        // 院系管理员可以访问本院系选题数据
-        if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
-            return isSelectionInDepartment(userId, selectionId);
-        }
-            
-        // 教师可以访问自己指导学生的选题
-        if (UserType.TEACHER.getCode().equals(role)) {
-            return isTeacherStudentSelection(userId, selectionId);
-        }
-            
-        // 学生只能访问自己的选题
-        if (UserType.STUDENT.getCode().equals(role)) {
-            return isOwnSelection(userId, selectionId);
-        }
-            
-        return false;
-    }
-    
-    /**
-     * 验证用户是否有权限操作指定成绩数据
-     *
-     * @param userId 当前用户 ID
-     * @param gradeId 成绩 ID
-     * @param role 用户角色
-     * @return true 表示有权限，false 表示无权限
-     */
-    public boolean canAccessGradeData(Long userId, Long gradeId, String role) {
-        // 系统管理员可以访问所有成绩数据
-        if (UserType.SYSTEM_ADMIN.getCode().equals(role)) {
-            return true;
-        }
-            
-        // 院系管理员可以访问本院系成绩数据
-        if (UserType.DEPARTMENT_ADMIN.getCode().equals(role)) {
-            return isGradeInDepartment(userId, gradeId);
-        }
-            
-        // 教师可以访问自己录入的成绩和自己指导学生的成绩
-        if (UserType.TEACHER.getCode().equals(role)) {
-            return isTeacherGradeOrStudentGrade(userId, gradeId);
-        }
-            
-        // 学生只能访问自己的成绩
-        if (UserType.STUDENT.getCode().equals(role)) {
-            return isOwnGrade(userId, gradeId);
-        }
-            
-        return false;
-    }
-    
-    
+
     /**
      * 验证文档下载权限
      * 适用于所有需要验证文档下载/预览权限的场景
@@ -244,7 +144,7 @@ public class PermissionValidationService {
         if (document == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
-        
+
         // 文档所有者可以下载
         if (document.getUserId().equals(userId)) {
             return;
@@ -254,7 +154,7 @@ public class PermissionValidationService {
         BizTopic topic = bizTopicMapper.selectById(document.getTopicId());
         if (topic != null) {
             Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(userId);
-            if (teacherBizId != null && topic.getTeacherId().equals(teacherBizId)) {
+            if (teacherBizId != null && teacherBizId.equals(topic.getTeacherId())) {
                 return;
             }
         }
@@ -268,7 +168,7 @@ public class PermissionValidationService {
 
         throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权下载该文档");
     }
-    
+
     /**
      * 验证文档上传权限
      * 检查学生是否已确认选题
@@ -283,24 +183,24 @@ public class PermissionValidationService {
         if (studentBizId == null) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到学生信息");
         }
-        
+
         // 2. 检查用户是否已确认该题目
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStudentId, studentBizId)
                        .eq(BizSelection::getTopicId, topicId)
-                       .eq(BizSelection::getStatus, 3); // 已确认状态
+                       .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode());
 
         if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "请先确认选题后再上传文档");
         }
     }
-    
+
     /**
      * 验证成绩录入权限
      * 检查教师是否具有对指定学生和题目的成绩录入权限
-     * 
+     *
      * @param studentId 学生 ID
-     * @param topicId 题目 ID  
+     * @param topicId 题目 ID
      * @param graderId 评分教师 ID（用户 ID）
      * @throws BusinessException 权限不足时抛出异常
      */
@@ -309,45 +209,45 @@ public class PermissionValidationService {
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStudentId, studentId)
                        .eq(BizSelection::getTopicId, topicId)
-                       .eq(BizSelection::getStatus, 3); // 已确认状态
-            
+                       .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode());
+
         if (bizSelectionMapper.selectCount(selectionWrapper) == 0) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "该学生未选择此题目");
         }
-            
+
         // 2. 检查题目是否存在
         BizTopic topic = bizTopicMapper.selectById(topicId);
         if (topic == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
-            
+
         // 3. 将用户 ID 转换为业务教师 ID
         Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(graderId);
         if (teacherBizId == null) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到教师信息");
         }
-            
+
         // 4. 指导教师可以直接评分
         if (topic.getTeacherId().equals(teacherBizId)) {
             log.debug("指导教师 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
             return;  // 早期返回，避免执行后续复杂验证
         }
-            
+
         // 5. 检查是否为院系管理员
         if (dataPermissionUtil.isDepartmentAdminInSpecificDepartment(graderId, topic.getDepartmentId())) {
             log.debug("院系管理员 {} 对学生 {} 的题目 {} 进行评分", graderId, studentId, topicId);
             return;
         }
-            
+
         // 6. 如果以上权限都不满足，抛出权限异常
-        throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), 
+        throw new BusinessException(ResponseCode.FORBIDDEN.getCode(),
                 String.format("教师 %d 无权对题目 %d 进行成绩录入", graderId, topicId));
     }
-    
+
     /**
      * 验证选题审核权限
      * 检查教师是否有权审核指定选题申请
-     * 
+     *
      * @param selectionId 选题申请 ID
      * @param teacherId 审核教师 ID
      * @throws BusinessException 权限不足时抛出异常
@@ -358,29 +258,29 @@ public class PermissionValidationService {
         if (selection == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题申请不存在");
         }
-        
+
         // 2. 获取题目信息
         BizTopic topic = bizTopicMapper.selectById(selection.getTopicId());
         if (topic == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
-        
+
         // 3. 通过用户 ID 查询业务教师 ID
         Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(teacherId);
         if (teacherBizId == null) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到教师信息");
         }
-        
+
         // 4. 只有指导教师才能审核
         if (!topic.getTeacherId().equals(teacherBizId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权审核该选题申请");
         }
     }
-    
+
     /**
      * 验证选题确认权限
      * 检查学生是否有权确认指定选题
-     * 
+     *
      * @param selectionId 选题申请 ID
      * @param userId 学生用户 ID
      * @throws BusinessException 权限不足时抛出异常
@@ -391,64 +291,41 @@ public class PermissionValidationService {
         if (studentBizId == null) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "未找到学生信息");
         }
-        
+
         // 2. 获取选题信息
         BizSelection selection = bizSelectionMapper.selectById(selectionId);
         if (selection == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "选题不存在");
         }
-        
+
         // 3. 只有学生本人才能确认（使用业务学生 ID 进行比较）
         if (!selection.getStudentId().equals(studentBizId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权确认他人选题");
         }
     }
-    
+
     /**
      * 验证文档删除权限
      * 检查用户是否有权删除指定文档
-     * 
-     * @param documentId 文档 ID
+     *
      * @param userId 用户 ID
      * @param document 文档实体
      * @throws BusinessException 权限不足时抛出异常
      */
-    public void validateDocumentDeletePermission(Long documentId, Long userId, BizDocument document) {
+    public void validateDocumentDeletePermission(Long userId, BizDocument document) {
         if (document == null) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
-        
+
         // 只有文档所有者才能删除
         if (!document.getUserId().equals(userId)) {
             throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "无权删除他人文档");
         }
     }
-    
-    /**
-     * 验证成绩删除权限
-     * 只有系统管理员有权删除成绩
-     * 
-     * @param gradeId 成绩 ID
-     * @param userId 用户 ID
-     * @param grade 成绩实体
-     * @throws BusinessException 权限不足时抛出异常
-     */
-    public void validateGradeDeletePermission(Long gradeId, Long userId, BizGrade grade) {
-        if (grade == null) {
-            throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "成绩不存在");
-        }
-        
-        // 获取用户类型
-        String userType = getUserTypeByUserId(userId);
-        
-        // 只有系统管理员才能删除成绩
-        if (!UserType.SYSTEM_ADMIN.getCode().equals(userType)) {
-            throw new BusinessException(ResponseCode.FORBIDDEN.getCode(), "只有系统管理员有权删除成绩");
-        }
-    }
-    
+
+
     // ==================== 辅助方法 ====================
-    
+
     /**
      * 根据用户 ID 获取用户类型
      */
@@ -456,7 +333,7 @@ public class PermissionValidationService {
         if (userId == null) {
             return null;
         }
-        
+
         try {
             LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(SysUser::getId, userId);
@@ -467,7 +344,7 @@ public class PermissionValidationService {
             return null;
         }
     }
-    
+
     /**
      * 判断教师是否是学生的指导教师
      */
@@ -477,18 +354,18 @@ public class PermissionValidationService {
         if (teacherBizId == null) {
             return false;
         }
-        
+
         // 通过选题关系判断师生关系
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStudentId, studentId)
-                       .eq(BizSelection::getIsDeleted, 0);
-        
+                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
         var selections = bizSelectionMapper.selectList(selectionWrapper);
         for (BizSelection selection : selections) {
             LambdaQueryWrapper<BizTopic> topicWrapper = new LambdaQueryWrapper<>();
             topicWrapper.eq(BizTopic::getId, selection.getTopicId())
                        .eq(BizTopic::getTeacherId, teacherBizId)  // 使用业务教师 ID
-                       .eq(BizTopic::getIsDeleted, 0);
+                       .eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             BizTopic topic = bizTopicMapper.selectOne(topicWrapper);
             if (topic != null) {
                 return true;
@@ -496,52 +373,7 @@ public class PermissionValidationService {
         }
         return false;
     }
-    
-    /**
-     * 判断课题是否属于用户所在院系
-     */
-    private boolean isTopicInDepartment(Long userId, Long topicId) {
-        // 获取用户所属院系 ID
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
-        if (userDepartmentId == null) {
-            return false;
-        }
-        
-        // 查询课题的院系 ID
-        BizTopic topic = bizTopicMapper.selectById(topicId);
-        return topic != null && userDepartmentId.equals(topic.getDepartmentId());
-    }
-    
-    /**
-     * 判断是否是教师自己创建的课题
-     */
-    private boolean isTeacherTopic(Long teacherId, Long topicId) {
-        // 将用户 ID 转换为业务教师 ID
-        Long teacherBizId = dataPermissionUtil.getTeacherIdByUserId(teacherId);
-        if (teacherBizId == null) {
-            return false;
-        }
-        
-        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizTopic::getId, topicId)
-               .eq(BizTopic::getTeacherId, teacherBizId)
-               .eq(BizTopic::getIsDeleted, 0);
-        return bizTopicMapper.selectCount(wrapper) > 0;
-    }
-    
-    /**
-     * 判断课题是否已发布（开放或审核中）
-     */
-    private boolean isTopicPublished(Long topicId) {
-        BizTopic topic = bizTopicMapper.selectById(topicId);
-        if (topic == null || topic.getStatus() == null) {
-            return false;
-        }
-        
-        TopicStatus status = IEnum.getByCode(TopicStatus.class,topic.getStatus());
-        return status != null && (status == TopicStatus.OPEN || status == TopicStatus.REVIEWING);
-    }
-    
+
     /**
      * 判断文档是否属于用户所在院系
      */
@@ -550,17 +382,17 @@ public class PermissionValidationService {
         if (userDepartmentId == null) {
             return false;
         }
-        
+
         BizDocument document = bizDocumentMapper.selectById(documentId);
         if (document == null || document.getUserId() == null) {
             return false;
         }
-        
+
         // 获取文档上传者的院系 ID（通过 userId 查找）
         Long docOwnerDeptId = dataPermissionUtil.getDepartmentIdByUserId(document.getUserId());
         return userDepartmentId.equals(docOwnerDeptId);
     }
-    
+
     /**
      * 判断是否是教师指导学生上传的文档
      */
@@ -569,20 +401,20 @@ public class PermissionValidationService {
         if (document == null || document.getUserId() == null) {
             return false;
         }
-        
+
         // 通过文档上传者的 userId 找到对应的学生 ID
         LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
         studentWrapper.eq(BizStudent::getUserId, document.getUserId())
-                     .eq(BizStudent::getIsDeleted, 0);
+                     .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         BizStudent student = bizStudentMapper.selectOne(studentWrapper);
-        
+
         if (student != null && student.getId() != null) {
             return isTeacherOfStudent(teacherId, student.getId());
         }
-        
+
         return false;
     }
-    
+
     /**
      * 判断是否是用户自己的文档
      */
@@ -590,7 +422,7 @@ public class PermissionValidationService {
         BizDocument document = bizDocumentMapper.selectById(documentId);
         return document != null && userId.equals(document.getUserId());
     }
-    
+
     /**
      * 判断用户是否属于指定院系
      */
@@ -598,115 +430,5 @@ public class PermissionValidationService {
         Long userDeptId = dataPermissionUtil.getDepartmentIdByUserId(userId);
         return userDeptId != null && userDeptId.equals(departmentId);
     }
-    
-    /**
-     * 判断选题是否属于用户所在院系
-     */
-    private boolean isSelectionInDepartment(Long userId, Long selectionId) {
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
-        if (userDepartmentId == null) {
-            return false;
-        }
-        
-        BizSelection selection = bizSelectionMapper.selectById(selectionId);
-        if (selection == null || selection.getTopicId() == null) {
-            return false;
-        }
-        
-        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizTopic::getId, selection.getTopicId())
-               .eq(BizTopic::getDepartmentId, userDepartmentId)
-               .eq(BizTopic::getIsDeleted, 0);
-        return bizTopicMapper.selectCount(wrapper) > 0;
-    }
-    
-    /**
-     * 判断是否是教师指导学生的选题
-     */
-    private boolean isTeacherStudentSelection(Long teacherId, Long selectionId) {
-        BizSelection selection = bizSelectionMapper.selectById(selectionId);
-        if (selection == null || selection.getStudentId() == null) {
-            return false;
-        }
-        
-        return isTeacherOfStudent(teacherId, selection.getStudentId());
-    }
-    
-    /**
-     * 判断是否是用户自己的选题
-     */
-    private boolean isOwnSelection(Long userId, Long selectionId) {
-        BizSelection selection = bizSelectionMapper.selectById(selectionId);
-        if (selection == null || selection.getStudentId() == null) {
-            return false;
-        }
-        
-        // selection.getStudentId() 是业务学生 ID，需要与用户的业务学生 ID 比较
-        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
-        return studentBizId != null && studentBizId.equals(selection.getStudentId());
-    }
-    
-    /**
-     * 判断成绩是否属于用户所在院系
-     */
-    private boolean isGradeInDepartment(Long userId, Long gradeId) {
-        Long userDepartmentId = dataPermissionUtil.getDepartmentIdByUserId(userId);
-        if (userDepartmentId == null) {
-            return false;
-        }
-        
-        BizGrade grade = bizGradeMapper.selectById(gradeId);
-        if (grade == null || grade.getTopicId() == null) {
-            return false;
-        }
-        
-        // 通过课题判断是否属于同一院系
-        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizTopic::getId, grade.getTopicId())
-               .eq(BizTopic::getDepartmentId, userDepartmentId)
-               .eq(BizTopic::getIsDeleted, 0);
-        return bizTopicMapper.selectCount(wrapper) > 0;
-    }
-    
-    /**
-     * 判断是否是教师的成绩或指导学生的成绩
-     */
-    private boolean isTeacherGradeOrStudentGrade(Long teacherId, Long gradeId) {
-        // 检查是否是教师录入的成绩（通过 grader_id）
-        BizGrade grade = bizGradeMapper.selectById(gradeId);
-        if (grade == null) {
-            return false;
-        }
-        
-        // 如果是教师录入的成绩
-        if (grade.getGraderId() != null && teacherId.equals(grade.getGraderId())) {
-            return true;
-        }
-        
-        // 检查是否是指导学生的成绩（通过课题关联）
-        if (grade.getTopicId() == null) {
-            return false;
-        }
-        
-        LambdaQueryWrapper<BizTopic> topicWrapper = new LambdaQueryWrapper<>();
-        topicWrapper.eq(BizTopic::getId, grade.getTopicId())
-                   .eq(BizTopic::getTeacherId, teacherId)
-                   .eq(BizTopic::getIsDeleted, 0);
-        return bizTopicMapper.selectCount(topicWrapper) > 0;
-    }
-    
-    /**
-     * 判断是否是用户自己的成绩
-     */
-    private boolean isOwnGrade(Long userId, Long gradeId) {
-        BizGrade grade = bizGradeMapper.selectById(gradeId);
-        if (grade == null || grade.getStudentId() == null) {
-            return false;
-        }
-        
-        // grade.getStudentId() 是业务学生 ID，需要与用户的业务学生 ID 比较
-        Long studentBizId = dataPermissionUtil.getStudentIdByUserId(userId);
-        return studentBizId != null && studentBizId.equals(grade.getStudentId());
-    }
-    
+
 }

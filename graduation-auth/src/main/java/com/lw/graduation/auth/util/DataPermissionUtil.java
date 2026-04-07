@@ -6,8 +6,9 @@ import com.lw.graduation.domain.entity.admin.BizAdmin;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.user.SysUser;
+import com.lw.graduation.domain.enums.user.UserType;
+import com.lw.graduation.domain.enums.permission.AdminRole;
 import com.lw.graduation.domain.enums.common.IsDelete;
-import com.lw.graduation.domain.enums.common.IsDepartment;
 import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
 import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
 import com.lw.graduation.infrastructure.mapper.student.BizStudentMapper;
@@ -51,7 +52,7 @@ public class DataPermissionUtil {
         try {
             LambdaQueryWrapper<BizAdmin> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(BizAdmin::getUserId, userId)
-                   .eq(BizAdmin::getRoleLevel, IsDepartment.DEPARTMENT.getCode())
+                   .eq(BizAdmin::getRoleLevel, AdminRole.DEPARTMENT_ADMIN.getCode())
                    .eq(BizAdmin::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
             return bizAdminMapper.selectCount(wrapper) > 0;
@@ -366,7 +367,7 @@ public class DataPermissionUtil {
         try {
             if (isDepartmentAdmin(userId)) {
                 Long userDeptId = getDepartmentIdByUserId(userId);
-                return departmentId != null && departmentId.equals(userDeptId);
+                return departmentId.equals(userDeptId);
             }
             return false;
         } catch (Exception e) {
@@ -383,22 +384,20 @@ public class DataPermissionUtil {
     public Integer getCurrentUserTypeCode() {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
-            if (userId != null) {
-                LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(SysUser::getId, userId);
-                SysUser user = sysUserMapper.selectOne(wrapper);
-                if (user != null && user.getUserType() != null) {
-                    String userType = user.getUserType();
-                    // 按照 UserType 枚举映射：0-学生，1-教师，2-系统管理员，3-院系管理员
-                    if ("student".equals(userType)) {
-                        return 0;
-                    } else if ("teacher".equals(userType)) {
-                        return 1;
-                    } else if ("system_admin".equals(userType)) {
-                        return 2;
-                    } else if ("department_admin".equals(userType)) {
-                        return 3;
-                    }
+            LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysUser::getId, userId);
+            SysUser user = sysUserMapper.selectOne(wrapper);
+            if (user != null && user.getUserType() != null) {
+                String userType = user.getUserType();
+                // 按照 UserType 枚举映射：0-学生，1-教师，2-系统管理员，3-院系管理员
+                if (UserType.STUDENT.getCode().equals(userType)) {
+                    return 0;
+                } else if (UserType.TEACHER.getCode().equals(userType)) {
+                    return 1;
+                } else if (UserType.SYSTEM_ADMIN.getCode().equals(userType)) {
+                    return 2;
+                } else if (UserType.DEPARTMENT_ADMIN.getCode().equals(userType)) {
+                    return 3;
                 }
             }
         } catch (Exception e) {
@@ -427,14 +426,11 @@ public class DataPermissionUtil {
      * 为分页查询添加通用的数据权限过滤条件
      * 适用于所有需要根据用户角色过滤数据的场景
      *
-     * @param wrapper 查询条件包装器
      * @param studentFilter 学生角色的过滤条件（接收 studentId）
      * @param teacherFilter 教师角色的过滤条件（接收 teacherId）
      * @param departmentAdminFilter 院系管理员角色的过滤条件（接收 departmentId）
-     * @return 是否成功添加过滤条件（false 表示无权限或获取用户信息失败）
      */
-    public boolean addCommonDataPermissionFilter(
-            LambdaQueryWrapper<?> wrapper,
+    public void addCommonDataPermissionFilter(
             Consumer<Long> studentFilter,
             Consumer<Long> teacherFilter,
             Consumer<Long> departmentAdminFilter
@@ -446,7 +442,6 @@ public class DataPermissionUtil {
                 if (departmentId != null && departmentAdminFilter != null) {
                     departmentAdminFilter.accept(departmentId);
                     log.info("院系管理员数据权限过滤：departmentId={}", departmentId);
-                    return true;
                 }
             }
             // 教师
@@ -455,7 +450,6 @@ public class DataPermissionUtil {
                 if (teacherId != null && teacherFilter != null) {
                     teacherFilter.accept(teacherId);
                     log.info("教师数据权限过滤：teacherId={}", teacherId);
-                    return true;
                 }
             }
             // 学生
@@ -465,7 +459,6 @@ public class DataPermissionUtil {
                 if (studentId != null && studentFilter != null) {
                     studentFilter.accept(studentId);
                     log.info("学生数据权限过滤成功：studentId={}", studentId);
-                    return true;
                 } else {
                     log.warn("学生数据权限过滤失败：studentId={}", studentId);
                 }
@@ -473,58 +466,10 @@ public class DataPermissionUtil {
             // 系统管理员或其他角色：不需要过滤
             else {
                 log.debug("系统管理员或其他角色，无需数据权限过滤");
-                return true;
             }
         } catch (Exception e) {
             log.warn("添加通用数据权限过滤失败", e);
         }
-        return false;
-    }
-
-    /**
-     * 为分页查询添加通用的数据权限过滤条件（支持 user_id 字段）
-     * 适用于文档表等直接使用 sys_user.id 的场景
-     *
-     * @param wrapper 查询条件包装器
-     * @param userIdColumn 用户 ID 列名（如 "user_id"）
-     * @return 是否成功添加过滤条件（false 表示无权限或获取用户信息失败）
-     */
-    public boolean addCommonDataPermissionFilterForUserIdColumn(
-            LambdaQueryWrapper<?> wrapper,
-            String userIdColumn
-    ) {
-        try {
-            // 院系管理员 - 无需过滤（通过 topic_id 间接控制）
-            if (isCurrentLoginUserDepartmentAdmin()) {
-                log.debug("院系管理员角色，通过 topic_id 间接控制权限");
-                return true;
-            }
-            // 教师 - 无需过滤（通过 topic_id 间接控制）
-            else if (isCurrentLoginUserTeacher()) {
-                log.debug("教师角色，通过 topic_id 间接控制权限");
-                return true;
-            }
-            // 学生 - 只能查看自己的数据
-            else if (isCurrentLoginUserStudent()) {
-                Long currentUserId = StpUtil.getLoginIdAsLong();
-                if (currentUserId != null) {
-                    // 使用 apply 方法直接拼接 SQL
-                    wrapper.apply(userIdColumn + " = {0}", currentUserId);
-                    log.info("学生角色数据权限过滤（user_id 列）：userId={}", currentUserId);
-                    return true;
-                } else {
-                    log.warn("获取当前登录用户 ID 失败");
-                }
-            }
-            // 系统管理员或其他角色：不需要过滤
-            else {
-                log.debug("系统管理员或其他角色，无需数据权限过滤");
-                return true;
-            }
-        } catch (Exception e) {
-            log.warn("添加 user_id 列数据权限过滤失败", e);
-        }
-        return false;
     }
 
     /**
@@ -543,7 +488,7 @@ public class DataPermissionUtil {
             // 先通过用户表查询姓名匹配的学生用户
             LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<>();
             userWrapper.like(SysUser::getRealName, studentName)
-                       .eq(SysUser::getUserType, "student"); // 只查询学生类型
+                       .eq(SysUser::getUserType, UserType.STUDENT.getCode()); // 只查询学生类型
             
             List<SysUser> matchedUsers = sysUserMapper.selectList(userWrapper);
             if (matchedUsers.isEmpty()) {
@@ -612,7 +557,7 @@ public class DataPermissionUtil {
         try {
             LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
             wrapper.like(SysUser::getRealName, teacherName)
-                   .eq(SysUser::getUserType, "teacher"); // 只查询教师类型
+                   .eq(SysUser::getUserType, UserType.TEACHER.getCode()); // 只查询教师类型
             
             List<SysUser> users = sysUserMapper.selectList(wrapper);
             return users.stream()

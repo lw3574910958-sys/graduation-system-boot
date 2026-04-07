@@ -15,6 +15,7 @@ import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.util.BeanMapperUtil;
 import com.lw.graduation.common.util.CacheHelper;
 import com.lw.graduation.domain.entity.department.SysDepartment;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.infrastructure.mapper.department.SysDepartmentMapper;
@@ -188,7 +189,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
     public void deleteDepartment(Long id) {
         // 1. 检查院系是否存在
         SysDepartment department = sysDepartmentMapper.selectById(id);
-        if (department == null || department.getIsDeleted() == 1) {
+        if (department == null || department.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND);
         }
 
@@ -219,7 +220,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         @SuppressWarnings("unchecked")
         List<DepartmentVO> result = (List<DepartmentVO>) cacheHelper.getFromCache(cacheKey, Object.class, () -> {
             LambdaQueryWrapper<SysDepartment> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(SysDepartment::getIsDeleted, 0)
+            wrapper.eq(SysDepartment::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                     .orderByAsc(SysDepartment::getCode);
     
             List<SysDepartment> departments = sysDepartmentMapper.selectList(wrapper);
@@ -279,7 +280,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         // 检查是否有关联的学生
         LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
         studentWrapper.eq(BizStudent::getDepartmentId, departmentId)
-                     .eq(BizStudent::getIsDeleted, 0);
+                     .eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         long studentCount = bizStudentMapper.selectCount(studentWrapper);
 
         if (studentCount > 0) {
@@ -289,7 +290,7 @@ public class DepartmentServiceImpl extends ServiceImpl<SysDepartmentMapper, SysD
         // 检查是否有关联的教师
         LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
         teacherWrapper.eq(BizTeacher::getDepartmentId, departmentId)
-                     .eq(BizTeacher::getIsDeleted, 0);
+                     .eq(BizTeacher::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         long teacherCount = bizTeacherMapper.selectCount(teacherWrapper);
 
         return teacherCount > 0;

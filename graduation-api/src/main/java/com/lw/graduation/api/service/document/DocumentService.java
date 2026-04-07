@@ -5,7 +5,7 @@ import com.lw.graduation.api.dto.document.DocumentPageQueryDTO;
 import com.lw.graduation.api.dto.document.DocumentReviewDTO;
 import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.vo.document.DocumentVO;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.ResponseEntity;
 
 import java.io.InputStream;
 
@@ -66,7 +66,7 @@ public interface DocumentService {
      * @param userId 用户 ID
      */
     void deleteDocument(Long id, Long userId);
-    
+
     /**
      * 学生重新上传文档（驳回后）
      *
@@ -76,7 +76,7 @@ public interface DocumentService {
      * @return 重新上传后的文档 VO
      */
     DocumentVO reuploadDocument(Long originalDocumentId, DocumentUploadDTO uploadDTO, Long userId);
-    
+
     /**
      * 学生撤销文档申请（待审核状态）
      *
@@ -84,4 +84,20 @@ public interface DocumentService {
      * @param userId 用户 ID
      */
     void cancelDocument(Long documentId, Long userId);
+
+    /**
+     * 下载文档响应（包含完整的HTTP响应头设置）
+     *
+     * @param documentId 文档ID
+     * @return ResponseEntity<byte[]>
+     */
+    ResponseEntity<byte[]> downloadDocumentResponse(Long documentId);
+
+    /**
+     * 预览文档响应（包含完整的HTTP响应头设置）
+     *
+     * @param documentId 文档ID
+     * @return ResponseEntity<byte[]>
+     */
+    ResponseEntity<byte[]> previewDocumentResponse(Long documentId);
 }

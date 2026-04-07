@@ -54,10 +54,10 @@ public class CustomSaTokenConfig implements StpInterface {
     public List<String> getRoleList(Object loginId, String loginType) {
         Long userId = toLong(loginId);
         if (userId == null) return Collections.emptyList();
-    
+
         String userType = getUserTypeFromDB(userId);
         if (userType == null) return Collections.emptyList();
-    
+
         List<String> roleList = new ArrayList<>();
         switch (userType) {
             case "admin" -> {
@@ -67,10 +67,7 @@ public class CustomSaTokenConfig implements StpInterface {
                     roleList.add("system_admin");
                 }
             }
-            case "system_admin" -> {
-                // 系统管理员只拥有自己的角色权限
-                roleList.add("system_admin");
-            }
+            case "system_admin" -> roleList.add("system_admin");
             case "department_admin" -> roleList.add("department_admin");
             case "teacher" -> {
                 roleList.add("teacher");

@@ -235,16 +235,7 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
             // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
             // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
-            if (UserType.ADMIN.getCode().equals(user.getUserType())) {
-                if (dataPermissionUtil.isDepartmentAdmin(user.getId())) {
-                    user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
-                } else {
-                    user.setUserType(UserType.SYSTEM_ADMIN.getCode());
-                }
-            } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && dataPermissionUtil.isDepartmentAdmin(user.getId())) {
-                // 教师兼任院系管理员时，使用院系管理员角色
-                user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
-            }
+            normalizeUserType(user);
 
             return BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
         }, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
@@ -280,22 +271,33 @@ public class AuthServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             if (user != null) {
                 // 处理用户类型：将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
                 // 兼容旧数据：admin 类型需要自动判断是系统管理员还是院系管理员
-                if (UserType.ADMIN.getCode().equals(user.getUserType())) {
-                    if (dataPermissionUtil.isDepartmentAdmin(user.getId())) {
-                        user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
-                    } else {
-                        user.setUserType(UserType.SYSTEM_ADMIN.getCode());
-                    }
-                } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && dataPermissionUtil.isDepartmentAdmin(user.getId())) {
-                    // 教师兼任院系管理员时，使用院系管理员角色
-                    user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
-                }
+                normalizeUserType(user);
     
                 String cacheKey = CacheConstants.KeyPrefix.CURRENT_USER + userId;
                 LoginUserInfoVO userInfo = BeanMapperUtil.copyProperties(user, LoginUserInfoVO.class);
                 cacheHelper.putToCache(cacheKey, userInfo, CacheConstants.ExpireTime.CURRENT_USER_EXPIRE);
                 log.debug("预热当前用户缓存：{}, userType={}", cacheKey, userInfo.getUserType());
             }
+        }
+    }
+
+    /**
+     * 规范化用户类型
+     * 将旧的 'admin' 转换为新的 'system_admin' 或 'department_admin'
+     * 处理教师兼任院系管理员的情况
+     *
+     * @param user 用户对象
+     */
+    private void normalizeUserType(SysUser user) {
+        if (UserType.ADMIN.getCode().equals(user.getUserType())) {
+            if (dataPermissionUtil.isDepartmentAdmin(user.getId())) {
+                user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
+            } else {
+                user.setUserType(UserType.SYSTEM_ADMIN.getCode());
+            }
+        } else if (UserType.TEACHER.getCode().equals(user.getUserType()) && dataPermissionUtil.isDepartmentAdmin(user.getId())) {
+            // 教师兼任院系管理员时，使用院系管理员角色
+            user.setUserType(UserType.DEPARTMENT_ADMIN.getCode());
         }
     }
 

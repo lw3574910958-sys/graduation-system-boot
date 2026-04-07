@@ -96,26 +96,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理自定义参数验证异常
-     */
-    @ExceptionHandler(ValidationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Result<?> handleValidationException(ValidationException e) {
-        log.warn("自定义验证异常: {}", e.getMessage());
-        return Result.error(e.getCode(), e.getMessage());
-    }
-
-    /**
-     * 处理权限异常
-     */
-    @ExceptionHandler(AuthorizationException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
-    public Result<?> handleAuthorizationException(AuthorizationException e) {
-        log.warn("权限异常: {}", e.getMessage());
-        return Result.error(e.getCode(), e.getMessage());
-    }
-
-    /**
      * 处理数据访问异常
      */
     @ExceptionHandler(DataAccessException.class)

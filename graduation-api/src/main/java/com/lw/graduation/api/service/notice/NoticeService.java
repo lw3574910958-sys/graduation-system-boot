@@ -5,6 +5,8 @@ import com.lw.graduation.api.dto.notice.NoticeCreateDTO;
 import com.lw.graduation.api.dto.notice.NoticePageQueryDTO;
 import com.lw.graduation.api.dto.notice.NoticeUpdateDTO;
 import com.lw.graduation.api.vo.notice.NoticeVO;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
@@ -98,4 +100,12 @@ public interface NoticeService {
      * @return 增加后的阅读次数
      */
     Integer increaseReadCount(Long id);
+
+    /**
+     * 下载公告附件响应（包含完整的HTTP响应头设置）
+     *
+     * @param attachmentUrl 附件相对路径
+     * @return ResponseEntity<Resource>
+     */
+    ResponseEntity<Resource> downloadAttachmentResponse(String attachmentUrl);
 }

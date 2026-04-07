@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Date;
 
 /**
  * 本地文件存储服务实现
@@ -165,7 +166,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             return customName + "." + extension.toLowerCase();
         }
         // 使用时间戳格式：yyyyMMddHHmmssSSS
-        String timestamp = DateUtil.format(new java.util.Date(), CommonConstants.DateTimeFormat.MILLISECOND);
+        String timestamp = DateUtil.format(new Date(), CommonConstants.DateTimeFormat.MILLISECOND);
         return timestamp + "." + extension.toLowerCase();
     }
 }

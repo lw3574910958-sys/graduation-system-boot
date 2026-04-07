@@ -131,33 +131,4 @@ public class BizSelection implements Serializable {
         return status == SelectionStatus.APPROVED;
     }
 
-    /**
-     * 检查选题是否被驳回
-     *
-     * @return 被驳回返回true
-     */
-    public boolean isRejected() {
-        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
-        return status == SelectionStatus.REJECTED;
-    }
-
-    /**
-     * 检查选题是否待审核
-     *
-     * @return 待审核返回true
-     */
-    public boolean isPendingReview() {
-        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
-        return status == null || status == SelectionStatus.PENDING_REVIEW;
-    }
-
-    /**
-     * 检查选题是否已确认
-     *
-     * @return 已确认返回true
-     */
-    public boolean isConfirmed() {
-        SelectionStatus status = IEnum.getByCode(SelectionStatus.class,this.status);
-        return status == SelectionStatus.CONFIRMED;
-    }
 }

@@ -1,6 +1,5 @@
 package com.lw.graduation.dashboard.service.impl;
 
-import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lw.graduation.api.dto.dashboard.AdminDashboardVO;
 import com.lw.graduation.api.dto.dashboard.StudentDashboardVO;
@@ -13,6 +12,8 @@ import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.topic.BizTopic;
+import com.lw.graduation.domain.enums.common.IsDelete;
+import com.lw.graduation.domain.enums.document.DocumentFileType;
 import com.lw.graduation.domain.enums.status.ReviewStatus;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.domain.enums.status.TopicStatus;
@@ -70,7 +71,7 @@ public class DashboardServiceImpl implements DashboardService {
         // 1. 查询学生的选题状态
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStudentId, studentId)
-                       .eq(BizSelection::getIsDeleted, 0);
+                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         List<BizSelection> selections = bizSelectionMapper.selectList(selectionWrapper);
 
         // 2. 计算当前流程步骤
@@ -93,17 +94,17 @@ public class DashboardServiceImpl implements DashboardService {
                 LambdaQueryWrapper<BizDocument> docWrapper = new LambdaQueryWrapper<>();
                 docWrapper.eq(BizDocument::getUserId, userId)  // 使用 userId (sys_user.id)
                          .eq(BizDocument::getReviewStatus, ReviewStatus.APPROVED.getCode())
-                         .eq(BizDocument::getIsDeleted, 0);
+                         .eq(BizDocument::getIsDeleted, IsDelete.NOT_DELETED.getCode());
                 List<BizDocument> approvedDocs = bizDocumentMapper.selectList(docWrapper);
 
                 // 根据通过的文档确定步骤
                 for (BizDocument doc : approvedDocs) {
-                    if (doc.getFileType() == 0) { // 开题报告
+                    if (doc.getFileType().equals(DocumentFileType.PROPOSAL.getCode())) { // 开题报告
                         currentStep = Math.max(currentStep, 2);
-                    } else if (doc.getFileType() == 1) { // 中期报告
+                    } else if (doc.getFileType().equals(DocumentFileType.MIDTERM.getCode())) { // 中期报告
                         currentStep = Math.max(currentStep, 3);
-                    } else if (doc.getFileType() == 2) { // 毕业论文
-                        currentStep = Math.max(currentStep, 4);
+                    } else if (doc.getFileType().equals(DocumentFileType.THESIS.getCode())) { // 毕业论文
+                        currentStep = 4;
                     }
                 }
             }
@@ -136,7 +137,7 @@ public class DashboardServiceImpl implements DashboardService {
         // 1. 统计题目数量
         LambdaQueryWrapper<BizTopic> topicWrapper = new LambdaQueryWrapper<>();
         topicWrapper.eq(BizTopic::getTeacherId, teacherId)
-                   .eq(BizTopic::getIsDeleted, 0);
+                   .eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         List<BizTopic> allTopics = bizTopicMapper.selectList(topicWrapper);
 
         long totalTopics = allTopics.size();
@@ -148,27 +149,27 @@ public class DashboardServiceImpl implements DashboardService {
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getReviewerId, userId)  // 使用 userId (sys_user.id) 而不是 teacherBizId
                        .eq(BizSelection::getStatus, SelectionStatus.PENDING_REVIEW)
-                       .eq(BizSelection::getIsDeleted, 0);
+                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         long pendingSelections = bizSelectionMapper.selectCount(selectionWrapper);
 
         // 3. 统计待审核文档
         LambdaQueryWrapper<BizDocument> docWrapper = new LambdaQueryWrapper<>();
         docWrapper.eq(BizDocument::getReviewerId, userId)  // 使用 userId (sys_user.id)
                  .eq(BizDocument::getReviewStatus, ReviewStatus.PENDING.getCode())
-                 .eq(BizDocument::getIsDeleted, 0);
+                 .eq(BizDocument::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         long pendingDocuments = bizDocumentMapper.selectCount(docWrapper);
 
         // 4. 统计已确认选题数量
         LambdaQueryWrapper<BizSelection> confirmedWrapper = new LambdaQueryWrapper<>();
         confirmedWrapper.eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
-                       .eq(BizSelection::getIsDeleted, 0);
+                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         // 需要关联题目表查询该教师指导的学生
         long confirmedSelections = 0;
         for (BizTopic topic : allTopics) {
             LambdaQueryWrapper<BizSelection> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(BizSelection::getTopicId, topic.getId())
                   .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
-                  .eq(BizSelection::getIsDeleted, 0);
+                  .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             confirmedSelections += bizSelectionMapper.selectCount(wrapper);
         }
 
@@ -205,7 +206,7 @@ public class DashboardServiceImpl implements DashboardService {
         // 1. 统计待审核题目（本院系或所有院系）
         LambdaQueryWrapper<BizTopic> topicWrapper = new LambdaQueryWrapper<>();
         topicWrapper.eq(BizTopic::getStatus, TopicStatus.REVIEWING.getCode())
-                   .eq(BizTopic::getIsDeleted, 0);
+                   .eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         if (departmentId != null) {
             topicWrapper.eq(BizTopic::getDepartmentId, departmentId);
         }
@@ -213,14 +214,14 @@ public class DashboardServiceImpl implements DashboardService {
 
         // 2. 统计学生和教师数量
         LambdaQueryWrapper<BizStudent> studentWrapper = new LambdaQueryWrapper<>();
-        studentWrapper.eq(BizStudent::getIsDeleted, 0);
+        studentWrapper.eq(BizStudent::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         if (departmentId != null) {
             studentWrapper.eq(BizStudent::getDepartmentId, departmentId);
         }
         long totalStudents = bizStudentMapper.selectCount(studentWrapper);
 
         LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
-        teacherWrapper.eq(BizTeacher::getIsDeleted, 0);
+        teacherWrapper.eq(BizTeacher::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         if (departmentId != null) {
             teacherWrapper.eq(BizTeacher::getDepartmentId, departmentId);
         }
@@ -229,16 +230,16 @@ public class DashboardServiceImpl implements DashboardService {
         // 3. 统计选题情况
         LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
         selectionWrapper.eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
-                       .eq(BizSelection::getIsDeleted, 0);
+                       .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         long selectedStudents = bizSelectionMapper.selectCount(selectionWrapper);
 
         long unselectedStudents = totalStudents - selectedStudents;
 
         // 4. 统计院系数量
-        long totalDepartments = 0;
+        long totalDepartments;
         if (departmentId == null) { // 系统管理员才统计所有院系
             LambdaQueryWrapper<SysDepartment> deptWrapper = new LambdaQueryWrapper<>();
-            deptWrapper.eq(SysDepartment::getIsDeleted, 0);
+            deptWrapper.eq(SysDepartment::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             totalDepartments = sysDepartmentMapper.selectCount(deptWrapper);
         } else {
             totalDepartments = 1;
@@ -246,7 +247,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         // 5. 统计总题目数
         LambdaQueryWrapper<BizTopic> allTopicsWrapper = new LambdaQueryWrapper<>();
-        allTopicsWrapper.eq(BizTopic::getIsDeleted, 0);
+        allTopicsWrapper.eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         if (departmentId != null) {
             allTopicsWrapper.eq(BizTopic::getDepartmentId, departmentId);
         }

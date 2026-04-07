@@ -27,7 +27,7 @@ import com.lw.graduation.domain.entity.student.BizStudent;
 import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.common.IsDelete;
-import com.lw.graduation.domain.enums.common.IsDepartment;
+import com.lw.graduation.domain.enums.permission.AdminRole;
 import com.lw.graduation.domain.enums.user.AccountStatus;
 import com.lw.graduation.domain.enums.user.UserType;
 import com.lw.graduation.infrastructure.mapper.admin.BizAdminMapper;
@@ -80,7 +80,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 .orderByDesc(SysUser::getCreatedAt); // 按创建时间倒序
 
         // 2. 添加通用数据权限过滤
-        addPermissionFilter(wrapper, queryDTO);
+        addPermissionFilter(wrapper);
 
         // 3. 执行分页查询
         IPage<SysUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
@@ -106,10 +106,10 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     private void addDepartmentFilter(LambdaQueryWrapper<SysUser> wrapper, Long departmentId) {
         // 使用子查询同时过滤学生和教师
         wrapper.and(w -> w
-            .inSql(SysUser::getId, 
+            .inSql(SysUser::getId,
                 String.format("SELECT user_id FROM biz_student WHERE department_id = %d AND is_deleted = 0", departmentId))
             .or()
-            .inSql(SysUser::getId, 
+            .inSql(SysUser::getId,
                 String.format("SELECT user_id FROM biz_teacher WHERE department_id = %d AND is_deleted = 0", departmentId))
         );
     }
@@ -198,10 +198,10 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             log.error("创建业务表数据失败，回滚用户创建：{}", e.getMessage());
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "创建业务数据失败：" + e.getMessage());
         }
-        
+
         // 8. 清除缓存（虽然新用户没有缓存，但保持一致性）
         clearUserCache(user.getId());
-        
+
         log.info("创建用户成功：userId={}, username={}", user.getId(), user.getUsername());
     }
 
@@ -294,7 +294,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         // 院系 ID：前端传 0 表示无院系，转换为 null 存入数据库（所有表主键使用 ASSIGN_ID，不存在 id=0）
         admin.setDepartmentId(createDTO.getDepartmentId() != null && createDTO.getDepartmentId() == 0 ? null : createDTO.getDepartmentId());
         // 角色级别：根据院系 ID 是否为空判断（null 表示系统管理员，有院系表示院系管理员）
-        admin.setRoleLevel(admin.getDepartmentId() != null ? IsDepartment.DEPARTMENT.getCode() : IsDepartment.NOT_DEPARTMENT.getCode());
+        admin.setRoleLevel(admin.getDepartmentId() != null ? AdminRole.DEPARTMENT_ADMIN.getCode() : AdminRole.SYSTEM_ADMIN.getCode());
         admin.setPhone(createDTO.getPhone());
         admin.setEmail(createDTO.getEmail());
         return admin;
@@ -373,7 +373,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                     admin.setAdminId(updateDTO.getAdminId());
                 }
                 // 角色级别：根据院系 ID 是否为空判断（null 表示系统管理员，有院系表示院系管理员）
-                admin.setRoleLevel(admin.getDepartmentId() != null ? IsDepartment.DEPARTMENT.getCode() : IsDepartment.NOT_DEPARTMENT.getCode());
+                admin.setRoleLevel(admin.getDepartmentId() != null ? AdminRole.DEPARTMENT_ADMIN.getCode() : AdminRole.SYSTEM_ADMIN.getCode());
                 admin.setPhone(updateDTO.getPhone());
                 admin.setEmail(updateDTO.getEmail());
                 bizAdminMapper.updateById(admin);
@@ -444,7 +444,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 6. 清除缓存
         clearUserCache(id);
-        
+
         log.info("更新用户信息并清除缓存：userId={}", id);
     }
 
@@ -464,10 +464,10 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         // 2. 执行删除（MyBatis-Plus 会自动处理逻辑删除，通过@TableLogic 注解）
         sysUserMapper.deleteById(id);
-    
+
         // 3. 清除缓存
         clearUserCache(id);
-            
+
         log.info("删除用户成功并清除缓存：userId={}", id);
     }
 
@@ -482,7 +482,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     public void changeOwnPassword(Long currentUserId, UserChangePasswordDTO dto) {
         // 1. 查询当前用户
         SysUser user = sysUserMapper.selectById(currentUserId);
-        if (user == null || user.getIsDeleted() == 1) {
+        if (user == null || user.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.USER_NOT_FOUND);
         }
 
@@ -504,7 +504,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
 
         sysUserMapper.updateById(updateUser);
         clearUserCache(currentUserId);
-        
+
         log.info("用户修改密码成功并清除缓存：userId={}", currentUserId);
     }
 
@@ -642,7 +642,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
                 vo.setRoleLevel(admin.getRoleLevel());
 
                 // 填充院系名称
-                if (admin.getRoleLevel().equals(IsDepartment.DEPARTMENT.getCode())) {
+                if (admin.getRoleLevel().equals(AdminRole.DEPARTMENT_ADMIN.getCode())) {
                     SysDepartment dept = sysDepartmentMapper.selectById(admin.getDepartmentId());
                     if (dept != null) {
                         vo.setDepartmentName(dept.getName());
@@ -673,16 +673,12 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
      * - 学生：不显示其他用户信息
      *
      * @param wrapper 查询条件
-     * @param queryDTO 查询参数
      */
-    private void addPermissionFilter(LambdaQueryWrapper<SysUser> wrapper, UserPageQueryDTO queryDTO) {
+    private void addPermissionFilter(LambdaQueryWrapper<SysUser> wrapper) {
         // 使用通用数据权限过滤方法
         dataPermissionUtil.addCommonDataPermissionFilter(
-            wrapper,
             // 学生：不需要过滤用户列表（学生不能查看其他用户信息）
-            studentId -> {
-                log.debug("学生用户查询用户列表，无权限过滤");
-            },
+            studentId -> log.debug("学生用户查询用户列表，无权限过滤"),
             // 教师：只查看选择自己课题的学生
             teacherId -> {
                 // 使用子查询过滤：只返回选择了该教师课题的学生

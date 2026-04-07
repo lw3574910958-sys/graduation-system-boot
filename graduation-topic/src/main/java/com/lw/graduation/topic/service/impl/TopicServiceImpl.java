@@ -27,6 +27,9 @@ import com.lw.graduation.infrastructure.mapper.teacher.BizTeacherMapper;
 import com.lw.graduation.infrastructure.mapper.department.SysDepartmentMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import com.lw.graduation.domain.entity.topic.BizTopic;
+import com.lw.graduation.domain.enums.common.IsDelete;
+import com.lw.graduation.domain.enums.status.ReviewStatus;
+import com.lw.graduation.domain.enums.status.TopicReviewFilter;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.selection.BizSelectionMapper;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
@@ -77,14 +80,14 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                 .eq(queryDTO.getNature() != null, BizTopic::getNature, queryDTO.getNature())
                 .eq(queryDTO.getDifficulty() != null, BizTopic::getDifficulty, queryDTO.getDifficulty())
                 .eq(queryDTO.getWorkload() != null, BizTopic::getWorkload, queryDTO.getWorkload())
-                .eq(BizTopic::getIsDeleted, 0)
+                .eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                 .orderByDesc(BizTopic::getCreatedAt);
 
         // 2. 处理审核状态筛选
         applyReviewStatusFilter(wrapper, queryDTO);
 
         // 3. 根据用户类型添加权限过滤（使用通用方法）
-        addPermissionFilter(wrapper, queryDTO);
+        addPermissionFilter(wrapper);
 
         // 4. 执行分页查询
         IPage<BizTopic> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
@@ -116,7 +119,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         return cacheHelper.getFromCache(cacheKey, TopicVO.class, () -> {
             BizTopic topic = bizTopicMapper.selectById(id);
-            if (topic == null || topic.getIsDeleted() == 1) {
+            if (topic == null || topic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
                 return null;
             }
             return convertToTopicVO(topic);
@@ -162,8 +165,8 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         topic.setSelectedCount(0); // 新增时已选人数为 0
         
         // 根据传入的 status 字段设置初始状态
-        // 如果 status=1（直接提交审核），则设置为 REVIEWING；否则默认为 DRAFT
-        if (createDTO.getStatus() != null && createDTO.getStatus() == 1) {
+        // 如果 status=REVIEWING（直接提交审核），则设置为 REVIEWING；否则默认为 DRAFT
+        if (createDTO.getStatus() != null && createDTO.getStatus().equals(TopicStatus.REVIEWING.getCode())) {
             topic.setStatus(TopicStatus.REVIEWING.getCode());
             log.info("题目创建时直接提交审核，ID: {}", topic.getId());
         } else {
@@ -196,7 +199,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         // 1. 检查题目是否存在
         BizTopic existingTopic = getById(id);
-        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+        if (existingTopic == null || existingTopic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
 
@@ -240,7 +243,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         // 1. 检查题目是否存在
         BizTopic existingTopic = getById(id);
-        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+        if (existingTopic == null || existingTopic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
 
@@ -274,7 +277,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         // 1. 检查题目是否存在
         BizTopic existingTopic = getById(id);
-        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+        if (existingTopic == null || existingTopic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
 
@@ -313,7 +316,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         // 1. 检查题目是否存在
         BizTopic existingTopic = getById(topicId);
-        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+        if (existingTopic == null || existingTopic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
 
@@ -353,7 +356,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
 
         // 1. 检查题目是否存在
         BizTopic existingTopic = getById(reviewDTO.getTopicId());
-        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+        if (existingTopic == null || existingTopic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "题目不存在");
         }
 
@@ -364,17 +367,17 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         }
 
         // 3. 根据审核结果更新状态和审核结果字段
-        if (reviewDTO.getReviewResult() == 1) {
+        if (reviewDTO.getReviewResult().equals(ReviewStatus.APPROVED.getCode())) {
             // 审核通过：转为开放状态
             topicInternalService.updateTopicStatus(reviewDTO.getTopicId(), TopicStatus.OPEN.getCode());
             // 更新最近一次审核结果为通过，并保存审核意见
-            updateLastReviewOutcome(reviewDTO.getTopicId(), 1, reviewDTO.getReviewComment());
+            updateLastReviewOutcome(reviewDTO.getTopicId(), ReviewStatus.APPROVED.getCode(), reviewDTO.getReviewComment());
             log.info("题目 [{}] 审核通过，审核意见：{}", reviewDTO.getTopicId(), reviewDTO.getReviewComment());
-        } else if (reviewDTO.getReviewResult() == 2) {
+        } else if (reviewDTO.getReviewResult().equals(ReviewStatus.REJECTED.getCode())) {
             // 审核驳回：退回草稿状态，记录驳回意见
             topicInternalService.updateTopicStatus(reviewDTO.getTopicId(), TopicStatus.DRAFT.getCode());
             // 更新最近一次审核结果为驳回，并保存审核意见
-            updateLastReviewOutcome(reviewDTO.getTopicId(), 2, reviewDTO.getReviewComment());
+            updateLastReviewOutcome(reviewDTO.getTopicId(), ReviewStatus.REJECTED.getCode(), reviewDTO.getReviewComment());
             log.info("题目 [{}] 审核驳回，审核意见：{}", reviewDTO.getTopicId(), reviewDTO.getReviewComment());
         } else {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "无效的审核结果");
@@ -401,59 +404,6 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                .set(BizTopic::getReviewedAt, LocalDateTime.now());
         update(wrapper);
     }
-
-    /**
-     * 获取可选题目列表（开放状态且未满员的题目）
-     * 学生选题功能的核心方法
-     *
-     * @param departmentId 院系ID(null表示所有院系)
-     * @return 可选题目列表
-     */
-    public List<TopicVO> getAvailableTopics(Long departmentId) {
-        log.info("获取可选题目列表（开放且未满员），院系ID: {}", departmentId);
-
-        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizTopic::getStatus, TopicStatus.OPEN.getCode()) // 开放状态
-               .apply("selected_count < max_selections") // 未满员
-               .eq(BizTopic::getIsDeleted, 0);
-
-        if (departmentId != null) {
-            wrapper.eq(BizTopic::getDepartmentId, departmentId);
-        }
-
-        wrapper.orderByDesc(BizTopic::getCreatedAt);
-
-        return list(wrapper).stream()
-                .map(this::convertToTopicVO)
-                .toList();
-    }
-
-    /**
-     * 教师获取自己发布的题目列表
-     * 教师管理功能接口
-     *
-     * @param teacherId 教师ID
-     * @param status 题目状态(null表示所有状态)
-     * @return 题目列表
-     */
-    public List<TopicVO> getTopicsByTeacher(Long teacherId, Integer status) {
-        log.info("教师[{}] 获取题目列表，状态: {}", teacherId, status);
-
-        LambdaQueryWrapper<BizTopic> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizTopic::getTeacherId, teacherId)
-               .eq(BizTopic::getIsDeleted, 0);
-
-        if (status != null) {
-            wrapper.eq(BizTopic::getStatus, status);
-        }
-
-        wrapper.orderByDesc(BizTopic::getCreatedAt);
-
-        return list(wrapper).stream()
-                .map(this::convertToTopicVO)
-                .toList();
-    }
-
 
     /**
      * 转换为 TopicVO（包含教师工号和院系名称）
@@ -508,7 +458,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
      */
     public void handleSelectionApplied(Long topicId) {
         BizTopic topic = getById(topicId);
-        if (topic == null || topic.getIsDeleted() == 1) {
+        if (topic == null || topic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             return;
         }
     
@@ -539,7 +489,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     @Transactional(rollbackFor = Exception.class)
     public void handleSelectionConfirmed(Long topicId) {
         BizTopic topic = getById(topicId);
-        if (topic == null || topic.getIsDeleted() == 1) {
+        if (topic == null || topic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             return;
         }
     
@@ -588,7 +538,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
     private void toggleTopicStatusInternal(Long id, Integer newStatus, String action) {
         // 1. 检查课题是否存在
         BizTopic existingTopic = getById(id);
-        if (existingTopic == null || existingTopic.getIsDeleted() == 1) {
+        if (existingTopic == null || existingTopic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "课题不存在");
         }
 
@@ -605,7 +555,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         }
 
         // 4. 状态转换检查
-        if (newStatus == 2) { // 开放
+        if (newStatus.equals(TopicStatus.OPEN.getCode())) { // 开放
             if (existingTopic.getSelectedCount() >= existingTopic.getMaxSelections()) {
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "课题已达人数上限，无法开放");
             }
@@ -632,25 +582,31 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
         String reviewStatus = queryDTO.getReviewStatus();
 
         // 教师视角：1-审核通过，2-审核驳回
-        if ("1".equals(reviewStatus)) {
-            // 审核通过：status 为 OPEN(2) 或 CLOSED(3)
-            wrapper.in(BizTopic::getStatus, TopicStatus.OPEN.getCode(), TopicStatus.CLOSED.getCode());
-            log.info("教师查询审核通过的题目");
-        } else if ("2".equals(reviewStatus)) {
-            // 审核驳回：status 为 DRAFT(0) 且 last_review_outcome 为 2
-            wrapper.eq(BizTopic::getStatus, TopicStatus.DRAFT.getCode())
-                   .eq(BizTopic::getLastReviewOutcome, 2);
-            log.info("教师查询审核驳回的题目");
-        }
         // 管理员视角：pending-待审核，reviewed-已审核
-        else if ("pending".equals(reviewStatus)) {
-            // 待审核：last_review_outcome 为 NULL
-            wrapper.isNull(BizTopic::getLastReviewOutcome);
-            log.info("管理员查询待审核的题目");
-        } else if ("reviewed".equals(reviewStatus)) {
-            // 已审核：last_review_outcome 不为 NULL（包括通过和驳回）
-            wrapper.isNotNull(BizTopic::getLastReviewOutcome);
-            log.info("管理员查询已审核的题目");
+        TopicReviewFilter filter = IEnum.getByCode(TopicReviewFilter.class, reviewStatus);
+        if (filter == null) {
+            return; // 无效的筛选条件，不处理
+        }
+
+        switch (filter) {
+            case TEACHER_APPROVED -> { // 审核通过：status 为 OPEN(2) 或 CLOSED(3)
+                wrapper.in(BizTopic::getStatus, TopicStatus.OPEN.getCode(), TopicStatus.CLOSED.getCode());
+                log.info("教师查询审核通过的题目");
+            }
+            case TEACHER_REJECTED -> { // 审核驳回：status 为 DRAFT(0) 且 last_review_outcome 为 REJECTED(2)
+                wrapper.eq(BizTopic::getStatus, TopicStatus.DRAFT.getCode())
+                       .eq(BizTopic::getLastReviewOutcome, ReviewStatus.REJECTED.getCode());
+                log.info("教师查询审核驳回的题目");
+            }
+            case ADMIN_PENDING -> { // 待审核：last_review_outcome 为 NULL
+                wrapper.isNull(BizTopic::getLastReviewOutcome);
+                log.info("管理员查询待审核的题目");
+            }
+            case ADMIN_REVIEWED -> { // 已审核：last_review_outcome 不为 NULL（包括通过和驳回）
+                wrapper.isNotNull(BizTopic::getLastReviewOutcome);
+                log.info("管理员查询已审核的题目");
+            }
+            default -> {} // 其他值不处理
         }
     }
 
@@ -664,12 +620,10 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
      *   - 已申请选题：只查看已申请的题目
      *
      * @param wrapper 查询条件
-     * @param queryDTO 查询参数
      */
-    private void addPermissionFilter(LambdaQueryWrapper<BizTopic> wrapper, TopicPageQueryDTO queryDTO) {
+    private void addPermissionFilter(LambdaQueryWrapper<BizTopic> wrapper) {
         // 使用通用数据权限过滤方法
         dataPermissionUtil.addCommonDataPermissionFilter(
-            wrapper,
             // 学生：只查看本院系教师开放的题目 OR 已申请的题目
             studentId -> {
                 Long studentDepartmentId = dataPermissionUtil.getCurrentUserDepartmentId();
@@ -677,7 +631,7 @@ public class TopicServiceImpl extends ServiceImpl<BizTopicMapper, BizTopic> impl
                     // 检查该学生是否已有选题申请（包括待审核、通过、驳回等所有状态的申请）
                     LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
                     selectionWrapper.eq(BizSelection::getStudentId, studentId)
-                                   .eq(BizSelection::getIsDeleted, 0);
+                                   .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
                     
                     long selectionCount = bizSelectionMapper.selectCount(selectionWrapper);
                     

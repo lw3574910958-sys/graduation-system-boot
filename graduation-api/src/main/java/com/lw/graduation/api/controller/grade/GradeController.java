@@ -8,21 +8,17 @@ import com.lw.graduation.api.dto.grade.GradeInputDTO;
 import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.service.grade.GradeService;
-import com.lw.graduation.api.vo.grade.GradeExportVO;
 import com.lw.graduation.api.vo.grade.GradeVO;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -219,28 +215,12 @@ public class GradeController {
      * 导出成绩数据为 Excel
      *
      * @param queryDTO 查询条件
-     * @param response HTTP 响应
+     * @return Excel文件响应
      */
     @GetMapping("/export")
     @Operation(summary = "导出成绩报表")
     @SaCheckRole(value = {"system_admin", "department_admin"}, mode = SaMode.OR)
-    public void exportGrades(GradePageQueryDTO queryDTO, HttpServletResponse response) {
-        try {
-            List<GradeExportVO> dataList = gradeService.exportGrades(queryDTO);
-            
-            // 设置响应头
-            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.setCharacterEncoding("utf-8");
-            String fileName = URLEncoder.encode("成绩报表_" + System.currentTimeMillis(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
-            response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
-            
-            // 使用 EasyExcel 写入
-            com.alibaba.excel.EasyExcel.write(response.getOutputStream(), GradeExportVO.class)
-                    .sheet("成绩列表")
-                    .doWrite(dataList);
-        } catch (IOException e) {
-            log.error("成绩导出失败", e);
-            throw new RuntimeException("成绩导出失败");
-        }
+    public ResponseEntity<byte[]> exportGrades(GradePageQueryDTO queryDTO) {
+        return gradeService.exportGradesResponse(queryDTO);
     }
 }

@@ -18,12 +18,12 @@ public enum ReviewStatus implements IEnum<Integer> {
      * 待审核
      */
     PENDING(0, "待审"),
-    
+
     /**
      * 审核通过
      */
     APPROVED(1, "通过"),
-    
+
     /**
      * 审核驳回
      */
@@ -38,7 +38,7 @@ public enum ReviewStatus implements IEnum<Integer> {
      */
     private final String description;
 
-    
+
 
     /**
      * 判断是否为最终状态（通过或驳回）
@@ -47,14 +47,5 @@ public enum ReviewStatus implements IEnum<Integer> {
      */
     public boolean isFinalStatus() {
         return this == APPROVED || this == REJECTED;
-    }
-
-    /**
-     * 判断是否可以重新提交审核
-     *
-     * @return 可以重新提交返回true
-     */
-    public boolean canResubmit() {
-        return this == REJECTED;
     }
 }

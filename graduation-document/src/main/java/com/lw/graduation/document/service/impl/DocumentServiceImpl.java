@@ -27,6 +27,7 @@ import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.document.DocumentFileType;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.domain.enums.grade.GradeType;
 import com.lw.graduation.domain.enums.status.ReviewStatus;
 import com.lw.graduation.infrastructure.mapper.document.BizDocumentMapper;
@@ -36,15 +37,23 @@ import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import com.lw.graduation.infrastructure.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 文档服务实现类
@@ -70,41 +79,41 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     /**
      * 为审核通过的文档自动创建评分记录
-     * 
+     *
      * @param document 已审核通过的文档
      */
     private void createGradeRecordForApprovedDocument(BizDocument document) {
         try {
-            log.info("为审核通过的文档自动创建评分记录：文档 ID={}, 学生 ID={}, 题目 ID={}, 文件类型={}", 
+            log.info("为审核通过的文档自动创建评分记录：文档 ID={}, 学生 ID={}, 题目 ID={}, 文件类型={}",
                     document.getId(), document.getUserId(), document.getTopicId(), document.getFileType());
-            
+
             // 1. 根据 user_id 获取学生业务 ID
             BizStudent student = dataPermissionUtil.getStudentByUserId(document.getUserId());
             if (student == null) {
                 log.warn("无法找到学生信息：userId={}", document.getUserId());
                 return;
             }
-            
+
             // 2. 根据文档类型确定成绩类型
             GradeType gradeType = getGradeTypeByFileType(document.getFileType());
             if (gradeType == null) {
                 log.warn("不支持的成绩类型：fileType={}", document.getFileType());
                 return;
             }
-            
+
             // 3. 检查是否已存在对应类型的成绩记录
             LambdaQueryWrapper<BizGrade> existWrapper = new LambdaQueryWrapper<>();
             existWrapper.eq(BizGrade::getStudentId, student.getId())
                    .eq(BizGrade::getTopicId, document.getTopicId())
                    .eq(BizGrade::getGradeType, gradeType.getCode())
-                   .eq(BizGrade::getIsDeleted, 0);
-            
+                   .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+
             if (bizGradeMapper.selectCount(existWrapper) > 0) {
-                log.info("成绩记录已存在，跳过创建：studentId={}, topicId={}, gradeType={}", 
+                log.info("成绩记录已存在，跳过创建：studentId={}, topicId={}, gradeType={}",
                         student.getId(), document.getTopicId(), gradeType.getDescription());
                 return;
             }
-            
+
             // 4. 创建成绩记录（只填充基本信息，分数和评语等教师后续录入）
             GradeInputDTO inputDTO = new GradeInputDTO();
             inputDTO.setStudentId(student.getId());
@@ -112,16 +121,16 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
             inputDTO.setGradeType(gradeType.getCode());
             // 注意：不设置 score 和 comment，由教师在正式评分时录入
             // gradedAt 也会在教师第一次评分时自动设置
-            
+
             // 5. 调用成绩服务录入（使用文档的审核人 ID）
             gradeService.inputGradeForAutoCreate(inputDTO, document.getReviewerId());
-            
-            log.info("评分记录创建成功：studentId={}, topicId={}, gradeType={}, graderId={}", 
+
+            log.info("评分记录创建成功：studentId={}, topicId={}, gradeType={}, graderId={}",
                     student.getId(), document.getTopicId(), gradeType.getDescription(), document.getReviewerId());
-            
+
             // 6. 如果是毕业论文，尝试自动计算综合成绩（新增功能）
             if (gradeType == GradeType.THESIS_GRADE) {
-                log.info("毕业论文审核通过，尝试自动计算综合成绩：studentId={}, topicId={}", 
+                log.info("毕业论文审核通过，尝试自动计算综合成绩：studentId={}, topicId={}",
                         student.getId(), document.getTopicId());
                 gradeService.tryAutoSaveCompositeGrade(student.getId(), document.getTopicId(), document.getReviewerId());
             }
@@ -133,7 +142,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     /**
      * 根据文件类型获取对应的成绩类型
-     * 
+     *
      * @param fileType 文件类型代码
      * @return 成绩类型枚举
      */
@@ -141,7 +150,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         if (fileType == null) {
             return null;
         }
-        
+
         return switch (fileType) {
             case 0 -> GradeType.PROPOSAL_GRADE; // 开题报告
             case 1 -> GradeType.MIDTERM_GRADE;  // 中期报告
@@ -152,7 +161,6 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
     /**
      * 根据用户类型添加权限过滤条件（使用通用方法）
-     *
      * 角色策略：
      * - 学生：只能查看自己提交的文档（user_id = 当前登录用户 ID）
      * - 教师：可以查看自己学生（选择该教师发布的题目）提交的所有文档
@@ -160,12 +168,10 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
      * - 系统管理员：可以查看所有学生提交的文档
      *
      * @param wrapper 查询条件包装器
-     * @param queryDTO 查询参数
      */
-    private void addPermissionFilter(LambdaQueryWrapper<BizDocument> wrapper, DocumentPageQueryDTO queryDTO) {
+    private void addPermissionFilter(LambdaQueryWrapper<BizDocument> wrapper) {
         // 数据权限过滤（核心逻辑）
         dataPermissionUtil.addCommonDataPermissionFilter(
-            wrapper,
             // 学生角色：只能查看自己的文档（注意：这里 studentId 实际是 biz_student.id）
             // 但 biz_document.user_id 关联的是 sys_user.id，所以需要特殊处理
             studentBizId -> {
@@ -201,13 +207,13 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         LambdaQueryWrapper<BizDocument> wrapper = new LambdaQueryWrapper<>();
 
         // 2. 添加通用数据权限过滤（核心修复）
-        addPermissionFilter(wrapper, queryDTO);
+        addPermissionFilter(wrapper);
 
         // 3. 其他查询条件
         wrapper.eq(queryDTO.getTopicId() != null, BizDocument::getTopicId, queryDTO.getTopicId())
                 .eq(queryDTO.getFileType() != null, BizDocument::getFileType, queryDTO.getFileType())
                 .eq(queryDTO.getReviewStatus() != null, BizDocument::getReviewStatus, queryDTO.getReviewStatus())
-                .eq(BizDocument::getIsDeleted, 0);
+                .eq(BizDocument::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
         // 关键词搜索
         if (StringUtils.hasText(queryDTO.getKeyword())) {
@@ -262,7 +268,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         return cacheHelper.getFromCache(cacheKey, DocumentVO.class, () -> {
             BizDocument document = bizDocumentMapper.selectById(id);
-            if (document == null || document.getIsDeleted() == 1) {
+            if (document == null || document.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
                 return null;
             }
             return convertToDocumentVO(document);
@@ -293,37 +299,18 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         existWrapper.eq(BizDocument::getUserId, userId)
                 .eq(BizDocument::getTopicId, uploadDTO.getTopicId())
                 .eq(BizDocument::getFileType, uploadDTO.getFileType())
-                .eq(BizDocument::getIsDeleted, 0);
+                .eq(BizDocument::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
         if (count(existWrapper) > 0) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型文档已存在，请先删除原文件");
         }
 
         // 3.5 查询题目发布教师对应的 sys_user.id（用于设置审核人）
-        Long reviewerUserId = null;
-        if (uploadDTO.getTopicId() != null) {
-            BizTopic topic = bizTopicMapper.selectById(uploadDTO.getTopicId());
-            if (topic != null && topic.getTeacherId() != null) {
-                LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
-                teacherWrapper.eq(BizTeacher::getId, topic.getTeacherId())
-                             .eq(BizTeacher::getIsDeleted, 0);
-                BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
-                if (teacher != null) {
-                    reviewerUserId = teacher.getUserId();
-                    log.info("查询到题目发布教师对应的 sys_user.id: {}", reviewerUserId);
-                }
-            }
-        }
+        Long reviewerUserId = getReviewerUserIdByTopicId(uploadDTO.getTopicId());
 
         // 4. 上传文件到存储服务
         String folder = "documents/" + fileType.name().toLowerCase();
-        String storedPath;
-        try {
-            storedPath = fileStorageService.store(uploadDTO.getFile(), folder);
-        } catch (Exception e) {
-            log.error("文件存储失败", e);
-            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件上传失败");
-        }
+        String storedPath = uploadFileToStorage(uploadDTO.getFile(), folder);
 
         // 5. 创建文档记录
         BizDocument document = new BizDocument();
@@ -359,7 +346,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 1. 获取文档信息
         BizDocument document = getById(documentId);
-        if (document == null || document.getIsDeleted() == 1) {
+        if (document == null || document.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
 
@@ -382,7 +369,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 1. 获取文档信息
         BizDocument document = getById(reviewDTO.getDocumentId());
-        if (document == null || document.getIsDeleted() == 1) {
+        if (document == null || document.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
 
@@ -441,12 +428,12 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 1. 获取文档信息
         BizDocument document = getById(id);
-        if (document == null || document.getIsDeleted() == 1) {
+        if (document == null || document.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
 
         // 2. 验证删除权限
-        permissionValidationService.validateDocumentDeletePermission(id, userId, document);
+        permissionValidationService.validateDocumentDeletePermission(userId, document);
 
         // 3. 验证文档状态（已通过审核的文档不能删除）
         if (document.isApproved()) {
@@ -568,7 +555,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 构建ID到详情的映射
         Map<Long, Map<String, Object>> detailsMap = documentDetails.stream()
-                .collect(java.util.stream.Collectors.toMap(
+                .collect(Collectors.toMap(
                         detail -> ((Number) detail.get("id")).longValue(),
                         detail -> detail,
                         (existing, replacement) -> existing
@@ -661,7 +648,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                     .eq(BizDocument::getTopicId, topicId)
                     .eq(BizDocument::getFileType, DocumentFileType.PROPOSAL.getCode())
                     .eq(BizDocument::getReviewStatus, ReviewStatus.APPROVED.getCode())
-                    .eq(BizDocument::getIsDeleted, 0);
+                    .eq(BizDocument::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
             if (count(proposalWrapper) == 0) {
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(),
@@ -674,7 +661,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
                     .eq(BizDocument::getTopicId, topicId)
                     .eq(BizDocument::getFileType, DocumentFileType.MIDTERM.getCode())
                     .eq(BizDocument::getReviewStatus, ReviewStatus.APPROVED.getCode())
-                    .eq(BizDocument::getIsDeleted, 0);
+                    .eq(BizDocument::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
             if (count(midtermWrapper) == 0) {
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(),
@@ -698,7 +685,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 1. 获取原文档信息
         BizDocument originalDocument = getById(originalDocumentId);
-        if (originalDocument == null || originalDocument.getIsDeleted() == 1) {
+        if (originalDocument == null || originalDocument.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "原文档不存在");
         }
 
@@ -709,7 +696,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 3. 验证文档状态（只能重新上传被驳回的文档）
         ReviewStatus reviewStatus = IEnum.getByCode(ReviewStatus.class, originalDocument.getReviewStatus());
-        if (reviewStatus == null || reviewStatus != ReviewStatus.REJECTED) {
+        if (reviewStatus != ReviewStatus.REJECTED) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只能重新上传被驳回的文档");
         }
 
@@ -722,13 +709,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         DocumentFileType fileType =
             IEnum.getByCode(DocumentFileType.class, uploadDTO.getFileType());
         String folder = "documents/" + (fileType != null ? fileType.name().toLowerCase() : "other");
-        String storedPath;
-        try {
-            storedPath = fileStorageService.store(uploadDTO.getFile(), folder);
-        } catch (Exception e) {
-            log.error("文件存储失败", e);
-            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件上传失败");
-        }
+        String storedPath = uploadFileToStorage(uploadDTO.getFile(), folder);
 
         // 6. 创建新的文档记录（替换原文档）
         BizDocument newDocument = new BizDocument();
@@ -776,7 +757,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 1. 获取文档信息
         BizDocument document = getById(documentId);
-        if (document == null || document.getIsDeleted() == 1) {
+        if (document == null || document.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             throw new BusinessException(ResponseCode.NOT_FOUND.getCode(), "文档不存在");
         }
 
@@ -787,7 +768,7 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
 
         // 3. 验证文档状态（只能撤销待审核状态的文档）
         ReviewStatus reviewStatus = IEnum.getByCode(ReviewStatus.class, document.getReviewStatus());
-        if (reviewStatus == null || reviewStatus != ReviewStatus.PENDING) {
+        if (reviewStatus != ReviewStatus.PENDING) {
             throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "只能撤销待审核状态的文档");
         }
 
@@ -801,5 +782,183 @@ public class DocumentServiceImpl extends ServiceImpl<BizDocumentMapper, BizDocum
         clearDocumentCache(documentId);
 
         log.info("文档撤销成功，ID: {}", documentId);
+    }
+
+    /**
+     * 下载文档响应（包含完整的HTTP响应头设置）
+     *
+     * @param documentId 文档ID
+     * @return ResponseEntity<byte[]>
+     */
+    @Override
+    public ResponseEntity<byte[]> downloadDocumentResponse(Long documentId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+
+        try (InputStream inputStream = downloadDocument(documentId, userId)) {
+            // 获取文档信息并构建响应
+            return buildDocumentResponse(documentId, inputStream, false);
+        } catch (BusinessException e) {
+            // 权限验证失败，返回 403
+            log.warn("文档下载权限不足：文档 ID={}, 用户 ID={}, 原因：{}", documentId, userId, e.getMessage());
+            return ResponseEntity.status(403).build();
+        } catch (Exception e) {
+            log.error("文档下载失败：{}", documentId, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 预览文档响应（包含完整的HTTP响应头设置）
+     *
+     * @param documentId 文档ID
+     * @return ResponseEntity<byte[]>
+     */
+    @Override
+    public ResponseEntity<byte[]> previewDocumentResponse(Long documentId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+
+        try (InputStream inputStream = downloadDocument(documentId, userId)) {
+            // 获取文档信息并构建响应
+            return buildDocumentResponse(documentId, inputStream, true);
+        } catch (BusinessException e) {
+            // 权限验证失败，返回 403
+            log.warn("文档预览权限不足：文档 ID={}, 用户 ID={}, 原因：{}", documentId, userId, e.getMessage());
+            return ResponseEntity.status(403).build();
+        } catch (Exception e) {
+            log.error("文档预览失败：{}", documentId, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 根据文件名获取 Content-Type（复用 FileFormatType 枚举）
+     */
+    private String getContentType(String filename) {
+        if (filename == null) {
+            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+
+        // 获取文件扩展名
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex >= filename.length() - 1) {
+            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+
+        String extension = filename.substring(lastDotIndex + 1).toLowerCase();
+
+        // 复用 FileFormatType 枚举获取 MIME 类型
+        com.lw.graduation.common.enums.FileFormatType fileType = com.lw.graduation.common.enums.FileFormatType.getByExtension(extension);
+        if (fileType != null) {
+            // 根据文件类别返回对应的 MIME 类型
+            return switch (fileType.getCategory()) {
+                case IMAGE -> switch (extension) {
+                    case "png" -> MediaType.IMAGE_PNG_VALUE;
+                    case "gif" -> MediaType.IMAGE_GIF_VALUE;
+                    default -> MediaType.IMAGE_JPEG_VALUE;
+                };
+                case DOCUMENT -> switch (extension) {
+                    case "pdf" -> MediaType.APPLICATION_PDF_VALUE;
+                    case "txt", "md" -> MediaType.TEXT_PLAIN_VALUE;
+                    case "doc" -> "application/msword";
+                    case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    case "xls" -> "application/vnd.ms-excel";
+                    case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                    default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
+                };
+                default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
+            };
+        }
+
+        // 特殊处理 CSV
+        if ("csv".equals(extension)) {
+            return "text/csv";
+        }
+
+        return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+    }
+
+    /**
+     * 根据题目ID查询审核教师用户ID
+     *
+     * @param topicId 题目ID
+     * @return 审核教师用户ID，如果未找到则返回null
+     */
+    private Long getReviewerUserIdByTopicId(Long topicId) {
+        if (topicId == null) {
+            return null;
+        }
+        
+        BizTopic topic = bizTopicMapper.selectById(topicId);
+        if (topic == null || topic.getTeacherId() == null) {
+            return null;
+        }
+        
+        LambdaQueryWrapper<BizTeacher> teacherWrapper = new LambdaQueryWrapper<>();
+        teacherWrapper.eq(BizTeacher::getId, topic.getTeacherId())
+                     .eq(BizTeacher::getIsDeleted, IsDelete.NOT_DELETED.getCode());
+        BizTeacher teacher = bizTeacherMapper.selectOne(teacherWrapper);
+        
+        if (teacher != null) {
+            log.info("查询到题目发布教师对应的 sys_user.id: {}", teacher.getUserId());
+            return teacher.getUserId();
+        }
+        
+        return null;
+    }
+
+    /**
+     * 上传文件到存储服务
+     *
+     * @param file 要上传的文件
+     * @param folder 存储文件夹
+     * @return 存储路径
+     */
+    private String uploadFileToStorage(MultipartFile file, String folder) {
+        try {
+            return fileStorageService.store(file, folder);
+        } catch (Exception e) {
+            log.error("文件存储失败", e);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件上传失败");
+        }
+    }
+
+    /**
+     * 构建文档响应（下载或预览）
+     *
+     * @param documentId 文档ID
+     * @param inputStream 文件输入流
+     * @param isPreview 是否为预览模式（true=inline, false=attachment）
+     * @return ResponseEntity
+     */
+    private ResponseEntity<byte[]> buildDocumentResponse(Long documentId, InputStream inputStream, boolean isPreview) {
+        try {
+            // 获取文档信息
+            DocumentVO document = getDocumentById(documentId);
+            if (document == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // 读取文件内容
+            byte[] bytes = inputStream.readAllBytes();
+
+            // 设置响应头
+            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
+            HttpHeaders headers = new HttpHeaders();
+            String contentType = getContentType(document.getOriginalFilename());
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            
+            // 根据模式设置 Content-Disposition
+            String disposition = isPreview ? "inline" : "attachment";
+            headers.setContentDispositionFormData(disposition, null);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename*=UTF-8''" + filename);
+            headers.setContentLength(bytes.length);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(bytes);
+        } catch (IOException e) {
+            log.error("读取文件内容失败：documentId={}", documentId, e);
+            throw new BusinessException(ResponseCode.ERROR.getCode(), "文件读取失败");
+        }
     }
 }

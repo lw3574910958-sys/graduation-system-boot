@@ -24,6 +24,7 @@ import com.lw.graduation.domain.entity.teacher.BizTeacher;
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.domain.entity.user.SysUser;
 import com.lw.graduation.domain.enums.grade.GradeType;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.grade.service.calculator.GradeCalculatorService;
 import com.lw.graduation.grade.service.calculator.GradeDistribution;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
@@ -33,10 +34,16 @@ import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 import com.lw.graduation.infrastructure.mapper.user.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,7 +116,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         return cacheHelper.getFromCache(cacheKey, GradeVO.class, () -> {
             BizGrade grade = bizGradeMapper.selectById(id);
-            if (grade == null || grade.getIsDeleted() == 1) {
+            if (grade == null || grade.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
                 return null;
             }
             return convertToGradeVO(grade);
@@ -130,7 +137,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         existWrapper.eq(BizGrade::getStudentId, inputDTO.getStudentId())
                .eq(BizGrade::getTopicId, inputDTO.getTopicId())
                .eq(BizGrade::getGradeType, inputDTO.getGradeType())
-               .eq(BizGrade::getIsDeleted, 0);
+               .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         
         BizGrade existingGrade = getOne(existWrapper);
         
@@ -152,8 +159,8 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             }
             
             // 验证成绩范围
-            if (inputDTO.getScore().compareTo(java.math.BigDecimal.ZERO) < 0 || 
-                inputDTO.getScore().compareTo(new java.math.BigDecimal("100")) > 0) {
+            if (inputDTO.getScore().compareTo(BigDecimal.ZERO) < 0 || 
+                inputDTO.getScore().compareTo(new BigDecimal("100")) > 0) {
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "成绩必须在 0-100 之间");
             }
             
@@ -162,7 +169,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             
             // 设置评分时间（首次录入时）
             if (existingGrade.getGradedAt() == null) {
-                existingGrade.setGradedAt(java.time.LocalDateTime.now());
+                existingGrade.setGradedAt(LocalDateTime.now());
             }
             
             log.info("成绩录入 - ID: {}, 学生：{}, 类型：{}, 分数：{}, 评分时间：{}", 
@@ -191,12 +198,12 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public GradeVO inputGradeForAutoCreate(GradeInputDTO inputDTO, Long graderId) {
-        log.info("自动创建成绩记录：学生={}, 题目={}, 类型={}, 审核人={}", 
-                graderId, inputDTO.getStudentId(), inputDTO.getTopicId(), inputDTO.getGradeType(), graderId);
+    public void inputGradeForAutoCreate(GradeInputDTO inputDTO, Long graderId) {
+        log.info("自动创建成绩记录：学生={}, 题目={}, 类型={}", 
+                inputDTO.getStudentId(), inputDTO.getTopicId(), inputDTO.getGradeType());
         
         // 自动创建时不设置评分时间，由教师正式评分时设置
-        return inputGradeInternal(inputDTO, graderId, false, false);
+        inputGradeInternal(inputDTO, graderId, false, false);
     }
 
     /**
@@ -226,7 +233,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             existWrapper.eq(BizGrade::getStudentId, inputDTO.getStudentId())
                        .eq(BizGrade::getTopicId, inputDTO.getTopicId())
                        .eq(BizGrade::getGradeType, inputDTO.getGradeType())
-                       .eq(BizGrade::getIsDeleted, 0);
+                       .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             
             if (count(existWrapper) > 0) {
                 throw new BusinessException(ResponseCode.PARAM_ERROR.getCode(), "该类型成绩已存在，请勿重复录入");
@@ -237,10 +244,9 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         BigDecimal finalScore = inputDTO.getScore();
         
         // 使用计算器服务验证成绩（仅在有分数时）
-        Boolean isPassing = null;
         String gradeLevel = null;
         if (finalScore != null) {
-            isPassing = gradeCalculatorService.isPassing(finalScore);
+            boolean isPassing = gradeCalculatorService.isPassing(finalScore);
             gradeLevel = gradeCalculatorService.getGradeLevel(finalScore);
             
             log.info("成绩验证 - 学生：{}, 题目：{}, 类型：{}, 最终分数：{}, 及格：{}, 等级：{}", 
@@ -282,24 +288,24 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     }
 
     @Override
-    public boolean tryAutoSaveCompositeGrade(Long studentId, Long topicId, Long graderId) {
+    public void tryAutoSaveCompositeGrade(Long studentId, Long topicId, Long graderId) {
         log.info("检查是否可以自动保存综合成绩：studentId={}, topicId={}", studentId, topicId);
         
         // 1. 查询该学生该题目的所有成绩
         LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizGrade::getStudentId, studentId)
                .eq(BizGrade::getTopicId, topicId)
-               .eq(BizGrade::getIsDeleted, 0);
+               .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         
         List<BizGrade> grades = list(wrapper);
         
         // 2. 检查是否三种类型成绩都存在且有分数
         boolean hasProposal = grades.stream()
-                .anyMatch(g -> g.getGradeType() != null && g.getGradeType() == GradeType.PROPOSAL_GRADE.getCode() && g.getScore() != null);
+                .anyMatch(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.PROPOSAL_GRADE.getCode()) && g.getScore() != null);
         boolean hasMidterm = grades.stream()
-                .anyMatch(g -> g.getGradeType() != null && g.getGradeType() == GradeType.MIDTERM_GRADE.getCode() && g.getScore() != null);
+                .anyMatch(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.MIDTERM_GRADE.getCode()) && g.getScore() != null);
         boolean hasThesis = grades.stream()
-                .anyMatch(g -> g.getGradeType() != null && g.getGradeType() == GradeType.THESIS_GRADE.getCode() && g.getScore() != null);
+                .anyMatch(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.THESIS_GRADE.getCode()) && g.getScore() != null);
         
         // 3. 如果三种成绩都存在，计算并保存综合成绩
         if (hasProposal && hasMidterm && hasThesis) {
@@ -310,13 +316,13 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
             compositeWrapper.eq(BizGrade::getStudentId, studentId)
                            .eq(BizGrade::getTopicId, topicId)
                            .eq(BizGrade::getGradeType, GradeType.COMPOSITE_GRADE.getCode()) // 综合成绩
-                           .eq(BizGrade::getIsDeleted, 0);
+                           .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             
             long count = count(compositeWrapper);
             
             if (count > 0) {
                 log.info("综合成绩已存在，跳过自动保存：studentId={}, topicId={}", studentId, topicId);
-                return false;
+                return;
             }
             
             // 计算综合成绩
@@ -347,15 +353,11 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 
                 log.info("综合成绩自动保存成功：studentId={}, topicId={}, gradeId={}", 
                         studentId, topicId, compositeDTO.getStudentId());
-                
-                return true;
             }
         } else {
             log.debug("三种成绩类型未全部完成，暂不计算综合成绩：开题={}, 中期={}, 论文={}", 
                     hasProposal, hasMidterm, hasThesis);
         }
-        
-        return false;
     }
 
     /**
@@ -372,7 +374,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizGrade::getStudentId, studentId)
                .eq(BizGrade::getTopicId, topicId)
-               .eq(BizGrade::getIsDeleted, 0)
+               .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                .orderByAsc(BizGrade::getGradeType); // 按成绩类型排序
         
         List<BizGrade> grades = list(wrapper);
@@ -385,7 +387,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         // 开题报告评语
         grades.stream()
-                .filter(g -> g.getGradeType() != null && g.getGradeType() == GradeType.PROPOSAL_GRADE.getCode())
+                .filter(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.PROPOSAL_GRADE.getCode()))
                 .findFirst()
                 .ifPresent(proposalGrade -> {
                     compositeComment.append("【开题报告】");
@@ -399,7 +401,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         // 中期报告评语
         grades.stream()
-                .filter(g -> g.getGradeType() != null && g.getGradeType() == GradeType.MIDTERM_GRADE.getCode())
+                .filter(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.MIDTERM_GRADE.getCode()))
                 .findFirst()
                 .ifPresent(midtermGrade -> {
                     compositeComment.append("【中期报告】");
@@ -413,7 +415,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         // 毕业论文评语
         grades.stream()
-                .filter(g -> g.getGradeType() != null && g.getGradeType() == GradeType.THESIS_GRADE.getCode())
+                .filter(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.THESIS_GRADE.getCode()))
                 .findFirst()
                 .ifPresent(thesisGrade -> {
                     compositeComment.append("【毕业论文】");
@@ -438,7 +440,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizGrade::getStudentId, studentId)
                .eq(BizGrade::getTopicId, topicId)
-               .eq(BizGrade::getIsDeleted, 0);
+               .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         
         List<BizGrade> grades = list(wrapper);
         if (grades.isEmpty()) {
@@ -457,7 +459,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         // 开题报告评分权重 0.3
         grades.stream()
-                .filter(g -> g.getGradeType() != null && g.getGradeType() == GradeType.PROPOSAL_GRADE.getCode()) // 开题报告教师评分
+                .filter(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.PROPOSAL_GRADE.getCode())) // 开题报告教师评分
                 .findFirst()
                 .ifPresent(proposalGrade -> {
                     scores.add(proposalGrade.getScore());
@@ -466,7 +468,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         // 中期报告评分权重 0.3
         grades.stream()
-                .filter(g -> g.getGradeType() != null && g.getGradeType() == GradeType.MIDTERM_GRADE.getCode()) // 中期报告教师评分
+                .filter(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.MIDTERM_GRADE.getCode())) // 中期报告教师评分
                 .findFirst()
                 .ifPresent(midtermGrade -> {
                     scores.add(midtermGrade.getScore());
@@ -475,7 +477,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         
         // 毕业论文评分权重 0.4
         grades.stream()
-                .filter(g -> g.getGradeType() != null && g.getGradeType() == GradeType.THESIS_GRADE.getCode()) // 毕业论文教师评分
+                .filter(g -> g.getGradeType() != null && g.getGradeType().equals(GradeType.THESIS_GRADE.getCode())) // 毕业论文教师评分
                 .findFirst()
                 .ifPresent(thesisGrade -> {
                     scores.add(thesisGrade.getScore());
@@ -515,7 +517,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     public List<GradeVO> getGradesByStudent(Long studentId) {
         LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizGrade::getStudentId, studentId)
-               .eq(BizGrade::getIsDeleted, 0)
+               .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                .orderByDesc(BizGrade::getGradedAt);
         
         return list(wrapper).stream()
@@ -527,7 +529,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
     public List<GradeVO> getGradesByTeacher(Long teacherId) {
         LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizGrade::getGraderId, teacherId)
-               .eq(BizGrade::getIsDeleted, 0)
+               .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode())
                .orderByDesc(BizGrade::getGradedAt);
         
         return list(wrapper).stream()
@@ -540,7 +542,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
         try {
             // 1. 构建查询条件
             LambdaQueryWrapper<BizGrade> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BizGrade::getIsDeleted, 0);
+            wrapper.eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
             
             // 按教师筛选
             if (queryDTO.getTeacherId() != null) {
@@ -817,7 +819,7 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                 .eq(queryDTO.getGradeType() != null, BizGrade::getGradeType, queryDTO.getGradeType())
                 .ge(queryDTO.getMinScore() != null, BizGrade::getScore, queryDTO.getMinScore())
                 .le(queryDTO.getMaxScore() != null, BizGrade::getScore, queryDTO.getMaxScore())
-                .eq(BizGrade::getIsDeleted, 0);
+                .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         
         // 学生姓名模糊查询（通过子查询）
         if (queryDTO.getStudentName() != null && !queryDTO.getStudentName().trim().isEmpty()) {
@@ -905,6 +907,42 @@ public class GradeServiceImpl extends ServiceImpl<BizGradeMapper, BizGrade> impl
                     return true;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 导出成绩报表响应（包含完整的HTTP响应头设置）
+     *
+     * @param queryDTO 查询条件
+     * @return ResponseEntity<byte[]>
+     */
+    @Override
+    public ResponseEntity<byte[]> exportGradesResponse(GradePageQueryDTO queryDTO) {
+        try {
+            List<GradeExportVO> dataList = exportGrades(queryDTO);
+            
+            // 使用 EasyExcel 写入到字节数组
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            com.alibaba.excel.EasyExcel.write(outputStream, GradeExportVO.class)
+                    .sheet("成绩列表")
+                    .doWrite(dataList);
+            
+            byte[] bytes = outputStream.toByteArray();
+            
+            // 设置响应头
+            String fileName = URLEncoder.encode("成绩报表_" + System.currentTimeMillis(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDispositionFormData("attachment", null);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + fileName + ".xlsx");
+            headers.setContentLength(bytes.length);
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(bytes);
+        } catch (Exception e) {
+            log.error("成绩导出失败", e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
 }

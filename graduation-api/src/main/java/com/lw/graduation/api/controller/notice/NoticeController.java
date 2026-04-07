@@ -9,34 +9,17 @@ import com.lw.graduation.api.dto.notice.NoticePageQueryDTO;
 import com.lw.graduation.api.dto.notice.NoticeUpdateDTO;
 import com.lw.graduation.api.service.notice.NoticeService;
 import com.lw.graduation.api.vo.notice.NoticeVO;
-import com.lw.graduation.common.config.FileStorageProperties;
 import com.lw.graduation.common.response.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 /**
@@ -53,7 +36,6 @@ import java.util.List;
 public class NoticeController {
 
     private final NoticeService noticeService;
-    private final FileStorageProperties fileStorageProperties;
 
     @GetMapping("/page")
     @Operation(summary = "分页查询通知列表")
@@ -153,42 +135,7 @@ public class NoticeController {
     @Operation(summary = "下载公告附件")
     @Parameter(name = "attachmentUrl", description = "附件相对路径", required = true)
     @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
-    public ResponseEntity<Resource> downloadAttachment(
-            @RequestParam String attachmentUrl,
-            HttpServletResponse response) throws IOException {
-        try {
-            // 使用配置中的基础路径拼接文件完整路径
-            Path basePath = Paths.get(fileStorageProperties.getBasePath()).normalize();
-            Path filePath = basePath.resolve(attachmentUrl).normalize();
-
-            // 安全检查：确保解析后的路径仍在基础路径下，防止目录穿越攻击
-            if (!filePath.startsWith(basePath)) {
-                log.warn("非法的文件访问尝试: {}", attachmentUrl);
-                throw new RuntimeException("非法的文件路径");
-            }
-
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (!resource.exists() || !resource.isReadable()) {
-                log.error("文件不存在或不可读: {}, 完整路径: {}", attachmentUrl, filePath.toAbsolutePath());
-                throw new RuntimeException("文件不存在或不可读: " + attachmentUrl);
-            }
-
-            // 获取文件名并处理中文编码
-            String filename = resource.getFilename();
-            if (filename == null) {
-                filename = "file";
-            }
-            String encodedFilename = java.net.URLEncoder.encode(filename, "UTF-8").replaceAll("\\+", "%20");
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, 
-                            "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
-                    .body(resource);
-        } catch (MalformedURLException e) {
-            log.error("文件路径格式错误: {}", attachmentUrl, e);
-            throw new RuntimeException("文件路径格式错误");
-        }
+    public ResponseEntity<Resource> downloadAttachment(@RequestParam String attachmentUrl) {
+        return noticeService.downloadAttachmentResponse(attachmentUrl);
     }
 }

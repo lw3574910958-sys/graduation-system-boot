@@ -77,51 +77,6 @@ public class UnifiedFileUploadServiceImpl implements UnifiedFileUploadService {
         return buildResult(file, storedPath);
     }
 
-    @Override
-    public FileUploadResultVO uploadDocument(MultipartFile file, Long topicId, Integer fileType, Long userId) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("文档文件不能为空");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        String extension = getFileExtension(originalFilename);
-
-        // 验证文件类型
-        FileFormatType.ValidationResult result = FileFormatType.validate(extension, file.getSize());
-        if (!result.isValid()) {
-            throw new IllegalArgumentException(result.getMessage());
-        }
-
-        // 验证文档类型是否为允许的文档格式
-        FileFormatType docFileType = FileFormatType.getByExtension(extension);
-        if (docFileType == null ||
-            (docFileType.getCategory() != FileFormatType.Category.DOCUMENT &&
-             docFileType.getCategory() != FileFormatType.Category.SPREADSHEET &&
-             docFileType.getCategory() != FileFormatType.Category.PRESENTATION)) {
-            throw new IllegalArgumentException("仅支持文档、表格、演示文稿格式文件");
-        }
-
-        // 存储文档文件
-        String category = "document/topic_" + topicId + "/" + fileType;
-        String storedPath = fileStorageService.store(file, category);
-
-        // 构建返回结果
-        return buildResult(file, storedPath);
-    }
-
-    @Override
-    public boolean deleteFile(String filePath) throws IOException {
-        if (filePath == null || filePath.trim().isEmpty()) {
-            return false;
-        }
-
-        boolean deleted = fileStorageService.delete(filePath);
-        if (deleted) {
-            log.info("文件删除成功: {}", filePath);
-        }
-        return deleted;
-    }
-
     /**
      * 获取文件扩展名
      */

@@ -32,14 +32,6 @@ public class CacheConstants {
         public static final String DOCUMENT_INFO = "document:info:";
         /** 所有院系列表缓存键 */
         public static final String ALL_DEPARTMENTS = "departments:all";
-        /** 仪表盘缓存前缀 */
-        public static final String DASHBOARD_PREFIX = "dashboard:";
-        /** 学生仪表盘缓存键 */
-        public static final String DASHBOARD_STUDENT = DASHBOARD_PREFIX + "student:";
-        /** 教师仪表盘缓存键 */
-        public static final String DASHBOARD_TEACHER = DASHBOARD_PREFIX + "teacher:";
-        /** 管理员仪表盘缓存键 */
-        public static final String DASHBOARD_ADMIN = DASHBOARD_PREFIX + "admin:";
     }
 
     /**
@@ -69,8 +61,6 @@ public class CacheConstants {
         public static final int USER_INFO_EXPIRE = 900;
         /** 当前用户信息缓存过期时间：15 分钟 */
         public static final int CURRENT_USER_EXPIRE = 900;
-        /** 仪表盘缓存过期时间：5 分钟 */
-        public static final int DASHBOARD_EXPIRE = 300;
     }
 
 }

@@ -6,6 +6,7 @@ import com.lw.graduation.api.dto.grade.GradePageQueryDTO;
 import com.lw.graduation.api.dto.grade.GradeStatisticsQueryDTO;
 import com.lw.graduation.api.vo.grade.GradeExportVO;
 import com.lw.graduation.api.vo.grade.GradeVO;
+import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -51,9 +52,8 @@ public interface GradeService {
      *
      * @param inputDTO 成绩录入 DTO
      * @param graderId 评分教师 ID
-     * @return 录入的成绩 VO
      */
-    GradeVO inputGradeForAutoCreate(GradeInputDTO inputDTO, Long graderId);
+    void inputGradeForAutoCreate(GradeInputDTO inputDTO, Long graderId);
 
     /**
      * 自动计算综合成绩
@@ -72,9 +72,8 @@ public interface GradeService {
      * @param studentId 学生 ID
      * @param topicId 题目 ID
      * @param graderId 评分教师 ID（用于记录综合成绩的评分人）
-     * @return true-成功保存，false-条件不满足或已存在
      */
-    boolean tryAutoSaveCompositeGrade(Long studentId, Long topicId, Long graderId);
+    void tryAutoSaveCompositeGrade(Long studentId, Long topicId, Long graderId);
 
     /**
      * 获取学生的所有成绩
@@ -107,4 +106,12 @@ public interface GradeService {
      * @return 导出数据列表
      */
     List<GradeExportVO> exportGrades(GradePageQueryDTO queryDTO);
+
+    /**
+     * 导出成绩报表响应（包含完整的HTTP响应头设置）
+     *
+     * @param queryDTO 查询条件
+     * @return ResponseEntity<byte[]>
+     */
+    ResponseEntity<byte[]> exportGradesResponse(GradePageQueryDTO queryDTO);
 }

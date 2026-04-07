@@ -9,22 +9,14 @@ import com.lw.graduation.api.dto.document.DocumentReviewDTO;
 import com.lw.graduation.api.dto.document.DocumentUploadDTO;
 import com.lw.graduation.api.service.document.DocumentService;
 import com.lw.graduation.api.vo.document.DocumentVO;
-import com.lw.graduation.common.exception.BusinessException;
 import com.lw.graduation.common.response.Result;
-import com.lw.graduation.common.enums.FileFormatType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.InputStream;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 
 /**
  * 文档管理控制器
@@ -110,41 +102,7 @@ public class DocumentController {
     @Operation(summary = "下载文档")
     @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
-        Long userId = StpUtil.getLoginIdAsLong();
-
-        try (InputStream inputStream = documentService.downloadDocument(id, userId)) {
-            // 获取文档信息用于设置响应头
-            DocumentVO document = documentService.getDocumentById(id);
-            if (document == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // 读取文件内容
-            byte[] bytes = inputStream.readAllBytes();
-
-            // 设置响应头，使用 RFC 5987 标准编码文件名
-            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
-            HttpHeaders headers = new HttpHeaders();
-            // 根据文件类型设置 Content-Type
-            String contentType = getContentType(document.getOriginalFilename());
-            headers.setContentType(MediaType.parseMediaType(contentType));
-            // 使用 Content-Disposition: attachment 强制下载
-            headers.setContentDispositionFormData("attachment", null);
-            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename);
-            headers.setContentLength(bytes.length);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(bytes);
-
-        } catch (BusinessException e) {
-            // 权限验证失败，返回 403
-            log.warn("文档下载权限不足：文档 ID={}, 用户 ID={}, 原因：{}", id, userId, e.getMessage());
-            return ResponseEntity.status(403).build();
-        } catch (Exception e) {
-            log.error("文档下载失败：{}", id, e);
-            return ResponseEntity.internalServerError().build();
-        }
+        return documentService.downloadDocumentResponse(id);
     }
 
     /**
@@ -157,89 +115,7 @@ public class DocumentController {
     @Operation(summary = "预览文档")
     @SaCheckRole(value = {"system_admin", "department_admin", "teacher", "student"}, mode = SaMode.OR)
     public ResponseEntity<byte[]> previewDocument(@PathVariable Long id) {
-        Long userId = StpUtil.getLoginIdAsLong();
-
-        try (InputStream inputStream = documentService.downloadDocument(id, userId)) {
-            // 获取文档信息用于设置响应头
-            DocumentVO document = documentService.getDocumentById(id);
-            if (document == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // 读取文件内容
-            byte[] bytes = inputStream.readAllBytes();
-
-            // 设置响应头，使用 inline 以便浏览器预览
-            String filename = URLEncoder.encode(document.getOriginalFilename(), StandardCharsets.UTF_8).replace("+", "%20");
-            HttpHeaders headers = new HttpHeaders();
-            // 根据文件类型设置 Content-Type
-            String contentType = getContentType(document.getOriginalFilename());
-            headers.setContentType(MediaType.parseMediaType(contentType));
-            // 使用 Content-Disposition: inline 让浏览器尝试预览而不是下载
-            headers.setContentDispositionFormData("inline", null);
-            headers.set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + filename);
-            headers.setContentLength(bytes.length);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(bytes);
-
-        } catch (BusinessException e) {
-            // 权限验证失败，返回 403
-            log.warn("文档预览权限不足：文档 ID={}, 用户 ID={}, 原因：{}", id, userId, e.getMessage());
-            return ResponseEntity.status(403).build();
-        } catch (Exception e) {
-            log.error("文档预览失败：{}", id, e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * 根据文件名获取 Content-Type（复用 FileFormatType 枚举）
-     */
-    private String getContentType(String filename) {
-        if (filename == null) {
-            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        }
-
-        // 获取文件扩展名
-        int lastDotIndex = filename.lastIndexOf('.');
-        if (lastDotIndex <= 0 || lastDotIndex >= filename.length() - 1) {
-            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        }
-
-        String extension = filename.substring(lastDotIndex + 1).toLowerCase();
-
-        // 复用 FileFormatType 枚举获取 MIME 类型
-        FileFormatType fileType = FileFormatType.getByExtension(extension);
-        if (fileType != null) {
-            // 根据文件类别返回对应的 MIME 类型
-            return switch (fileType.getCategory()) {
-                case IMAGE -> switch (extension) {
-                    case "jpg", "jpeg" -> MediaType.IMAGE_JPEG_VALUE;
-                    case "png" -> MediaType.IMAGE_PNG_VALUE;
-                    case "gif" -> MediaType.IMAGE_GIF_VALUE;
-                    default -> MediaType.IMAGE_JPEG_VALUE;
-                };
-                case DOCUMENT -> switch (extension) {
-                    case "pdf" -> MediaType.APPLICATION_PDF_VALUE;
-                    case "txt", "md" -> MediaType.TEXT_PLAIN_VALUE;
-                    case "doc" -> "application/msword";
-                    case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                    case "xls" -> "application/vnd.ms-excel";
-                    case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                    default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
-                };
-                default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
-            };
-        }
-
-        // 特殊处理 CSV
-        if ("csv".equals(extension)) {
-            return "text/csv";
-        }
-
-        return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        return documentService.previewDocumentResponse(id);
     }
 
     /**

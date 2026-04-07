@@ -146,16 +146,6 @@ public class BizNotice implements Serializable {
     }
 
     /**
-     * 检查通知是否为最终状态（已发布或已撤回）
-     *
-     * @return 最终状态返回true
-     */
-    public boolean isFinalStatus() {
-        NoticeStatus status = IEnum.getByCode(NoticeStatus.class,this.status);
-        return status != null && status.isFinalStatus();
-    }
-
-    /**
      * 检查通知是否可以发布
      *
      * @return 可以发布返回true

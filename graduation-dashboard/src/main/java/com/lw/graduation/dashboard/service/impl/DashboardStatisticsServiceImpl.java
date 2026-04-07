@@ -7,6 +7,7 @@ import com.lw.graduation.api.service.dashboard.DashboardStatisticsService;
 import com.lw.graduation.domain.entity.grade.BizGrade;
 import com.lw.graduation.domain.entity.selection.BizSelection;
 import com.lw.graduation.domain.entity.topic.BizTopic;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.domain.enums.status.SelectionStatus;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.grade.BizGradeMapper;
@@ -51,7 +52,7 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
             LocalDateTime endTime = LocalDateTime.of(year, 12, 31, 23, 59, 59);
             gradeWrapper.between(BizGrade::getCreatedAt, startTime, endTime);
         }
-        gradeWrapper.eq(BizGrade::getIsDeleted, 0);
+        gradeWrapper.eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
 
         List<BizGrade> grades = bizGradeMapper.selectList(gradeWrapper);
 
@@ -101,7 +102,7 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
         // 1. 查询所有成绩记录，按年份分组
         LambdaQueryWrapper<BizGrade> gradeWrapper = new LambdaQueryWrapper<>();
         gradeWrapper.select(BizGrade::getCreatedAt)
-                   .eq(BizGrade::getIsDeleted, 0);
+                   .eq(BizGrade::getIsDeleted, IsDelete.NOT_DELETED.getCode());
         
         List<BizGrade> grades = bizGradeMapper.selectList(gradeWrapper);
         
@@ -122,7 +123,7 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
         if (departmentId != null) {
             topicWrapper.eq(BizTopic::getDepartmentId, departmentId);
         }
-        topicWrapper.eq(BizTopic::getIsDeleted, 0);
+        topicWrapper.eq(BizTopic::getIsDeleted, IsDelete.NOT_DELETED.getCode());
     
         List<BizTopic> allTopics = bizTopicMapper.selectList(topicWrapper);
     
@@ -141,7 +142,7 @@ public class DashboardStatisticsServiceImpl implements DashboardStatisticsServic
                 LambdaQueryWrapper<BizSelection> selectionWrapper = new LambdaQueryWrapper<>();
                 selectionWrapper.eq(BizSelection::getTopicId, t.getId())
                                .eq(BizSelection::getStatus, SelectionStatus.CONFIRMED.getCode())
-                               .eq(BizSelection::getIsDeleted, 0);
+                               .eq(BizSelection::getIsDeleted, IsDelete.NOT_DELETED.getCode());
                 return bizSelectionMapper.selectCount(selectionWrapper) > 0;
             })
             .count();

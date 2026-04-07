@@ -2,6 +2,7 @@ package com.lw.graduation.topic.service.internal;
 
 import com.lw.graduation.domain.entity.topic.BizTopic;
 import com.lw.graduation.common.enums.IEnum;
+import com.lw.graduation.domain.enums.common.IsDelete;
 import com.lw.graduation.domain.enums.status.TopicStatus;
 import com.lw.graduation.infrastructure.mapper.topic.BizTopicMapper;
 
@@ -35,7 +36,7 @@ public class TopicInternalService {
         log.debug("开始更新题目{} 状态为：{}", topicId, newStatusValue);
         
         BizTopic topic = bizTopicMapper.selectById(topicId);
-        if (topic == null || topic.getIsDeleted() == 1) {
+        if (topic == null || topic.getIsDeleted().equals(IsDelete.DELETED.getCode())) {
             logTopicNotFound(topicId);
             return;
         }
@@ -51,36 +52,6 @@ public class TopicInternalService {
             log.info("题目 [{}] 状态变化：{} -> {}", topicId, currentStatusDesc, newStatusDesc);
         } else {
             log.error("题目 [{}] 状态更新失败", topicId);
-        }
-    }
-    
-    /**
-     * 更新题目已选人数（带事务保护）
-     * 
-     * @param topicId 题目 ID
-     * @param increment 增量（通常为 1）
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public void updateSelectedCount(Long topicId, int increment) {
-        log.debug("更新题目 {} 已选人数，增量：{}", topicId, increment);
-        
-        BizTopic topic = bizTopicMapper.selectById(topicId);
-        if (topic == null || topic.getIsDeleted() == 1) {
-            logTopicNotFound(topicId);
-            return;
-        }
-        
-        // 更新已选人数
-        int newCount = topic.getSelectedCount() + increment;
-        topic.setSelectedCount(Math.max(0, newCount)); // 确保不为负数
-        
-        boolean updated = bizTopicMapper.updateById(topic) > 0;
-        
-        if (updated) {
-            log.info("题目 [{}] 选题人数更新：{} -> {}", 
-                    topicId, topic.getSelectedCount() - increment, topic.getSelectedCount());
-        } else {
-            log.error("题目 [{}] 选题人数更新失败", topicId);
         }
     }
     
