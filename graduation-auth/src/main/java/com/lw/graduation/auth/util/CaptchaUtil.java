@@ -61,7 +61,7 @@ public class CaptchaUtil {
         BufferedImage image = kaptchaProducer.createImage(text);
 
         String captchaKey = CacheConstants.KeyPrefix.CAPTCHA_PREFIX + IdUtil.simpleUUID();
-        cacheHelper.putToCache(captchaKey, text, 30);
+        cacheHelper.putToCache(captchaKey, text, CacheConstants.ExpireTime.CAPTCHA_EXPIRE);
 
         // 将图片转换为base64编码
         ByteArrayOutputStream os = new ByteArrayOutputStream();

@@ -42,7 +42,7 @@ public class BizGrade implements Serializable {
     private Long topicId;
 
     /**
-     * 成绩类型：1-指导教师评分，2-评阅教师评分，3-答辩成绩，4-综合成绩
+     * 成绩类型：0-开题报告，1-中期报告，2-毕业论文，3-综合成绩
      */
     @TableField("grade_type")
     private Integer gradeType;

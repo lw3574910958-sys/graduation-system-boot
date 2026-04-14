@@ -49,6 +49,8 @@ public class CacheConstants {
      */
     public static class ExpireTime {
         // 实际使用的过期时间
+        /** 验证码缓存过期时间：3 分钟  */
+        public static final int CAPTCHA_EXPIRE = 180;
         /** 院系信息缓存过期时间：2 小时 */
         public static final int DEPARTMENT_INFO_EXPIRE = 7200;
         /** 所有院系列表缓存过期时间：2 小时 */
